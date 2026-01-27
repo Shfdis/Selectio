@@ -1,0 +1,47 @@
+using Microsoft.EntityFrameworkCore;
+using auth.Models;
+
+namespace auth.Data;
+
+public class UserDbContext : DbContext
+{
+    public DbSet<VerifiedUser> Users { get; set; }
+    public DbSet<Token> Tokens { get; set; }
+
+    public UserDbContext(DbContextOptions<UserDbContext> options)
+        : base(options)
+    {
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<VerifiedUser>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Email).IsRequired();
+            entity.Property(e => e.Username).IsRequired();
+            entity.Property(e => e.Description).IsRequired();
+            entity.Property(e => e.PasswordHash).IsRequired();
+            entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.Username).IsUnique();
+        });
+
+        modelBuilder.Entity<Token>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.UserId).IsRequired();
+            entity.Property(e => e.JwtToken).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.HasIndex(e => e.JwtToken);
+            entity.HasIndex(e => e.UserId);
+
+            // Configure cascade delete: when a user is deleted, all their tokens are deleted
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+}

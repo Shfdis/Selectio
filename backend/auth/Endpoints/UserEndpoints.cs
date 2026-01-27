@@ -1,0 +1,306 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using auth.Data;
+using auth.Models;
+using auth.Services;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+    
+namespace auth.Endpoints;
+
+public static class UserEndpoints
+{
+    public static void MapUserEndpoints(this WebApplication app)
+    {
+        // POST /user - Store user in pending_emails table and send verification email
+        app.MapPost(
+                "/user",
+                async (User user, PendingEmailDbContext dbContext, IEmailService emailService, CancellationToken cancellationToken) =>
+                {
+                    var uuid = Guid.NewGuid();
+                    var timestamp = DateTime.UtcNow;
+
+                    // Hash the password before storing
+                    var passwordHash = BCrypt.Net.BCrypt.HashPassword(user.password);
+
+                    var pendingEmail = new PendingEmail
+                    {
+                        Uuid = uuid,
+                        Email = user.email,
+                        Username = user.username,
+                        Description = user.description,
+                        PasswordHash = passwordHash,
+                        Timestamp = timestamp,
+                    };
+
+                    dbContext.PendingEmails.Add(pendingEmail);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+
+                    // Send verification email (fire and forget - don't fail registration if email fails)
+                    // This runs in background so registration response is not delayed
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await emailService.SendVerificationEmailAsync(
+                                user.email,
+                                user.username,
+                                uuid,
+                                CancellationToken.None
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            // Log error but don't fail the registration
+                            // Email sending failures should not prevent user registration
+                            // In production, consider using a proper logging framework
+                            Console.WriteLine($"[EmailService] Failed to send verification email to {user.email}: {ex.Message}");
+                        }
+                    });
+
+                    return Results.Ok(
+                        new { uuid = uuid, message = "User registration pending email verification. Please check your email for the verification link." }
+                    );
+                }
+            )
+            .WithName("RegisterUser")
+            .WithOpenApi();
+
+        // POST /user/verify/{uuid} - Verify UUID and add user to PostgreSQL users table
+        app.MapPost(
+                "/user/verify/{uuid}",
+                async (Guid uuid, PendingEmailDbContext pendingDb, UserDbContext userDb) =>
+                {
+                    var pendingEmail = await pendingDb.PendingEmails.FirstOrDefaultAsync(p =>
+                        p.Uuid == uuid
+                    );
+
+                    if (pendingEmail == null)
+                    {
+                        return Results.NotFound(new { message = "Invalid verification UUID" });
+                    }
+
+                    // Create verified user (password is already hashed)
+                    var verifiedUser = new VerifiedUser
+                    {
+                        Email = pendingEmail.Email,
+                        Username = pendingEmail.Username,
+                        Description = pendingEmail.Description,
+                        PasswordHash = pendingEmail.PasswordHash,
+                        CreatedAt = DateTime.UtcNow,
+                    };
+
+                    try
+                    {
+                        userDb.Users.Add(verifiedUser);
+                        await userDb.SaveChangesAsync();
+
+                        // Remove from pending emails
+                        pendingDb.PendingEmails.Remove(pendingEmail);
+                        await pendingDb.SaveChangesAsync();
+
+                        return Results.Ok(new { message = "User verified and created successfully" });
+                    }
+                    catch (DbUpdateException)
+                    {
+                        // Handle duplicate email/username
+                        return Results.BadRequest(
+                            new { message = "User with this email or username already exists" }
+                        );
+                    }
+                }
+            )
+            .WithName("VerifyUser")
+            .WithOpenApi();
+
+        // POST /user/verify - Authenticate user with email and password, return JWT token
+        app.MapPost(
+                "/user/verify",
+                async (
+                    LoginRequest loginRequest,
+                    UserDbContext userDb,
+                    IConfiguration configuration
+                ) =>
+                {
+                    // Find user by email
+                    var user = await userDb.Users.FirstOrDefaultAsync(u =>
+                        u.Email == loginRequest.email
+                    );
+
+                    if (user == null)
+                    {
+                        return Results.Unauthorized();
+                    }
+
+                    // Verify password
+                    if (!BCrypt.Net.BCrypt.Verify(loginRequest.password, user.PasswordHash))
+                    {
+                        return Results.Unauthorized();
+                    }
+
+                    // Generate JWT token
+                    var jwtSecret = configuration["Jwt:SecretKey"]
+                        ?? "your-super-secret-key-change-this-in-production-minimum-32-characters";
+                    var jwtIssuer = configuration["Jwt:Issuer"] ?? "SelectioAuth";
+                    var jwtAudience = configuration["Jwt:Audience"] ?? "SelectioUsers";
+                    var jwtExpiryMinutes = int.Parse(
+                        configuration["Jwt:ExpiryMinutes"] ?? "1440"
+                    ); // Default 24 hours
+
+                    var tokenHandler = new JwtSecurityTokenHandler();
+                    var key = Encoding.UTF8.GetBytes(jwtSecret);
+                    var expiresAt = DateTime.UtcNow.AddMinutes(jwtExpiryMinutes);
+
+                    var tokenDescriptor = new SecurityTokenDescriptor
+                    {
+                        Subject = new ClaimsIdentity(
+                            new[]
+                            {
+                                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                                new Claim(ClaimTypes.Email, user.Email),
+                                new Claim(ClaimTypes.Name, user.Username)
+                            }
+                        ),
+                        Expires = expiresAt,
+                        Issuer = jwtIssuer,
+                        Audience = jwtAudience,
+                        SigningCredentials = new SigningCredentials(
+                            new SymmetricSecurityKey(key),
+                            SecurityAlgorithms.HmacSha256Signature
+                        )
+                    };
+
+                    var token = tokenHandler.CreateToken(tokenDescriptor);
+                    var tokenString = tokenHandler.WriteToken(token);
+
+                    // Store token in database
+                    var dbToken = new Token
+                    {
+                        UserId = user.Id,
+                        JwtToken = tokenString,
+                        CreatedAt = DateTime.UtcNow,
+                        ExpiresAt = expiresAt,
+                        IsRevoked = false
+                    };
+
+                    userDb.Tokens.Add(dbToken);
+                    await userDb.SaveChangesAsync();
+
+                    return Results.Ok(
+                        new
+                        {
+                            token = tokenString,
+                            expiresAt = expiresAt,
+                            user = new
+                            {
+                                id = user.Id,
+                                email = user.Email,
+                                username = user.Username
+                            }
+                        }
+                    );
+                }
+            )
+            .WithName("LoginUser")
+            .WithOpenApi();
+
+        // GET /user/identify - Get user data from JWT token
+        app.MapGet(
+                "/user/identify",
+                async (HttpContext httpContext, UserDbContext userDb, IConfiguration configuration) =>
+                {
+                    // Prefer gateway-provided identity when accompanied by the shared internal token.
+                    // This allows the gateway to be the single enforcement point without forwarding client JWT.
+                    var userId = TryGetGatewayUserId(httpContext, configuration) ?? TryGetJwtUserId(httpContext);
+                    if (userId is null)
+                    {
+                        return Results.Unauthorized();
+                    }
+
+                    // Fetch user from database
+                    var user = await userDb.Users.FirstOrDefaultAsync(u => u.Id == userId.Value);
+                    if (user == null)
+                    {
+                        return Results.NotFound(new { message = "User not found" });
+                    }
+
+                    return Results.Ok(
+                        new
+                        {
+                            id = user.Id,
+                            email = user.Email,
+                            username = user.Username,
+                            description = user.Description
+                        }
+                    );
+                }
+            )
+            .WithName("IdentifyUser")
+            .WithOpenApi();
+
+        // DELETE /user/delete - Delete user account and all associated tokens (cascade delete)
+        app.MapDelete(
+                "/user/delete",
+                async (HttpContext httpContext, UserDbContext userDb, IConfiguration configuration) =>
+                {
+                    var userId = TryGetGatewayUserId(httpContext, configuration) ?? TryGetJwtUserId(httpContext);
+                    if (userId is null)
+                    {
+                        return Results.Unauthorized();
+                    }
+
+                    // Fetch user from database
+                    var user = await userDb.Users.FirstOrDefaultAsync(u => u.Id == userId.Value);
+                    if (user == null)
+                    {
+                        return Results.NotFound(new { message = "User not found" });
+                    }
+
+                    // Delete user - tokens will be cascade deleted automatically
+                    userDb.Users.Remove(user);
+                    await userDb.SaveChangesAsync();
+
+                    return Results.Ok(new { message = "User account deleted successfully" });
+                }
+            )
+            .WithName("DeleteUser")
+            .WithOpenApi();
+    }
+
+    private const string GatewayUserIdHeader = "X-User-Id";
+    private const string GatewayInternalTokenHeader = "X-Gateway-Internal-Token";
+
+    private static int? TryGetGatewayUserId(HttpContext httpContext, IConfiguration configuration)
+    {
+        var expected = configuration["Gateway:InternalToken"] ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(expected))
+        {
+            return null;
+        }
+
+        if (!httpContext.Request.Headers.TryGetValue(GatewayInternalTokenHeader, out var provided) ||
+            !string.Equals(provided.ToString(), expected, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        if (!httpContext.Request.Headers.TryGetValue(GatewayUserIdHeader, out var userIdHeader))
+        {
+            return null;
+        }
+
+        return int.TryParse(userIdHeader.ToString(), out var userId) ? userId : null;
+    }
+
+    private static int? TryGetJwtUserId(HttpContext httpContext)
+    {
+        var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+        {
+            return null;
+        }
+
+        return userId;
+    }
+}

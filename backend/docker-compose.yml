@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: selectio_gateway
+    ports:
+      - "8000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Jwt__SecretKey=***REMOVED***
+      - Jwt__Issuer=SelectioAuth
+      - Jwt__Audience=SelectioUsers
+      - Gateway__InternalToken=***REMOVED***
+    depends_on:
+      auth:
+        condition: service_started
+      crud:
+        condition: service_started
+    networks:
+      - selectio_internal
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: selectio_postgres
+    environment:
+      POSTGRES_DB: selectio_users
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - selectio_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  crud_postgres:
+    image: postgres:16-alpine
+    container_name: selectio_crud_postgres
+    environment:
+      POSTGRES_DB: selectio_crud
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - crud_postgres_data:/var/lib/postgresql/data
+    networks:
+      - selectio_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile
+    container_name: selectio_auth
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__PendingEmailsDb=Data Source=/data/pending_emails.db
+      - ConnectionStrings__UsersDb=Host=postgres;Database=selectio_users;Username=postgres;Password=postgres
+      - Gateway__InternalToken=***REMOVED***
+    volumes:
+      - sqlite_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - selectio_internal
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+
+  crud:
+    build:
+      context: ./crud
+      dockerfile: Dockerfile
+    container_name: selectio_crud
+    ports:
+      - "8090:8090"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8090
+      - ConnectionStrings__CrudDb=Host=crud_postgres;Database=selectio_crud;Username=postgres;Password=postgres
+      - Gateway__InternalToken=***REMOVED***
+    depends_on:
+      crud_postgres:
+        condition: service_healthy
+    networks:
+      - selectio_internal
+
+networks:
+  selectio_internal:
+    driver: bridge
+    # PostgreSQL is only accessible from within this network (no ports exposed)
+    enable_ipv6: false
+
+volumes:
+  postgres_data:
+    driver: local
+  sqlite_data:
+    driver: local
+  crud_postgres_data:
+    driver: local
