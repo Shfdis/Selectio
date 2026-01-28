@@ -77,14 +77,8 @@ var untrustedHeadersToStrip = new[]
 };
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapGet("/version", () =>
-{
-    var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0";
-    return Results.Ok(new { service = "gateway", version });
-});
-app.MapGet("/api/version", () =>
 {
     var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0";
     return Results.Ok(new { service = "gateway", version });

@@ -7,17 +7,23 @@ public sealed class CrudAuthzClient(IHttpClientFactory clients, IConfiguration c
     private readonly IHttpClientFactory _clients = clients;
     private readonly IConfiguration _configuration = configuration;
 
-    public async Task<PostInfo?> FetchPostInfo(HttpContext http, int postId)
+    private HttpRequestMessage CreateInternalRequest(HttpContext http, string path)
     {
-        var crud = _clients.CreateClient("crud-internal");
         var internalToken = _configuration["Gateway:InternalToken"] ?? string.Empty;
 
-        var req = new HttpRequestMessage(HttpMethod.Get, $"/internal/posts/{postId}");
+        var req = new HttpRequestMessage(HttpMethod.Get, path);
         req.Headers.TryAddWithoutValidation(GatewayHeaders.InternalToken, internalToken);
         req.Headers.TryAddWithoutValidation(GatewayHeaders.RequestId, http.Request.Headers[GatewayHeaders.RequestId].ToString());
+        return req;
+    }
 
+    private async Task<T?> SendRequestAsync<T>(HttpContext http, string path, bool allowNotFound = true) where T : class
+    {
+        var req = CreateInternalRequest(http, path);
+        var crud = _clients.CreateClient("crud-internal");
         var resp = await crud.SendAsync(req, http.RequestAborted);
-        if (resp.StatusCode == HttpStatusCode.NotFound)
+
+        if (resp.StatusCode == HttpStatusCode.NotFound && allowNotFound)
         {
             return null;
         }
@@ -27,48 +33,27 @@ public sealed class CrudAuthzClient(IHttpClientFactory clients, IConfiguration c
             return null;
         }
 
-        return await resp.Content.ReadFromJsonAsync<PostInfo>(cancellationToken: http.RequestAborted);
+        return await resp.Content.ReadFromJsonAsync<T>(cancellationToken: http.RequestAborted);
+    }
+
+    public async Task<PostInfo?> FetchPostInfo(HttpContext http, int postId)
+    {
+        return await SendRequestAsync<PostInfo>(http, $"/internal/posts/{postId}");
     }
 
     public async Task<PostCommentInfo?> FetchPostCommentInfo(HttpContext http, int commentId)
     {
-        var crud = _clients.CreateClient("crud-internal");
-        var internalToken = _configuration["Gateway:InternalToken"] ?? string.Empty;
-
-        var req = new HttpRequestMessage(HttpMethod.Get, $"/internal/post-comments/{commentId}");
-        req.Headers.TryAddWithoutValidation(GatewayHeaders.InternalToken, internalToken);
-        req.Headers.TryAddWithoutValidation(GatewayHeaders.RequestId, http.Request.Headers[GatewayHeaders.RequestId].ToString());
-
-        var resp = await crud.SendAsync(req, http.RequestAborted);
-        if (resp.StatusCode == HttpStatusCode.NotFound)
-        {
-            return null;
-        }
-
-        if (!resp.IsSuccessStatusCode)
-        {
-            return null;
-        }
-
-        return await resp.Content.ReadFromJsonAsync<PostCommentInfo>(cancellationToken: http.RequestAborted);
+        return await SendRequestAsync<PostCommentInfo>(http, $"/internal/post-comments/{commentId}");
     }
 
     public async Task<bool> IsModerator(HttpContext http, int userId, int communityId)
     {
+        var req = CreateInternalRequest(http, $"/internal/communities/{communityId}/members/{userId}");
         var crud = _clients.CreateClient("crud-internal");
-        var internalToken = _configuration["Gateway:InternalToken"] ?? string.Empty;
-
-        var req = new HttpRequestMessage(HttpMethod.Get, $"/internal/communities/{communityId}/members/{userId}");
-        req.Headers.TryAddWithoutValidation(GatewayHeaders.InternalToken, internalToken);
-        req.Headers.TryAddWithoutValidation(GatewayHeaders.RequestId, http.Request.Headers[GatewayHeaders.RequestId].ToString());
-
         var resp = await crud.SendAsync(req, http.RequestAborted);
-        if (resp.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
-        {
-            return false;
-        }
 
-        if (!resp.IsSuccessStatusCode)
+        if (resp.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized ||
+            !resp.IsSuccessStatusCode)
         {
             return false;
         }

@@ -6,6 +6,12 @@ namespace gateway;
 
 public static class GatewayRequestUtils
 {
+    public static void PrepareRequest(HttpContext http, IReadOnlyCollection<string> headersToStrip)
+    {
+        AddOrPreserveRequestId(http);
+        StripUntrustedHeaders(http, headersToStrip);
+    }
+
     public static void AddOrPreserveRequestId(HttpContext http)
     {
         if (!http.Request.Headers.TryGetValue(GatewayHeaders.RequestId, out var value) || string.IsNullOrWhiteSpace(value.ToString()))
@@ -27,6 +33,12 @@ public static class GatewayRequestUtils
 
     public static IResult Forbidden(string message) =>
         Results.Json(new { error = new { code = "forbidden", message } }, statusCode: StatusCodes.Status403Forbidden);
+
+    public static async Task<IResult> RequireUserOr401(HttpContext http)
+    {
+        var identity = await RequireUser(http);
+        return identity is null ? Unauthorized("missing_or_invalid_token") : Results.Ok(identity);
+    }
 
     public static async Task<GatewayIdentity?> RequireUser(HttpContext http)
     {

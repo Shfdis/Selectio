@@ -14,10 +14,9 @@ public static class CrudServiceGateway
             CrudAuthzClient authzClient
         ) =>
         {
-            GatewayRequestUtils.AddOrPreserveRequestId(http);
-            GatewayRequestUtils.StripUntrustedHeaders(http, untrustedHeadersToStrip);
+            GatewayRequestUtils.PrepareRequest(http, untrustedHeadersToStrip);
 
-            // Non-/api routes are not part of the public surface (keep minimal).
+            // Non-/api routes are not part of the public surface.
             if (!http.Request.Path.StartsWithSegments("/api"))
             {
                 await Results.NotFound().ExecuteAsync(http);
@@ -80,27 +79,20 @@ public static class CrudServiceGateway
 
             if (requirement == AuthzRequirement.Owner && identity is not null)
             {
-                var ok = await RequireOwner(authzClient, http, identity.UserId, path);
-                if (!ok)
+                var error = await RequireOwnerOr403(authzClient, http, identity.UserId, path);
+                if (error is not null)
                 {
-                    await GatewayRequestUtils.Forbidden("not_owner").ExecuteAsync(http);
+                    await error.ExecuteAsync(http);
                     return;
                 }
             }
 
             if (requirement == AuthzRequirement.Moderator && identity is not null)
             {
-                var communityId = await authzClient.ResolveCommunityIdForModeratorRequirement(http, path);
-                if (communityId is null)
+                var error = await RequireModeratorOr403(authzClient, http, identity.UserId, path);
+                if (error is not null)
                 {
-                    await Results.NotFound().ExecuteAsync(http);
-                    return;
-                }
-
-                var ok = await authzClient.IsModerator(http, identity.UserId, communityId.Value);
-                if (!ok)
-                {
-                    await GatewayRequestUtils.Forbidden("not_moderator").ExecuteAsync(http);
+                    await error.ExecuteAsync(http);
                     return;
                 }
             }
@@ -117,23 +109,44 @@ public static class CrudServiceGateway
         });
     }
 
-    private static async Task<bool> RequireOwner(CrudAuthzClient authzClient, HttpContext http, int userId, string path)
+    private static async Task<IResult?> RequireOwnerOr403(CrudAuthzClient authzClient, HttpContext http, int userId, string path)
     {
         // Posts: /api/posts/{id}
         if (TryGetSingleSegmentId(path, "/api/posts/", out var postId))
         {
             var info = await authzClient.FetchPostInfo(http, postId);
-            return info is not null && info.AuthorUserId == userId;
+            if (info is null) return Results.NotFound();
+            if (info.AuthorUserId != userId) return GatewayRequestUtils.Forbidden("not_owner");
+            return null;
         }
 
         // Comments: /api/comments/{id}
         if (TryGetSingleSegmentId(path, "/api/comments/", out var commentId))
         {
             var info = await authzClient.FetchPostCommentInfo(http, commentId);
-            return info is not null && info.AuthorUserId == userId;
+            if (info is null) return Results.NotFound();
+            if (info.AuthorUserId != userId) return GatewayRequestUtils.Forbidden("not_owner");
+            return null;
         }
 
-        return false;
+        return GatewayRequestUtils.Forbidden("not_owner");
+    }
+
+    private static async Task<IResult?> RequireModeratorOr403(CrudAuthzClient authzClient, HttpContext http, int userId, string path)
+    {
+        var communityId = await authzClient.ResolveCommunityIdForModeratorRequirement(http, path);
+        if (communityId is null)
+        {
+            return Results.NotFound();
+        }
+
+        var ok = await authzClient.IsModerator(http, userId, communityId.Value);
+        if (!ok)
+        {
+            return GatewayRequestUtils.Forbidden("not_moderator");
+        }
+
+        return null;
     }
 
     private static bool TryGetSingleSegmentId(string path, string prefix, out int id)

@@ -18,72 +18,10 @@ public static class PostEndpoints
         var posts = app.MapGroup("/api/posts").WithTags("Posts");
 
         posts.MapPost("", async (HttpContext http, CrudDbContext db, CreatePostRequest body) =>
-        {
-            if (!GatewayIdentity.TryGetUserId(http, out var userId))
-            {
-                return Results.Unauthorized();
-            }
-
-            if (string.IsNullOrWhiteSpace(body.Content))
-            {
-                return Results.BadRequest(new { message = "content is required" });
-            }
-
-            var communityExists = await db.Communities.AnyAsync(c => c.Id == body.CommunityId);
-            if (!communityExists) return Results.NotFound(new { message = "community not found" });
-
-            var bookExists = await db.Books.AnyAsync(b => b.Id == body.BookId);
-            if (!bookExists) return Results.NotFound(new { message = "book not found" });
-
-            var post = new Post
-            {
-                CommunityId = body.CommunityId,
-                BookId = body.BookId,
-                Content = body.Content.Trim(),
-                AuthorUserId = userId,
-                Status = PostStatus.Published,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            db.Posts.Add(post);
-            await db.SaveChangesAsync();
-
-            return Results.Ok(ToDto(post));
-        });
+            await CreatePostAsync(http, db, body, PostStatus.Published));
 
         posts.MapPost("/suggest", async (HttpContext http, CrudDbContext db, CreatePostRequest body) =>
-        {
-            if (!GatewayIdentity.TryGetUserId(http, out var userId))
-            {
-                return Results.Unauthorized();
-            }
-
-            if (string.IsNullOrWhiteSpace(body.Content))
-            {
-                return Results.BadRequest(new { message = "content is required" });
-            }
-
-            var communityExists = await db.Communities.AnyAsync(c => c.Id == body.CommunityId);
-            if (!communityExists) return Results.NotFound(new { message = "community not found" });
-
-            var bookExists = await db.Books.AnyAsync(b => b.Id == body.BookId);
-            if (!bookExists) return Results.NotFound(new { message = "book not found" });
-
-            var post = new Post
-            {
-                CommunityId = body.CommunityId,
-                BookId = body.BookId,
-                Content = body.Content.Trim(),
-                AuthorUserId = userId,
-                Status = PostStatus.Suggested,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            db.Posts.Add(post);
-            await db.SaveChangesAsync();
-
-            return Results.Ok(ToDto(post));
-        });
+            await CreatePostAsync(http, db, body, PostStatus.Suggested));
 
         posts.MapGet("/{id:int}", async (HttpContext http, CrudDbContext db, int id) =>
         {
@@ -116,30 +54,24 @@ public static class PostEndpoints
 
         posts.MapPut("/{id:int}", async (HttpContext http, CrudDbContext db, int id, UpdatePostRequest body) =>
         {
-            if (!GatewayIdentity.TryGetUserId(http, out _))
-            {
-                return Results.Unauthorized();
-            }
+            var (_, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
 
-            if (string.IsNullOrWhiteSpace(body.Content))
-            {
-                return Results.BadRequest(new { message = "content is required" });
-            }
+            var contentError = EndpointHelpers.RequireContent(body.Content);
+            if (contentError is not null) return contentError;
 
             var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id);
             if (post is null) return Results.NotFound();
 
-            post.Content = body.Content.Trim();
+            post.Content = body.Content!.Trim();
             await db.SaveChangesAsync();
             return Results.Ok(ToDto(post));
         });
 
         posts.MapDelete("/{id:int}", async (HttpContext http, CrudDbContext db, int id) =>
         {
-            if (!GatewayIdentity.TryGetUserId(http, out _))
-            {
-                return Results.Unauthorized();
-            }
+            var (_, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
 
             var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id);
             if (post is null) return Results.NotFound();
@@ -151,11 +83,7 @@ public static class PostEndpoints
 
         app.MapGet("/api/communities/{id:int}/posts", async (CrudDbContext db, int id, int? page, int? pageSize) =>
         {
-            var p = page.GetValueOrDefault(1);
-            var ps = pageSize.GetValueOrDefault(20);
-            if (p < 1) p = 1;
-            if (ps < 1) ps = 1;
-            if (ps > 100) ps = 100;
+            var (p, ps) = EndpointHelpers.NormalizePagination(page, pageSize, defaultPageSize: 20, maxPageSize: 100);
 
             var items = await db.Posts
                 .Where(post => post.CommunityId == id && post.Status == PostStatus.Published)
@@ -178,6 +106,36 @@ public static class PostEndpoints
         }).WithTags("Posts");
 
         return app;
+    }
+
+    private static async Task<IResult> CreatePostAsync(HttpContext http, CrudDbContext db, CreatePostRequest body, PostStatus status)
+    {
+        var (userId, error) = EndpointHelpers.RequireUserId(http);
+        if (error is not null) return error;
+
+        var contentError = EndpointHelpers.RequireContent(body.Content);
+        if (contentError is not null) return contentError;
+
+        var communityExists = await db.Communities.AnyAsync(c => c.Id == body.CommunityId);
+        if (!communityExists) return Results.NotFound(new { message = "community not found" });
+
+        var bookExists = await db.Books.AnyAsync(b => b.Id == body.BookId);
+        if (!bookExists) return Results.NotFound(new { message = "book not found" });
+
+        var post = new Post
+        {
+            CommunityId = body.CommunityId,
+            BookId = body.BookId,
+            Content = body.Content!.Trim(),
+            AuthorUserId = userId,
+            Status = status,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        db.Posts.Add(post);
+        await db.SaveChangesAsync();
+
+        return Results.Ok(ToDto(post));
     }
 
     private static PostDto ToDto(Post post) =>

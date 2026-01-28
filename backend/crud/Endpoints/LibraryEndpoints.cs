@@ -15,10 +15,8 @@ public static class LibraryEndpoints
     {
         app.MapPost("/api/books/{id:int}/library", async (HttpContext http, CrudDbContext db, int id, AddToLibraryRequest? body) =>
         {
-            if (!GatewayIdentity.TryGetUserId(http, out var userId))
-            {
-                return Results.Unauthorized();
-            }
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
 
             var exists = await db.Books.AnyAsync(b => b.Id == id);
             if (!exists)
@@ -50,10 +48,8 @@ public static class LibraryEndpoints
 
         app.MapPut("/api/books/{id:int}/library", async (HttpContext http, CrudDbContext db, int id, UpdateLibraryStatusRequest body) =>
         {
-            if (!GatewayIdentity.TryGetUserId(http, out var userId))
-            {
-                return Results.Unauthorized();
-            }
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
 
             var userBook = await db.UserBooks.FirstOrDefaultAsync(x => x.UserId == userId && x.BookId == id);
             if (userBook is null)
@@ -75,10 +71,8 @@ public static class LibraryEndpoints
 
         app.MapDelete("/api/books/{id:int}/library", async (HttpContext http, CrudDbContext db, int id) =>
         {
-            if (!GatewayIdentity.TryGetUserId(http, out var userId))
-            {
-                return Results.Unauthorized();
-            }
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
 
             var userBook = await db.UserBooks.FirstOrDefaultAsync(x => x.UserId == userId && x.BookId == id);
             if (userBook is null)
@@ -94,10 +88,8 @@ public static class LibraryEndpoints
 
         app.MapPut("/api/books/{id:int}/rate", async (HttpContext http, CrudDbContext db, int id, SetRatingRequest body) =>
         {
-            if (!GatewayIdentity.TryGetUserId(http, out var userId))
-            {
-                return Results.Unauthorized();
-            }
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
 
             if (body.Rating is < 1 or > 5)
             {
@@ -124,11 +116,7 @@ public static class LibraryEndpoints
 
         app.MapGet("/api/users/{id:int}/books", async (CrudDbContext db, int id, LibraryStatus? status, int? page, int? pageSize) =>
         {
-            var p = page.GetValueOrDefault(1);
-            var ps = pageSize.GetValueOrDefault(20);
-            if (p < 1) p = 1;
-            if (ps < 1) ps = 1;
-            if (ps > 100) ps = 100;
+            var (p, ps) = EndpointHelpers.NormalizePagination(page, pageSize, defaultPageSize: 20, maxPageSize: 100);
 
             var q = db.UserBooks
                 .Where(ub => ub.UserId == id)

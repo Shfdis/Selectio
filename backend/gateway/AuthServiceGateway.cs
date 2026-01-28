@@ -10,8 +10,7 @@ public static class AuthServiceGateway
 
         authGroup.MapPost("/register", async (HttpContext http, IHttpForwarder forwarder, HttpMessageInvoker invoker, GatewayProxy proxy) =>
         {
-            GatewayRequestUtils.AddOrPreserveRequestId(http);
-            GatewayRequestUtils.StripUntrustedHeaders(http, untrustedHeadersToStrip);
+            GatewayRequestUtils.PrepareRequest(http, untrustedHeadersToStrip);
 
             await proxy.ProxyRaw(
                 http,
@@ -25,8 +24,7 @@ public static class AuthServiceGateway
 
         authGroup.MapPost("/login", async (HttpContext http, IHttpForwarder forwarder, HttpMessageInvoker invoker, GatewayProxy proxy) =>
         {
-            GatewayRequestUtils.AddOrPreserveRequestId(http);
-            GatewayRequestUtils.StripUntrustedHeaders(http, untrustedHeadersToStrip);
+            GatewayRequestUtils.PrepareRequest(http, untrustedHeadersToStrip);
 
             await proxy.ProxyRaw(
                 http,
@@ -41,8 +39,7 @@ public static class AuthServiceGateway
         // Support browser-friendly GET verification by converting it to POST to the auth service.
         authGroup.MapGet("/verify/{uuid}", async (HttpContext http, IHttpClientFactory clients) =>
         {
-            GatewayRequestUtils.AddOrPreserveRequestId(http);
-            GatewayRequestUtils.StripUntrustedHeaders(http, untrustedHeadersToStrip);
+            GatewayRequestUtils.PrepareRequest(http, untrustedHeadersToStrip);
 
             var uuid = http.Request.RouteValues["uuid"]?.ToString();
             if (string.IsNullOrWhiteSpace(uuid))
@@ -60,8 +57,7 @@ public static class AuthServiceGateway
 
         authGroup.MapPost("/verify/{uuid}", async (HttpContext http, IHttpForwarder forwarder, HttpMessageInvoker invoker, GatewayProxy proxy) =>
         {
-            GatewayRequestUtils.AddOrPreserveRequestId(http);
-            GatewayRequestUtils.StripUntrustedHeaders(http, untrustedHeadersToStrip);
+            GatewayRequestUtils.PrepareRequest(http, untrustedHeadersToStrip);
 
             var uuid = http.Request.RouteValues["uuid"]?.ToString() ?? string.Empty;
             await proxy.ProxyRaw(
@@ -98,8 +94,7 @@ public static class AuthServiceGateway
 
         authGroup.MapDelete("/me", async (HttpContext http, IHttpForwarder forwarder, HttpMessageInvoker invoker, GatewayProxy proxy) =>
         {
-            GatewayRequestUtils.AddOrPreserveRequestId(http);
-            GatewayRequestUtils.StripUntrustedHeaders(http, untrustedHeadersToStrip);
+            GatewayRequestUtils.PrepareRequest(http, untrustedHeadersToStrip);
 
             var identity = await GatewayRequestUtils.RequireUser(http);
             if (identity is null)
