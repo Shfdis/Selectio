@@ -7,22 +7,6 @@ from typing import Dict, Optional, Tuple
 
 
 def get_verification_uuid_from_db(email: str, container_name: str = "selectio_auth", max_retries: int = 3) -> str:
-    """
-    Retrieve the verification UUID from the SQLite database for a given email.
-    Uses docker exec to query the database inside the auth container.
-    
-    Args:
-        email: The email address to look up
-        container_name: The Docker container name (default: selectio_auth)
-        max_retries: Maximum number of retry attempts (default: 3)
-    
-    Returns:
-        The UUID string for the pending email verification
-    
-    Raises:
-        RuntimeError: If docker exec fails or database query fails
-        ValueError: If no pending email found for the given email
-    """
     import time
     
     # Escape single quotes in email for SQL query
@@ -81,10 +65,6 @@ def get_verification_uuid_from_db(email: str, container_name: str = "selectio_au
 
 
 def register_user(base_url: str, email: str, username: str, password: str, description: str = "Test user") -> Dict:
-    """
-    Register a new user. Returns only the response data (no UUID).
-    Use register_user_and_get_uuid() if you need the verification UUID.
-    """
     user_data = {
         "email": email,
         "username": username,
@@ -103,11 +83,6 @@ def register_user(base_url: str, email: str, username: str, password: str, descr
 
 
 def register_user_and_get_uuid(base_url: str, email: str, username: str, password: str, description: str = "Test user", container_name: str = "selectio_auth") -> Tuple[Dict, str]:
-    """
-    Register a new user and retrieve the verification UUID from the database.
-    This is a convenience function for tests that need the UUID immediately.
-    The function includes retry logic to handle database write timing.
-    """
     data = register_user(base_url, email, username, password, description)
     # get_verification_uuid_from_db has built-in retry logic, so no need for extra sleep
     uuid = get_verification_uuid_from_db(email, container_name)
