@@ -5,6 +5,7 @@ import uuid as uuid_lib
 
 import pytest
 import requests
+from helpers import get_verification_uuid_from_db
 
 if os.environ.get("SELECTIO_COMPOSE_FILE") != "docker-compose.gateway.yml":
     pytest.skip("gateway-only tests (set SELECTIO_COMPOSE_FILE=docker-compose.gateway.yml)", allow_module_level=True)
@@ -18,8 +19,10 @@ def _register_via_gateway(base_url: str, email: str, username: str, password: st
     )
     assert resp.status_code == 200, resp.text
     data = resp.json()
-    assert "uuid" in data, data
-    return data["uuid"]
+    # UUID should NOT be in response (security requirement)
+    assert "uuid" not in data, "UUID should not be returned in registration response"
+    # Get UUID from database instead (has built-in retry logic)
+    return get_verification_uuid_from_db(email)
 
 
 def _verify_via_gateway(base_url: str, verification_uuid: str) -> None:

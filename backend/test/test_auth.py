@@ -4,9 +4,9 @@ import pytest
 import requests
 import uuid as uuid_lib
 from helpers import (
-    register_user, verify_user, login_user, identify_user,
+    register_user, register_user_and_get_uuid, verify_user, login_user, identify_user,
     register_and_verify_user, register_verify_and_login,
-    generate_unique_email, generate_unique_username
+    generate_unique_email, generate_unique_username, get_verification_uuid_from_db
 )
 
 
@@ -32,7 +32,8 @@ class TestAuthService:
         
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         data = response.json()
-        assert "uuid" in data
+        # Verify UUID is NOT in response (security requirement)
+        assert "uuid" not in data, "UUID should not be returned in registration response"
         assert "message" in data
         assert "User registration pending email verification" in data["message"]
     
@@ -103,7 +104,8 @@ class TestAuthService:
             timeout=10
         )
         assert reg_response.status_code == 200
-        verification_uuid = reg_response.json()["uuid"]
+        # Get UUID from database instead of response
+        verification_uuid = get_verification_uuid_from_db(unique_email)
         
         # Now verify
         response = requests.post(
@@ -143,7 +145,8 @@ class TestAuthService:
             timeout=10
         )
         assert reg_response1.status_code == 200
-        uuid1 = reg_response1.json()["uuid"]
+        # Get UUID from database
+        uuid1 = get_verification_uuid_from_db(unique_email)
         
         # Verify first time - should succeed
         verify_response1 = requests.post(
@@ -166,7 +169,8 @@ class TestAuthService:
             timeout=10
         )
         assert reg_response2.status_code == 200
-        uuid2 = reg_response2.json()["uuid"]
+        # Get UUID from database for second registration
+        uuid2 = get_verification_uuid_from_db(unique_email)
         
         # Try to verify second time - should fail with duplicate
         verify_response2 = requests.post(
@@ -195,7 +199,8 @@ class TestAuthService:
             timeout=10
         )
         assert reg_response.status_code == 200
-        verification_uuid = reg_response.json()["uuid"]
+        # Get UUID from database
+        verification_uuid = get_verification_uuid_from_db(unique_email)
         
         # Verify the user
         verify_response = requests.post(
@@ -256,7 +261,8 @@ class TestAuthService:
             timeout=10
         )
         assert reg_response.status_code == 200
-        verification_uuid = reg_response.json()["uuid"]
+        # Get UUID from database
+        verification_uuid = get_verification_uuid_from_db(unique_email)
         
         # Verify the user
         verify_response = requests.post(
@@ -297,7 +303,8 @@ class TestAuthService:
             timeout=10
         )
         assert reg_response.status_code == 200
-        verification_uuid = reg_response.json()["uuid"]
+        # Get UUID from database
+        verification_uuid = get_verification_uuid_from_db(unique_email)
         
         # Verify
         verify_response = requests.post(
@@ -377,7 +384,8 @@ class TestAuthService:
             timeout=10
         )
         assert reg_response.status_code == 200, f"Registration failed: {reg_response.text}"
-        verification_uuid = reg_response.json()["uuid"]
+        # Get UUID from database
+        verification_uuid = get_verification_uuid_from_db(unique_email)
         
         # Verify
         verify_response = requests.post(
@@ -430,7 +438,8 @@ class TestAuthService:
             timeout=10
         )
         assert reg_response.status_code == 200
-        verification_uuid = reg_response.json()["uuid"]
+        # Get UUID from database
+        verification_uuid = get_verification_uuid_from_db(unique_email)
         
         # Verify
         verify_response = requests.post(
@@ -505,7 +514,8 @@ class TestAuthService:
             timeout=10
         )
         assert reg_response.status_code == 200
-        verification_uuid = reg_response.json()["uuid"]
+        # Get UUID from database
+        verification_uuid = get_verification_uuid_from_db(unique_email)
         
         # Verify
         verify_response = requests.post(
@@ -563,7 +573,8 @@ class TestAuthService:
             timeout=10
         )
         assert reg_response.status_code == 200
-        verification_uuid = reg_response.json()["uuid"]
+        # Get UUID from database
+        verification_uuid = get_verification_uuid_from_db(unique_email)
         
         # Verify
         verify_response = requests.post(
@@ -622,7 +633,8 @@ class TestAuthService:
             timeout=10
         )
         assert reg_response.status_code == 200
-        verification_uuid = reg_response.json()["uuid"]
+        # Get UUID from database
+        verification_uuid = get_verification_uuid_from_db(unique_email)
         
         # Verify
         verify_response = requests.post(

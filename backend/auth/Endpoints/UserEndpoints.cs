@@ -60,7 +60,7 @@ public static class UserEndpoints
                     });
 
                     return Results.Ok(
-                        new { uuid = uuid, message = "User registration pending email verification. Please check your email for the verification link." }
+                        new { message = "User registration pending email verification. Please check your email for the verification link." }
                     );
                 }
             )
