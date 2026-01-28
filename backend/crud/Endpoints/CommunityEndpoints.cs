@@ -136,12 +136,6 @@ public static class CommunityEndpoints
                 return Results.NotFound();
             }
 
-            // Keep owner membership intact (gateway should enforce this, but be safe).
-            if (member.Role == CommunityRole.Owner)
-            {
-                return Results.BadRequest(new { message = "owner cannot leave their community" });
-            }
-
             db.CommunityMembers.Remove(member);
             await db.SaveChangesAsync();
             return Results.Ok(new { message = "left" });

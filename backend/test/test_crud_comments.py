@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Functional tests for CRUD comments endpoints (posts + books)
-"""
 
 import requests
 import uuid
@@ -48,7 +45,7 @@ class TestCrudComments:
         # add
         r = requests.post(
             f"{crud_base_url}/api/posts/{post_id}/comments",
-            json={"content": "First!", "parentCommentId": None},
+            json={"content": "First!"},
             headers=headers,
             timeout=5,
         )
@@ -86,7 +83,7 @@ class TestCrudComments:
         # invalid rating
         r_bad = requests.post(
             f"{crud_base_url}/api/books/{book_id}/comments",
-            json={"content": "Bad rating", "rating": 0, "parentCommentId": None},
+            json={"content": "Bad rating", "rating": 0},
             headers=headers,
             timeout=5,
         )
@@ -95,7 +92,7 @@ class TestCrudComments:
         # add
         r = requests.post(
             f"{crud_base_url}/api/books/{book_id}/comments",
-            json={"content": "Great book", "rating": 5, "parentCommentId": None},
+            json={"content": "Great book", "rating": 5},
             headers=headers,
             timeout=5,
         )

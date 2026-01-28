@@ -280,6 +280,7 @@ Role information can be represented either:
 - **GET `/api/books/{id}/comments`**: **Public** — list comments for a book
 - **POST `/api/books/{id}/comments`**: **User** — add book comment (with required 1–5 rating)
   - identification: Gateway derives `userId` becomes comment author
+  - note: nested comments (comments on comments) are not supported
 
 ### 5.4 CRUD Service — Communities
 
@@ -325,6 +326,7 @@ Moderation / suggested posts:
 - **GET `/api/posts/{id}/comments`**: **Public** — list post comments
 - **POST `/api/posts/{id}/comments`**: **User** — add comment to a post
   - identification: Gateway derives `userId` becomes comment author
+  - note: nested comments (comments on comments) are not supported
 - **PUT `/api/comments/{id}`**: **Owner** — edit comment
   - identification: Gateway derives `userId` must equal `comment.authorId` (or **Moderator/Admin** policy if added)
 - **DELETE `/api/comments/{id}`**: **Owner** — delete comment

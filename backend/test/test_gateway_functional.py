@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""
-Gateway-only functional tests.
-
-These are intended to run against docker-compose.gateway.yml where only the gateway is exposed.
-"""
 
 import os
 import uuid as uuid_lib

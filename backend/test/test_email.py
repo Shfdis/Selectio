@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Tests for email verification functionality
-"""
 
 import pytest
 import requests
@@ -13,10 +10,7 @@ from helpers import (
 
 
 class TestEmailVerification:
-    """Test suite for email verification flow"""
-    
     def test_registration_returns_uuid(self, base_url, unique_email):
-        """Test that registration returns a UUID for email verification"""
         username = generate_unique_username()
         password = "TestPassword123!"
         
@@ -28,7 +22,6 @@ class TestEmailVerification:
         assert len(uuid) > 0  # UUID should not be empty
     
     def test_verification_link_format(self, base_url, unique_email):
-        """Test that verification UUID can be used to verify user"""
         username = generate_unique_username()
         password = "TestPassword123!"
         
@@ -42,7 +35,6 @@ class TestEmailVerification:
         assert "verified" in verify_data["message"].lower() or "success" in verify_data["message"].lower()
     
     def test_invalid_uuid_rejected(self, base_url):
-        """Test that invalid UUIDs are rejected"""
         invalid_uuid = "00000000-0000-0000-0000-000000000000"
         
         response = requests.post(
@@ -55,7 +47,6 @@ class TestEmailVerification:
         assert "Invalid verification UUID" in data["message"] or "invalid" in data["message"].lower()
     
     def test_uuid_can_only_be_used_once(self, base_url, unique_email):
-        """Test that verification UUID can only be used once"""
         username = generate_unique_username()
         password = "TestPassword123!"
         
@@ -74,7 +65,6 @@ class TestEmailVerification:
         assert "Invalid verification UUID" in data["message"] or "invalid" in data["message"].lower()
     
     def test_unverified_user_cannot_login(self, base_url, unique_email):
-        """Test that unverified users cannot login"""
         username = generate_unique_username()
         password = "TestPassword123!"
         
@@ -96,7 +86,6 @@ class TestEmailVerification:
         assert response.status_code == 401, "Unverified users should not be able to login"
     
     def test_verified_user_can_login(self, base_url, unique_email):
-        """Test that verified users can login"""
         username = generate_unique_username()
         password = "TestPassword123!"
         
@@ -113,7 +102,6 @@ class TestEmailVerification:
         assert len(token) > 0
     
     def test_verification_removes_from_pending(self, base_url, unique_email):
-        """Test that verification removes user from pending emails"""
         username = generate_unique_username()
         password = "TestPassword123!"
         
@@ -132,7 +120,6 @@ class TestEmailVerification:
         assert response.status_code == 404, "User should be removed from pending after verification"
     
     def test_email_verification_message_in_response(self, base_url, unique_email):
-        """Test that registration response mentions email verification"""
         username = generate_unique_email()
         password = "TestPassword123!"
         
@@ -142,7 +129,6 @@ class TestEmailVerification:
         assert "check" in data["message"].lower() or "link" in data["message"].lower()
     
     def test_multiple_registrations_different_uuids(self, base_url):
-        """Test that multiple registrations generate different UUIDs"""
         email1 = generate_unique_email()
         email2 = generate_unique_email()
         username1 = generate_unique_username()
@@ -155,7 +141,6 @@ class TestEmailVerification:
         assert uuid1 != uuid2, "Each registration should have a unique UUID"
     
     def test_verification_creates_user_in_database(self, base_url, unique_email):
-        """Test that verification creates user in verified users database"""
         username = generate_unique_username()
         password = "TestPassword123!"
         

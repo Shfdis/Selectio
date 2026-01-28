@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Functional tests for CRUD Profiles endpoints
-"""
 
 import requests
 

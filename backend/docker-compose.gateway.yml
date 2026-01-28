@@ -29,28 +29,11 @@ services:
     image: postgres:16-alpine
     container_name: selectio_postgres
     environment:
-      POSTGRES_DB: selectio_users
+      POSTGRES_DB: selectio_main
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - selectio_internal
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  crud_postgres:
-    image: postgres:16-alpine
-    container_name: selectio_crud_postgres
-    environment:
-      POSTGRES_DB: selectio_crud
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - crud_postgres_data:/var/lib/postgresql/data
     networks:
       - selectio_internal
     healthcheck:
@@ -71,7 +54,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__PendingEmailsDb: Data Source=/data/pending_emails.db
-      ConnectionStrings__UsersDb: Host=postgres;Database=selectio_users;Username=postgres;Password=postgres
+      ConnectionStrings__UsersDb: Host=postgres;Database=selectio_main;Username=postgres;Password=postgres
       Jwt__SecretKey: ${JWT_SECRET_KEY}
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
@@ -106,10 +89,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8090
-      ConnectionStrings__CrudDb: Host=crud_postgres;Database=selectio_crud;Username=postgres;Password=postgres
+      ConnectionStrings__CrudDb: Host=postgres;Database=selectio_main;Username=postgres;Password=postgres
       Gateway__InternalToken: ${GATEWAY_INTERNAL_TOKEN}
     depends_on:
-      crud_postgres:
+      postgres:
         condition: service_healthy
     networks:
       - selectio_internal
@@ -123,7 +106,5 @@ volumes:
   postgres_data:
     driver: local
   sqlite_data:
-    driver: local
-  crud_postgres_data:
     driver: local
 

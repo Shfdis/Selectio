@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Functional tests for the auth service
-"""
 
 import pytest
 import requests
@@ -14,16 +11,12 @@ from helpers import (
 
 
 class TestAuthService:
-    """Test suite for auth service endpoints"""
-    
     def test_health_check(self, base_url):
-        """Test that the service is responding"""
         response = requests.get(f"{base_url}/", timeout=5)
         # Service should respond (even if 404)
         assert response.status_code in [200, 404, 401]
     
     def test_register_user(self, base_url, unique_email):
-        """Test user registration endpoint"""
         user_data = {
             "email": unique_email,
             "username": f"testuser_{uuid_lib.uuid4().hex[:8]}",
@@ -44,7 +37,6 @@ class TestAuthService:
         assert "User registration pending email verification" in data["message"]
     
     def test_register_user_duplicate_email(self, base_url, unique_email):
-        """Test that registering with duplicate email is handled"""
         # First registration
         user_data1 = {
             "email": unique_email,
@@ -79,7 +71,6 @@ class TestAuthService:
         assert response2.status_code == 200
     
     def test_register_user_missing_fields(self, base_url):
-        """Test registration with missing required fields"""
         incomplete_data = {
             "email": f"incomplete_{uuid_lib.uuid4().hex[:8]}@example.com",
             "username": "incomplete"
@@ -98,7 +89,6 @@ class TestAuthService:
         assert response.status_code in [400, 500], f"Expected 400 or 500, got {response.status_code}: {response.text}"
     
     def test_verify_user_with_uuid(self, base_url, unique_email):
-        """Test user verification with UUID"""
         # Register a user first
         user_data = {
             "email": unique_email,
@@ -127,7 +117,6 @@ class TestAuthService:
         assert "User verified and created successfully" in data["message"]
     
     def test_verify_user_invalid_uuid(self, base_url):
-        """Test verification with invalid UUID"""
         invalid_uuid = "00000000-0000-0000-0000-000000000000"
         response = requests.post(
             f"{base_url}/user/verify/{invalid_uuid}",
@@ -140,7 +129,6 @@ class TestAuthService:
         assert "Invalid verification UUID" in data["message"]
     
     def test_verify_duplicate_user(self, base_url, unique_email):
-        """Test that verifying a duplicate user (same email) fails"""
         # Register and verify first user
         user_data1 = {
             "email": unique_email,
@@ -190,7 +178,6 @@ class TestAuthService:
         assert "already exists" in data["message"].lower()
     
     def test_login_success(self, base_url, unique_email):
-        """Test successful login with email and password"""
         # First register and verify a user
         username = f"loginuser_{uuid_lib.uuid4().hex[:8]}"
         password = "SecurePassword123!"
@@ -238,7 +225,6 @@ class TestAuthService:
         assert data["user"]["username"] == username
     
     def test_login_invalid_email(self, base_url):
-        """Test login with non-existent email"""
         login_data = {
             "email": "nonexistent@example.com",
             "password": "SomePassword123!"
@@ -253,7 +239,6 @@ class TestAuthService:
         assert response.status_code == 401
     
     def test_login_invalid_password(self, base_url, unique_email):
-        """Test login with incorrect password"""
         # First register and verify a user
         username = f"invalidpassuser_{uuid_lib.uuid4().hex[:8]}"
         correct_password = "CorrectPassword123!"
@@ -295,7 +280,6 @@ class TestAuthService:
         assert response.status_code == 401, f"Expected 401, got {response.status_code}: {response.text}"
     
     def test_identify_user_with_token(self, base_url, unique_email):
-        """Test identifying user with valid JWT token"""
         # Register, verify, and login to get a token
         username = f"identifyuser_{uuid_lib.uuid4().hex[:8]}"
         password = "IdentifyPassword123!"
@@ -355,7 +339,6 @@ class TestAuthService:
         assert "description" in data
     
     def test_identify_user_without_token(self, base_url):
-        """Test identify endpoint without authentication"""
         response = requests.get(
             f"{base_url}/user/identify",
             timeout=10
@@ -364,7 +347,6 @@ class TestAuthService:
         assert response.status_code == 401
     
     def test_identify_user_with_invalid_token(self, base_url):
-        """Test identify endpoint with invalid token"""
         headers = {
             "Authorization": "Bearer invalid_token_here"
         }
@@ -378,7 +360,6 @@ class TestAuthService:
         assert response.status_code == 401
     
     def test_full_user_flow(self, base_url, unique_email):
-        """Test complete user flow: register -> verify -> login -> identify"""
         username = f"flowuser_{uuid_lib.uuid4().hex[:8]}"
         password = "FlowPassword123!"
         
@@ -432,7 +413,6 @@ class TestAuthService:
         assert user_info["username"] == username
     
     def test_delete_user_success(self, base_url, unique_email):
-        """Test successful user deletion with valid token"""
         # Register, verify, and login to get a token
         username = f"deleteuser_{uuid_lib.uuid4().hex[:8]}"
         password = "DeletePassword123!"
@@ -487,7 +467,6 @@ class TestAuthService:
         assert "deleted successfully" in data["message"].lower()
     
     def test_delete_user_without_token(self, base_url):
-        """Test user deletion without authentication"""
         response = requests.delete(
             f"{base_url}/user/delete",
             timeout=10
@@ -496,7 +475,6 @@ class TestAuthService:
         assert response.status_code == 401, f"Expected 401, got {response.status_code}: {response.text}"
     
     def test_delete_user_with_invalid_token(self, base_url):
-        """Test user deletion with invalid token"""
         headers = {
             "Authorization": "Bearer invalid_token_here"
         }
@@ -510,7 +488,6 @@ class TestAuthService:
         assert response.status_code == 401, f"Expected 401, got {response.status_code}: {response.text}"
     
     def test_delete_user_cannot_login_after_deletion(self, base_url, unique_email):
-        """Test that user cannot login after account deletion"""
         # Register, verify, login, then delete
         username = f"deletedlogin_{uuid_lib.uuid4().hex[:8]}"
         password = "DeleteLogin123!"
@@ -569,7 +546,6 @@ class TestAuthService:
         assert login_response2.status_code == 401, f"Expected 401 after deletion, got {login_response2.status_code}: {login_response2.text}"
     
     def test_delete_user_cannot_identify_after_deletion(self, base_url, unique_email):
-        """Test that user cannot identify after account deletion"""
         # Register, verify, login, then delete
         username = f"deletedidentify_{uuid_lib.uuid4().hex[:8]}"
         password = "DeleteIdentify123!"
@@ -629,7 +605,6 @@ class TestAuthService:
         assert identify_response.status_code in [401, 404], f"Expected 401 or 404 after deletion, got {identify_response.status_code}: {identify_response.text}"
     
     def test_delete_user_full_flow(self, base_url, unique_email):
-        """Test complete flow with deletion: register -> verify -> login -> identify -> delete -> verify deletion"""
         username = f"fullflowdelete_{uuid_lib.uuid4().hex[:8]}"
         password = "FullFlowDelete123!"
         

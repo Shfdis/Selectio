@@ -98,7 +98,6 @@ public static class PostEndpoints
             }
 
             // Suggested posts should only be visible when the gateway explicitly allows it
-            // (e.g. after moderator authorization).
             if (post.Status == PostStatus.Suggested)
             {
                 var allowSuggested =
@@ -117,7 +116,7 @@ public static class PostEndpoints
 
         posts.MapPut("/{id:int}", async (HttpContext http, CrudDbContext db, int id, UpdatePostRequest body) =>
         {
-            if (!GatewayIdentity.TryGetUserId(http, out var userId))
+            if (!GatewayIdentity.TryGetUserId(http, out _))
             {
                 return Results.Unauthorized();
             }
@@ -130,12 +129,6 @@ public static class PostEndpoints
             var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id);
             if (post is null) return Results.NotFound();
 
-            // Gateway should enforce ownership; still prevent accidental edits by other users in direct mode.
-            if (post.AuthorUserId != userId)
-            {
-                return Results.Forbid();
-            }
-
             post.Content = body.Content.Trim();
             await db.SaveChangesAsync();
             return Results.Ok(ToDto(post));
@@ -143,18 +136,13 @@ public static class PostEndpoints
 
         posts.MapDelete("/{id:int}", async (HttpContext http, CrudDbContext db, int id) =>
         {
-            if (!GatewayIdentity.TryGetUserId(http, out var userId))
+            if (!GatewayIdentity.TryGetUserId(http, out _))
             {
                 return Results.Unauthorized();
             }
 
             var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id);
             if (post is null) return Results.NotFound();
-
-            if (post.AuthorUserId != userId)
-            {
-                return Results.Forbid();
-            }
 
             db.Posts.Remove(post);
             await db.SaveChangesAsync();

@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Pytest configuration and shared fixtures
-"""
 
 import pytest
 import uuid as uuid_lib
@@ -11,7 +8,6 @@ from test_framework import DockerComposeTestFramework
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_services():
-    """Start docker-compose services before all tests, stop after"""
     compose_file = os.environ.get("SELECTIO_COMPOSE_FILE", "docker-compose.yml")
     framework = DockerComposeTestFramework(compose_file=compose_file)
     
@@ -44,23 +40,19 @@ def setup_services():
 
 @pytest.fixture
 def unique_email():
-    """Generate a unique email for each test"""
     return f"test_{uuid_lib.uuid4().hex[:8]}@example.com"
 
 
 @pytest.fixture
 def base_url():
-    """Base URL for the auth service"""
     return "http://localhost:8080"
 
 
 @pytest.fixture
 def crud_base_url():
-    """Base URL for the crud service"""
     return "http://localhost:8090"
 
 
 @pytest.fixture
 def gateway_base_url():
-    """Base URL for the API gateway"""
     return "http://localhost:8080"

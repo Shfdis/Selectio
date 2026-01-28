@@ -9,8 +9,6 @@ public class BookComment
 
     public string Content { get; set; } = string.Empty;
     public int Rating { get; set; } // 1..5
-
-    public int? ParentCommentId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Book? Book { get; set; }

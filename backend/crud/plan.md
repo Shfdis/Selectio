@@ -133,6 +133,7 @@ Notes:
 
 Notes:
 - Author is `X-User-Id`.
+- Nested comments (comments on comments) are not supported - all comments are top-level only.
 
 ### 3.7 Likes + favorites
 

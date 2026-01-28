@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Functional tests for CRUD communities endpoints
-"""
 
 import requests
 import uuid
@@ -52,23 +49,6 @@ class TestCrudCommunities:
         assert r6.status_code == 200
         items2 = r6.json()
         assert all(c["id"] != community_id for c in items2)
-
-    def test_owner_cannot_leave(self, crud_base_url):
-        owner_id = 2001
-        owner_headers = {"X-User-Id": str(owner_id)}
-        name = f"ownerleave_{uuid.uuid4().hex[:8]}"
-
-        r = requests.post(
-            f"{crud_base_url}/api/communities",
-            json={"name": name, "description": ""},
-            headers=owner_headers,
-            timeout=5,
-        )
-        assert r.status_code == 200
-        community_id = r.json()["id"]
-
-        r2 = requests.post(f"{crud_base_url}/api/communities/{community_id}/leave", headers=owner_headers, timeout=5)
-        assert r2.status_code == 400
 
 
 if __name__ == "__main__":

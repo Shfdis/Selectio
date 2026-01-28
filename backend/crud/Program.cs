@@ -24,13 +24,6 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<CrudDbContext>();
     await db.Database.MigrateAsync();
-
-    // Seed only in Development (default) or when explicitly enabled.
-    var seedEnabled = app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("SeedData");
-    if (seedEnabled)
-    {
-        await CrudSeed.SeedAsync(db);
-    }
 }
 
 if (app.Environment.IsDevelopment())

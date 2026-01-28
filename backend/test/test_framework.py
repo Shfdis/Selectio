@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Functional Test Framework for Selectio Backend
-Manages docker-compose services for testing
-"""
 
 import subprocess
 import time
@@ -15,8 +11,6 @@ from pathlib import Path
 
 
 class DockerComposeTestFramework:
-    """Manages docker-compose services for functional testing"""
-    
     def __init__(self, compose_file: str = "docker-compose.yml", project_dir: Optional[Path] = None):
         # Default to parent directory (backend root) where docker-compose.yml is located
         self.project_dir = project_dir or Path(__file__).parent.parent
@@ -29,10 +23,10 @@ class DockerComposeTestFramework:
         else:
             self.compose_file = compose_file
         self.process: Optional[subprocess.Popen] = None
-        self.services = ["gateway", "postgres", "crud_postgres", "auth", "crud"]
+        # Services expected in the single-Postgres setup
+        self.services = ["gateway", "postgres", "auth", "crud"]
         
     def _run_compose_command(self, command: List[str], check: bool = True) -> subprocess.CompletedProcess:
-        """Run a docker compose command"""
         cmd = ["docker", "compose", "-f", self.compose_file] + command
         try:
             result = subprocess.run(
@@ -50,16 +44,6 @@ class DockerComposeTestFramework:
         return result
     
     def start(self, detach: bool = True, build: bool = False) -> bool:
-        """
-        Start docker-compose services
-        
-        Args:
-            detach: Run in detached mode (default: True)
-            build: Build images before starting (default: False)
-            
-        Returns:
-            True if successful, False otherwise
-        """
         try:
             cmd = ["up"]
             if detach:
@@ -85,15 +69,6 @@ class DockerComposeTestFramework:
             return False
     
     def stop(self, remove_volumes: bool = False) -> bool:
-        """
-        Stop docker-compose services
-        
-        Args:
-            remove_volumes: Remove volumes when stopping (default: False)
-            
-        Returns:
-            True if successful, False otherwise
-        """
         try:
             cmd = ["down"]
             if remove_volumes:
@@ -113,31 +88,12 @@ class DockerComposeTestFramework:
             return False
     
     def restart(self, build: bool = False) -> bool:
-        """
-        Restart docker-compose services
-        
-        Args:
-            build: Build images before restarting (default: False)
-            
-        Returns:
-            True if successful, False otherwise
-        """
         if not self.stop():
             return False
         time.sleep(2)  # Brief pause between stop and start
         return self.start(build=build)
     
     def wait_for_services(self, timeout: int = 120, check_health: bool = True) -> bool:
-        """
-        Wait for all services to be healthy/ready
-        
-        Args:
-            timeout: Maximum time to wait in seconds (default: 120)
-            check_health: Check service health status (default: True)
-            
-        Returns:
-            True if all services are ready, False on timeout
-        """
         print("Waiting for services to be ready...")
         start_time = time.time()
         
@@ -157,7 +113,6 @@ class DockerComposeTestFramework:
         return False
     
     def _check_all_services_running(self) -> bool:
-        """Check if all services are running"""
         try:
             result = self._run_compose_command(["ps", "-q"], check=False)
             if result.returncode != 0:
@@ -169,7 +124,6 @@ class DockerComposeTestFramework:
             return False
     
     def _check_all_services_healthy(self) -> bool:
-        """Check if all services are healthy"""
         try:
             result = self._run_compose_command(["ps", "--format", "json"], check=False)
             if result.returncode != 0:
@@ -191,13 +145,6 @@ class DockerComposeTestFramework:
                 for c in containers
             )
 
-            # Check crud postgres health
-            crud_postgres_healthy = any(
-                c.get('Service') == 'crud_postgres' and
-                c.get('Health') == 'healthy'
-                for c in containers
-            )
-            
             # Check auth service is running (it may not have healthcheck)
             auth_running = any(
                 c.get('Service') == 'auth' and 
@@ -219,15 +166,12 @@ class DockerComposeTestFramework:
                 for c in containers
             )
             
-            return postgres_healthy and crud_postgres_healthy and auth_running and crud_running and gateway_running
+            return postgres_healthy and auth_running and crud_running and gateway_running
         except Exception as e:
             print(f"Error checking service health: {e}")
             return False
 
     def wait_for_gateway(self, url: str = "http://localhost:8080", timeout: int = 60) -> bool:
-        """
-        Wait for the gateway to respond to /health.
-        """
         health_url = f"{url}/health"
         print(f"Waiting for gateway at {health_url}...")
         start_time = time.time()
@@ -247,16 +191,6 @@ class DockerComposeTestFramework:
         return False
     
     def wait_for_auth_service(self, url: str = "http://localhost:8080", timeout: int = 60) -> bool:
-        """
-        Wait for auth service to respond to HTTP requests
-        
-        Args:
-            url: Base URL of the auth service (default: http://localhost:8080)
-            timeout: Maximum time to wait in seconds (default: 60)
-            
-        Returns:
-            True if service is responding, False on timeout
-        """
         print(f"Waiting for auth service at {url}...")
         start_time = time.time()
         
@@ -275,16 +209,6 @@ class DockerComposeTestFramework:
         return False
 
     def wait_for_crud_service(self, url: str = "http://localhost:8090", timeout: int = 60) -> bool:
-        """
-        Wait for CRUD service to respond to HTTP requests
-
-        Args:
-            url: Base URL of the crud service (default: http://localhost:8090)
-            timeout: Maximum time to wait in seconds (default: 60)
-
-        Returns:
-            True if service is responding, False on timeout
-        """
         health_url = f"{url}/health"
         print(f"Waiting for crud service at {health_url}...")
         start_time = time.time()
@@ -304,16 +228,6 @@ class DockerComposeTestFramework:
         return False
     
     def get_logs(self, service: Optional[str] = None, tail: int = 100) -> str:
-        """
-        Get logs from services
-        
-        Args:
-            service: Specific service name, or None for all services
-            tail: Number of lines to show (default: 100)
-            
-        Returns:
-            Log output as string
-        """
         cmd = ["logs", "--tail", str(tail)]
         if service:
             cmd.append(service)
@@ -322,12 +236,6 @@ class DockerComposeTestFramework:
         return result.stdout
     
     def get_status(self) -> dict:
-        """
-        Get status of all services
-        
-        Returns:
-            Dictionary with service status information
-        """
         try:
             result = self._run_compose_command(["ps", "--format", "json"], check=False)
             if result.returncode != 0:
@@ -354,7 +262,6 @@ class DockerComposeTestFramework:
 
 
 def main():
-    """Main entry point for the test framework"""
     import argparse
     
     parser = argparse.ArgumentParser(description="Docker Compose Test Framework")

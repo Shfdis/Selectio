@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Functional tests for CRUD moderation endpoints
-"""
 
 import requests
 import uuid

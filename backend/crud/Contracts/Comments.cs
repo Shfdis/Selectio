@@ -5,7 +5,6 @@ public sealed record PostCommentDto(
     int PostId,
     int AuthorUserId,
     string Content,
-    int? ParentCommentId,
     DateTime CreatedAt
 );
 
@@ -15,19 +14,16 @@ public sealed record BookCommentDto(
     int AuthorUserId,
     string Content,
     int Rating,
-    int? ParentCommentId,
     DateTime CreatedAt
 );
 
 public sealed record CreateCommentRequest(
-    string Content,
-    int? ParentCommentId
+    string Content
 );
 
 public sealed record CreateBookCommentRequest(
     string Content,
-    int Rating,
-    int? ParentCommentId
+    int Rating
 );
 
 public sealed record UpdateCommentRequest(

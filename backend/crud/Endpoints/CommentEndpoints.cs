@@ -31,7 +31,7 @@ public static class CommentEndpoints
                 .ThenBy(c => c.Id)
                 .Skip((p - 1) * ps)
                 .Take(ps)
-                .Select(c => new PostCommentDto(c.Id, c.PostId, c.AuthorUserId, c.Content, c.ParentCommentId, c.CreatedAt))
+                .Select(c => new PostCommentDto(c.Id, c.PostId, c.AuthorUserId, c.Content, c.CreatedAt))
                 .ToListAsync();
 
             return Results.Ok(items);
@@ -57,20 +57,19 @@ public static class CommentEndpoints
                 PostId = id,
                 AuthorUserId = userId,
                 Content = body.Content.Trim(),
-                ParentCommentId = body.ParentCommentId,
                 CreatedAt = DateTime.UtcNow
             };
 
             db.PostComments.Add(comment);
             await db.SaveChangesAsync();
 
-            return Results.Ok(new PostCommentDto(comment.Id, comment.PostId, comment.AuthorUserId, comment.Content, comment.ParentCommentId, comment.CreatedAt));
+            return Results.Ok(new PostCommentDto(comment.Id, comment.PostId, comment.AuthorUserId, comment.Content, comment.CreatedAt));
         }).WithTags("Comments");
 
         // Comment edit/delete (post comments only; book comments are immutable for now)
         app.MapPut("/api/comments/{id:int}", async (HttpContext http, CrudDbContext db, int id, UpdateCommentRequest body) =>
         {
-            if (!GatewayIdentity.TryGetUserId(http, out var userId))
+            if (!GatewayIdentity.TryGetUserId(http, out _))
             {
                 return Results.Unauthorized();
             }
@@ -83,31 +82,21 @@ public static class CommentEndpoints
             var comment = await db.PostComments.FirstOrDefaultAsync(c => c.Id == id);
             if (comment is null) return Results.NotFound();
 
-            if (comment.AuthorUserId != userId)
-            {
-                return Results.Forbid();
-            }
-
             comment.Content = body.Content.Trim();
             await db.SaveChangesAsync();
 
-            return Results.Ok(new PostCommentDto(comment.Id, comment.PostId, comment.AuthorUserId, comment.Content, comment.ParentCommentId, comment.CreatedAt));
+            return Results.Ok(new PostCommentDto(comment.Id, comment.PostId, comment.AuthorUserId, comment.Content, comment.CreatedAt));
         }).WithTags("Comments");
 
         app.MapDelete("/api/comments/{id:int}", async (HttpContext http, CrudDbContext db, int id) =>
         {
-            if (!GatewayIdentity.TryGetUserId(http, out var userId))
+            if (!GatewayIdentity.TryGetUserId(http, out _))
             {
                 return Results.Unauthorized();
             }
 
             var comment = await db.PostComments.FirstOrDefaultAsync(c => c.Id == id);
             if (comment is null) return Results.NotFound();
-
-            if (comment.AuthorUserId != userId)
-            {
-                return Results.Forbid();
-            }
 
             db.PostComments.Remove(comment);
             await db.SaveChangesAsync();
@@ -132,7 +121,7 @@ public static class CommentEndpoints
                 .ThenBy(c => c.Id)
                 .Skip((p - 1) * ps)
                 .Take(ps)
-                .Select(c => new BookCommentDto(c.Id, c.BookId, c.AuthorUserId, c.Content, c.Rating, c.ParentCommentId, c.CreatedAt))
+                .Select(c => new BookCommentDto(c.Id, c.BookId, c.AuthorUserId, c.Content, c.Rating, c.CreatedAt))
                 .ToListAsync();
 
             return Results.Ok(items);
@@ -164,14 +153,13 @@ public static class CommentEndpoints
                 AuthorUserId = userId,
                 Content = body.Content.Trim(),
                 Rating = body.Rating,
-                ParentCommentId = body.ParentCommentId,
                 CreatedAt = DateTime.UtcNow
             };
 
             db.BookComments.Add(comment);
             await db.SaveChangesAsync();
 
-            return Results.Ok(new BookCommentDto(comment.Id, comment.BookId, comment.AuthorUserId, comment.Content, comment.Rating, comment.ParentCommentId, comment.CreatedAt));
+            return Results.Ok(new BookCommentDto(comment.Id, comment.BookId, comment.AuthorUserId, comment.Content, comment.Rating, comment.CreatedAt));
         }).WithTags("Comments");
 
         return app;
