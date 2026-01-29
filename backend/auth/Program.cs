@@ -20,11 +20,6 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 // Register background service for cleaning up old pending emails
 builder.Services.AddHostedService<PendingEmailCleanupService>();
 
-// Configure SQLite for pending emails
-builder.Services.AddDbContext<PendingEmailDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("PendingEmailsDb"))
-);
-
 // Configure PostgreSQL for verified users
 builder.Services.AddDbContext<UserDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("UsersDb"))
@@ -112,34 +107,26 @@ static void BaselineIfCreatedWithoutMigrations(DbContext db)
         return;
     }
 
+    // Only baseline when the history table did not exist (e.g. DB was created via EnsureCreated).
+    // If history already exists, do not insert unapplied migrations — let Migrate() run them.
     if (!history.Exists())
     {
-        // IHistoryRepository doesn't expose CreateIfNotExists() in EF Core 8; create explicitly.
         db.Database.ExecuteSqlRaw(history.GetCreateScript());
-    }
-
-    var productVersion = Microsoft.EntityFrameworkCore.Infrastructure.ProductInfo.GetVersion();
-    var applied = new HashSet<string>(db.Database.GetAppliedMigrations(), StringComparer.Ordinal);
-
-    foreach (var migrationId in db.Database.GetMigrations())
-    {
-        if (applied.Contains(migrationId))
+        var productVersion = Microsoft.EntityFrameworkCore.Infrastructure.ProductInfo.GetVersion();
+        var applied = new HashSet<string>(db.Database.GetAppliedMigrations(), StringComparer.Ordinal);
+        foreach (var migrationId in db.Database.GetMigrations())
         {
-            continue;
+            if (applied.Contains(migrationId))
+                continue;
+            var insert = history.GetInsertScript(new HistoryRow(migrationId, productVersion));
+            db.Database.ExecuteSqlRaw(insert);
         }
-
-        var insert = history.GetInsertScript(new HistoryRow(migrationId, productVersion));
-        db.Database.ExecuteSqlRaw(insert);
     }
 }
 
 // Apply migrations (with baseline for existing dev DBs)
 using (var scope = app.Services.CreateScope())
 {
-    var pendingEmailDb = scope.ServiceProvider.GetRequiredService<PendingEmailDbContext>();
-    BaselineIfCreatedWithoutMigrations(pendingEmailDb);
-    pendingEmailDb.Database.Migrate();
-
     var userDb = scope.ServiceProvider.GetRequiredService<UserDbContext>();
     BaselineIfCreatedWithoutMigrations(userDb);
     userDb.Database.Migrate();

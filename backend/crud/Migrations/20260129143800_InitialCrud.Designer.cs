@@ -12,7 +12,7 @@ using crud.Data;
 namespace crud.Migrations
 {
     [DbContext(typeof(CrudDbContext))]
-    [Migration("20260127111219_InitialCrud")]
+    [Migration("20260129143800_InitialCrud")]
     partial class InitialCrud
     {
         /// <inheritdoc />
@@ -86,9 +86,6 @@ namespace crud.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("ParentCommentId")
-                        .HasColumnType("integer");
 
                     b.Property<int>("Rating")
                         .HasColumnType("integer");
@@ -220,9 +217,6 @@ namespace crud.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("ParentCommentId")
-                        .HasColumnType("integer");
 
                     b.Property<int>("PostId")
                         .HasColumnType("integer");

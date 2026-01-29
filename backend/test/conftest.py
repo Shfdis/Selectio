@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
+import subprocess
 import pytest
 import uuid as uuid_lib
 import os
 from test_framework import DockerComposeTestFramework
+from helpers import seed_crud_books, cleanup_seeded_books
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -36,6 +38,24 @@ def setup_services():
     # Cleanup: stop services
     print("\n=== Stopping test services ===")
     framework.stop(remove_volumes=False)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def seeded_books_for_crud(setup_services):
+    """Seed Books table for crud tests when using full compose; cleanup after session."""
+    compose_file = os.environ.get("SELECTIO_COMPOSE_FILE", "docker-compose.yml")
+    if os.path.basename(compose_file) == "docker-compose.gateway.yml":
+        yield
+        return
+    seed_crud_books(title="The Hobbit", author="J.R.R. Tolkien")
+    try:
+        yield
+    finally:
+        try:
+            cleanup_seeded_books(title="The Hobbit")
+        except subprocess.CalledProcessError:
+            # Book may be referenced by Posts/other FKs; ignore so teardown does not fail
+            pass
 
 
 @pytest.fixture

@@ -7,7 +7,7 @@ public class UserDbContext : DbContext
 {
     public DbSet<VerifiedUser> Users { get; set; }
     public DbSet<Token> Tokens { get; set; }
-
+    public DbSet<PendingEmail> PendingEmails { get; set; }
     public UserDbContext(DbContextOptions<UserDbContext> options)
         : base(options)
     {
@@ -42,6 +42,17 @@ public class UserDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<PendingEmail>(entity => {
+            entity.HasKey(e => e.Uuid);
+            entity.Property(e => e.Uuid).ValueGeneratedNever();
+            entity.Property(e => e.Email).IsRequired();
+            entity.Property(e => e.Username).IsRequired();
+            entity.Property(e => e.Description).IsRequired();
+            entity.Property(e => e.PasswordHash).IsRequired();
+            entity.Property(e => e.Timestamp).IsRequired();
+            entity.HasIndex(e => e.Email);
+            entity.HasIndex(e => e.Uuid);
         });
     }
 }

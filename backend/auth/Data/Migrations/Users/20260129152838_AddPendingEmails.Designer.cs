@@ -12,8 +12,8 @@ using auth.Data;
 namespace auth.Data.Migrations.Users
 {
     [DbContext(typeof(UserDbContext))]
-    [Migration("20260127103112_InitialUsersDb")]
-    partial class InitialUsersDb
+    [Migration("20260129152838_AddPendingEmails")]
+    partial class AddPendingEmails
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,39 @@ namespace auth.Data.Migrations.Users
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("auth.Models.PendingEmail", b =>
+                {
+                    b.Property<Guid>("Uuid")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Uuid");
+
+                    b.HasIndex("Email");
+
+                    b.HasIndex("Uuid");
+
+                    b.ToTable("pending_emails");
+                });
 
             modelBuilder.Entity("auth.Models.Token", b =>
                 {

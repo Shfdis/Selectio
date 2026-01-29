@@ -5,7 +5,7 @@ import uuid as uuid_lib
 
 import pytest
 import requests
-from helpers import get_verification_uuid_from_db
+from helpers import get_verification_uuid_from_db, seed_crud_books, cleanup_seeded_books
 
 if os.environ.get("SELECTIO_COMPOSE_FILE") != "docker-compose.gateway.yml":
     pytest.skip("gateway-only tests (set SELECTIO_COMPOSE_FILE=docker-compose.gateway.yml)", allow_module_level=True)
@@ -51,6 +51,16 @@ def _create_user_token(base_url: str) -> str:
     verification_uuid = _register_via_gateway(base_url, email, username, password)
     _verify_via_gateway(base_url, verification_uuid)
     return _login_via_gateway(base_url, email, password)
+
+
+@pytest.fixture
+def seeded_books():
+    """Seed Books table via docker-exec for tests that need a book; cleanup after."""
+    seed_crud_books()
+    try:
+        yield
+    finally:
+        cleanup_seeded_books()
 
 
 @pytest.mark.gateway
@@ -99,7 +109,7 @@ class TestGateway:
         data = resp.json()
         assert data["username"] == new_username
 
-    def test_owner_enforcement_posts(self, gateway_base_url):
+    def test_owner_enforcement_posts(self, gateway_base_url, seeded_books):
         token_a = _create_user_token(gateway_base_url)
         token_b = _create_user_token(gateway_base_url)
 
@@ -143,7 +153,7 @@ class TestGateway:
         data = edit_resp.json()
         assert data["error"]["code"] == "forbidden"
 
-    def test_moderator_enforcement(self, gateway_base_url):
+    def test_moderator_enforcement(self, gateway_base_url, seeded_books):
         token_owner = _create_user_token(gateway_base_url)
         token_member = _create_user_token(gateway_base_url)
 

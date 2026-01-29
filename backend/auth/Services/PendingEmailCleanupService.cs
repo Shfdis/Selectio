@@ -38,7 +38,7 @@ public class PendingEmailCleanupService : BackgroundService
     private async Task CleanupOldPendingEmails(CancellationToken cancellationToken)
     {
         using var scope = _serviceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<PendingEmailDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<UserDbContext>();
 
         var cutoffDate = DateTime.UtcNow.AddDays(-1);
         var oldPendingEmails = await dbContext.PendingEmails

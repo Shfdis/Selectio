@@ -6,62 +6,77 @@ import subprocess
 from typing import Dict, Optional, Tuple
 
 
-def get_verification_uuid_from_db(email: str, container_name: str = "selectio_auth", max_retries: int = 3) -> str:
+def get_verification_uuid_from_db(
+    email: str,
+    container_name: str = "selectio_postgres",
+    db_name: str = "selectio_main",
+    max_retries: int = 3,
+) -> str:
     import time
-    
+
     # Escape single quotes in email for SQL query
     escaped_email = email.replace("'", "''")
-    
-    # Execute sqlite3 query via docker exec with retry logic
+
+    # Execute psql query via docker exec with retry logic (Postgres: pending_emails in selectio_main)
     for attempt in range(max_retries):
         try:
-            # Use sqlite3 with proper formatting - output only the value
             cmd = [
-                "docker", "exec", container_name,
-                "sqlite3", "-noheader", "/data/pending_emails.db",
-                f"SELECT uuid FROM pending_emails WHERE email = '{escaped_email}';"
+                "docker",
+                "exec",
+                container_name,
+                "psql",
+                "-U",
+                "postgres",
+                "-d",
+                db_name,
+                "-t",
+                "-A",
+                "-c",
+                f'SELECT "Uuid" FROM pending_emails WHERE "Email" = \'{escaped_email}\';',
             ]
-            
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=10,
-                check=True
+                check=True,
             )
-            
+
             uuid_str = result.stdout.strip()
-            
+
             if uuid_str:
-                # Handle case where multiple rows might be returned (shouldn't happen, but be safe)
-                uuids = [u.strip() for u in uuid_str.split('\n') if u.strip()]
+                uuids = [u.strip() for u in uuid_str.split("\n") if u.strip()]
                 if len(uuids) > 1:
-                    raise RuntimeError(f"Multiple pending emails found for {email}. Data inconsistency detected.")
+                    raise RuntimeError(
+                        f"Multiple pending emails found for {email}. Data inconsistency detected."
+                    )
                 return uuids[0]
-            
-            # If no result and not the last attempt, wait and retry
+
             if attempt < max_retries - 1:
-                time.sleep(0.2 * (attempt + 1))  # Exponential backoff: 0.2s, 0.4s, 0.6s
-                continue
-            
-            # Last attempt failed
-            raise ValueError(f"No pending email verification found for email: {email}")
-            
-        except subprocess.CalledProcessError as e:
-            error_msg = e.stderr.strip() if e.stderr else e.stdout.strip() if e.stdout else str(e)
-            
-            # If it's a "not found" error and not the last attempt, retry
-            if attempt < max_retries - 1 and ("No such file" not in error_msg and "does not exist" not in error_msg):
                 time.sleep(0.2 * (attempt + 1))
                 continue
-            
-            raise RuntimeError(f"Failed to query database (attempt {attempt + 1}/{max_retries}): {error_msg}") from e
+
+            raise ValueError(f"No pending email verification found for email: {email}")
+
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr.strip() if e.stderr else e.stdout.strip() if e.stdout else str(e)
+            if attempt < max_retries - 1 and (
+                "No such file" not in error_msg and "does not exist" not in error_msg
+            ):
+                time.sleep(0.2 * (attempt + 1))
+                continue
+            raise RuntimeError(
+                f"Failed to query database (attempt {attempt + 1}/{max_retries}): {error_msg}"
+            ) from e
         except subprocess.TimeoutExpired:
             if attempt < max_retries - 1:
                 continue
             raise RuntimeError("Database query timed out after all retries") from None
-    
-    raise ValueError(f"No pending email verification found for email: {email} after {max_retries} attempts")
+
+    raise ValueError(
+        f"No pending email verification found for email: {email} after {max_retries} attempts"
+    )
 
 
 def register_user(base_url: str, email: str, username: str, password: str, description: str = "Test user") -> Dict:
@@ -82,10 +97,17 @@ def register_user(base_url: str, email: str, username: str, password: str, descr
     return data
 
 
-def register_user_and_get_uuid(base_url: str, email: str, username: str, password: str, description: str = "Test user", container_name: str = "selectio_auth") -> Tuple[Dict, str]:
+def register_user_and_get_uuid(
+    base_url: str,
+    email: str,
+    username: str,
+    password: str,
+    description: str = "Test user",
+    container_name: str = "selectio_postgres",
+    db_name: str = "selectio_main",
+) -> Tuple[Dict, str]:
     data = register_user(base_url, email, username, password, description)
-    # get_verification_uuid_from_db has built-in retry logic, so no need for extra sleep
-    uuid = get_verification_uuid_from_db(email, container_name)
+    uuid = get_verification_uuid_from_db(email, container_name, db_name)
     return data, uuid
 
 
@@ -125,8 +147,18 @@ def identify_user(base_url: str, token: str) -> Dict:
     return response.json()
 
 
-def register_and_verify_user(base_url: str, email: str, username: str, password: str, description: str = "Test user", container_name: str = "selectio_auth") -> Dict:
-    _, uuid = register_user_and_get_uuid(base_url, email, username, password, description, container_name)
+def register_and_verify_user(
+    base_url: str,
+    email: str,
+    username: str,
+    password: str,
+    description: str = "Test user",
+    container_name: str = "selectio_postgres",
+    db_name: str = "selectio_main",
+) -> Dict:
+    _, uuid = register_user_and_get_uuid(
+        base_url, email, username, password, description, container_name, db_name
+    )
     return verify_user(base_url, uuid)
 
 
@@ -141,3 +173,34 @@ def generate_unique_email(prefix: str = "test") -> str:
 
 def generate_unique_username(prefix: str = "user") -> str:
     return f"{prefix}_{uuid_lib.uuid4().hex[:8]}"
+
+
+def seed_crud_books(
+    container_name: str = "selectio_postgres",
+    db_name: str = "selectio_main",
+    title: str = "Gateway test seed book",
+    author: str = "Test Author",
+) -> None:
+    """Insert a book into the crud Books table via docker-exec for gateway tests."""
+    cmd = [
+        "docker", "exec", container_name,
+        "psql", "-U", "postgres", "-d", db_name, "-c",
+        f'INSERT INTO "Books" ("Title", "Author", "Description", "Genre", "CoverUrl") '
+        f"VALUES ('{title.replace(chr(39), chr(39) + chr(39))}', '{author.replace(chr(39), chr(39) + chr(39))}', '', '', '');"
+    ]
+    subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=True)
+
+
+def cleanup_seeded_books(
+    container_name: str = "selectio_postgres",
+    db_name: str = "selectio_main",
+    title: str = "Gateway test seed book",
+) -> None:
+    """Remove seeded book(s) from the crud Books table via docker-exec."""
+    escaped_title = title.replace("'", "''")
+    cmd = [
+        "docker", "exec", container_name,
+        "psql", "-U", "postgres", "-d", db_name, "-c",
+        f'DELETE FROM "Books" WHERE "Title" = \'{escaped_title}\';'
+    ]
+    subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=True)

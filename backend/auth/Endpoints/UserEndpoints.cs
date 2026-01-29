@@ -16,7 +16,7 @@ public static class UserEndpoints
         // POST /user - Store user in pending_emails table and send verification email
         app.MapPost(
                 "/user",
-                async (User user, PendingEmailDbContext dbContext, IEmailService emailService, CancellationToken cancellationToken) =>
+                async (User user, UserDbContext dbContext, IEmailService emailService, CancellationToken cancellationToken) =>
                 {
                     var uuid = Guid.NewGuid();
                     var timestamp = DateTime.UtcNow;
@@ -70,9 +70,9 @@ public static class UserEndpoints
         // POST /user/verify/{uuid} - Verify UUID and add user to PostgreSQL users table
         app.MapPost(
                 "/user/verify/{uuid}",
-                async (Guid uuid, PendingEmailDbContext pendingDb, UserDbContext userDb) =>
+                async (Guid uuid, UserDbContext userDb) =>
                 {
-                    var pendingEmail = await pendingDb.PendingEmails.FirstOrDefaultAsync(p =>
+                    var pendingEmail = await userDb.PendingEmails.FirstOrDefaultAsync(p =>
                         p.Uuid == uuid
                     );
 
@@ -97,8 +97,8 @@ public static class UserEndpoints
                         await userDb.SaveChangesAsync();
 
                         // Remove from pending emails
-                        pendingDb.PendingEmails.Remove(pendingEmail);
-                        await pendingDb.SaveChangesAsync();
+                        userDb.PendingEmails.Remove(pendingEmail);
+                        await userDb.SaveChangesAsync();
 
                         return Results.Ok(new { message = "User verified and created successfully" });
                     }

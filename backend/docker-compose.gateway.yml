@@ -53,7 +53,6 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__PendingEmailsDb: Data Source=/data/pending_emails.db
       ConnectionStrings__UsersDb: Host=postgres;Database=selectio_main;Username=postgres;Password=postgres
       Jwt__SecretKey: ${JWT_SECRET_KEY}
       Jwt__Issuer: ${JWT_ISSUER}
@@ -67,8 +66,6 @@ services:
       Email__BaseUrl: ${EMAIL_BASE_URL}
       Email__AllowInsecureSsl: ${EMAIL_ALLOW_INSECURE_SSL}
       Gateway__InternalToken: ${GATEWAY_INTERNAL_TOKEN}
-    volumes:
-      - sqlite_data:/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,7 +101,5 @@ networks:
 
 volumes:
   postgres_data:
-    driver: local
-  sqlite_data:
     driver: local
 
