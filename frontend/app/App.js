@@ -32,7 +32,7 @@ export default function App() {
   return (
     <Provider store={store}>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="home">
+        <Stack.Navigator initialRouteName="profile">
           <Stack.Screen 
             name="home" 
             component={Home}
