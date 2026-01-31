@@ -56,6 +56,40 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+// CORS: allow frontend origin so browser cross-origin requests succeed.
+var allowAnyOrigin = string.Equals(builder.Configuration["Cors:AllowAnyOrigin"], "true", StringComparison.OrdinalIgnoreCase);
+var allowedOriginsConfig = builder.Configuration["Cors:AllowedOrigins"] ?? "";
+var allowedOrigins = allowedOriginsConfig
+    .Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
+    .Select(o => o.Trim())
+    .Where(o => o.Length > 0)
+    .ToArray();
+if (allowedOrigins.Length == 0 && builder.Environment.IsDevelopment())
+{
+    allowedOrigins = new[] { "http://localhost:8081", "http://localhost:8080" };
+}
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Default", policy =>
+    {
+        if (allowAnyOrigin)
+        {
+            policy.AllowAnyOrigin();
+        }
+        else if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins);
+        }
+        else
+        {
+            policy.AllowAnyOrigin();
+        }
+        policy.AllowAnyMethod();
+        policy.WithHeaders("Content-Type", "Authorization");
+    });
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -64,6 +98,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("Default");
 app.UseAuthentication();
 app.UseAuthorization();
 

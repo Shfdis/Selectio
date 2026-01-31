@@ -32,7 +32,7 @@ def get_verification_uuid_from_db(
                 "-t",
                 "-A",
                 "-c",
-                f'SELECT "Uuid" FROM pending_emails WHERE "Email" = \'{escaped_email}\';',
+                f'SELECT "Uuid" FROM auth.pending_emails WHERE "Email" = \'{escaped_email}\';',
             ]
 
             result = subprocess.run(
@@ -185,7 +185,7 @@ def seed_crud_books(
     cmd = [
         "docker", "exec", container_name,
         "psql", "-U", "postgres", "-d", db_name, "-c",
-        f'INSERT INTO "Books" ("Title", "Author", "Description", "Genre", "CoverUrl") '
+        f'INSERT INTO crud."Books" ("Title", "Author", "Description", "Genre", "CoverUrl") '
         f"VALUES ('{title.replace(chr(39), chr(39) + chr(39))}', '{author.replace(chr(39), chr(39) + chr(39))}', '', '', '');"
     ]
     subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=True)
@@ -201,6 +201,6 @@ def cleanup_seeded_books(
     cmd = [
         "docker", "exec", container_name,
         "psql", "-U", "postgres", "-d", db_name, "-c",
-        f'DELETE FROM "Books" WHERE "Title" = \'{escaped_title}\';'
+        f'DELETE FROM crud."Books" WHERE "Title" = \'{escaped_title}\';'
     ]
     subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=True)

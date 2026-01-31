@@ -4,11 +4,31 @@ using MimeKit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
+using System.Collections.Concurrent;
+
 namespace auth.Services;
 
 public interface IEmailService
 {
     Task SendVerificationEmailAsync(string email, string username, Guid verificationUuid, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Records sent verification emails for test verification. Used when Email:CaptureForTests=true.
+/// </summary>
+public sealed record CapturedEmail(string Email, string Username, Guid VerificationUuid);
+
+public sealed class CapturingEmailService : IEmailService
+{
+    private static readonly ConcurrentBag<CapturedEmail> _captured = new();
+
+    public static IReadOnlyList<CapturedEmail> GetCaptured() => _captured.ToArray();
+
+    public Task SendVerificationEmailAsync(string email, string username, Guid verificationUuid, CancellationToken cancellationToken = default)
+    {
+        _captured.Add(new CapturedEmail(email, username, verificationUuid));
+        return Task.CompletedTask;
+    }
 }
 
 public class EmailService : IEmailService
@@ -40,7 +60,7 @@ public class EmailService : IEmailService
             var fromName = _configuration["Email:FromName"] ?? "Selectio";
             var baseUrl = _configuration["Email:BaseUrl"] ?? "http://localhost:8080";
 
-            var verificationLink = $"{baseUrl}/user/verify/{verificationUuid}";
+            var verificationLink = $"{baseUrl}/api/auth/verify/{verificationUuid}";
 
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress(fromName, fromEmail));

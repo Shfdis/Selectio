@@ -41,13 +41,6 @@ public static class ProfileEndpoints
             var description = (body.Description ?? string.Empty).Trim();
             var avatarUrl = (body.AvatarUrl ?? string.Empty).Trim();
 
-            // Enforce uniqueness at app level to return 400 instead of 500.
-            var usernameTaken = await db.UserProfiles.AnyAsync(p => p.Username == username && p.UserId != userId);
-            if (usernameTaken)
-            {
-                return Results.BadRequest(new { message = "username already exists" });
-            }
-
             var profile = await db.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
             if (profile is null)
             {

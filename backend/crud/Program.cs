@@ -5,6 +5,8 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+const string ServiceSchema = "crud";
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -14,7 +16,10 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 builder.Services.AddDbContext<CrudDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("CrudDb"))
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("CrudDb"),
+        npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", ServiceSchema)
+    )
 );
 
 var app = builder.Build();
@@ -23,6 +28,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<CrudDbContext>();
+    await db.Database.ExecuteSqlRawAsync($"CREATE SCHEMA IF NOT EXISTS {ServiceSchema};");
     await db.Database.MigrateAsync();
 }
 

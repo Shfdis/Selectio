@@ -29,6 +29,7 @@ Keep it small and predictable:
 ### 2.1 Database wiring
 
 - Use Postgres connection string `ConnectionStrings:CrudDb`.
+- CRUD tables live in the Postgres schema `crud` (one DB shared across services, one schema per service).
 - Adopt one migration strategy:
   - **Dev**: apply migrations on startup (fast local feedback)
   - **CI/Prod**: run migrations via a one-off job/container (recommended long-term)

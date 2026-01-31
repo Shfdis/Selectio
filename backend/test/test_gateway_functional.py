@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import subprocess
 import uuid as uuid_lib
 
 import pytest
@@ -60,7 +61,11 @@ def seeded_books():
     try:
         yield
     finally:
-        cleanup_seeded_books()
+        try:
+            cleanup_seeded_books()
+        except subprocess.CalledProcessError:
+            # The seeded book may be referenced by Posts/other FKs; don't fail teardown.
+            pass
 
 
 @pytest.mark.gateway

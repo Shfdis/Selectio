@@ -13,6 +13,10 @@ def setup_services():
     compose_file = os.environ.get("SELECTIO_COMPOSE_FILE", "docker-compose.yml")
     framework = DockerComposeTestFramework(compose_file=compose_file)
     
+    # Schema-per-service change: ensure we always start from a clean DB volume.
+    # This avoids stale tables in `public` or other mismatched schemas across runs.
+    framework.stop(remove_volumes=True)
+
     # Start services
     print("\n=== Starting test services ===")
     if not framework.start(build=True):
@@ -37,7 +41,7 @@ def setup_services():
     
     # Cleanup: stop services
     print("\n=== Stopping test services ===")
-    framework.stop(remove_volumes=False)
+    framework.stop(remove_volumes=True)
 
 
 @pytest.fixture(scope="session", autouse=True)

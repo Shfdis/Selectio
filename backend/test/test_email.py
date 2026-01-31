@@ -158,3 +158,39 @@ class TestEmailVerification:
         assert "token" in login_data
         assert login_data["user"]["email"] == unique_email
         assert login_data["user"]["username"] == username
+
+    def test_registration_triggers_email_send(self, base_url, unique_email):
+        """Verify that POST /user triggers the email service (captured when Email:CaptureForTests=true)."""
+        username = generate_unique_username()
+        password = "TestPassword123!"
+        
+        register_user(base_url, unique_email, username, password)
+        
+        response = requests.get(f"{base_url}/test/emails-sent", timeout=10)
+        response.raise_for_status()
+        captured = response.json()
+        
+        emails = [c["email"] for c in captured]
+        assert unique_email in emails, f"Expected {unique_email} in captured emails: {emails}"
+        matching = next(c for c in captured if c["email"] == unique_email)
+        assert matching["username"] == username
+
+    def test_verification_via_get_works(self, base_url, unique_email):
+        """Browser-opened verification links send GET; endpoint must accept GET."""
+        username = generate_unique_username()
+        password = "TestPassword123!"
+        _, uuid = register_user_and_get_uuid(base_url, unique_email, username, password)
+
+        response = requests.get(
+            f"{base_url}/user/verify/{uuid}",
+            timeout=10
+        )
+        response.raise_for_status()
+        data = response.json()
+        assert "message" in data
+        assert "verified" in data["message"].lower() or "success" in data["message"].lower()
+
+        # User can login after GET verification
+        login_data, token = login_user(base_url, unique_email, password)
+        assert "token" in login_data
+        assert login_data["user"]["email"] == unique_email

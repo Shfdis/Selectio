@@ -15,6 +15,8 @@ public class UserDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDefaultSchema("auth");
+
         modelBuilder.Entity<VerifiedUser>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -24,7 +26,6 @@ public class UserDbContext : DbContext
             entity.Property(e => e.Description).IsRequired();
             entity.Property(e => e.PasswordHash).IsRequired();
             entity.HasIndex(e => e.Email).IsUnique();
-            entity.HasIndex(e => e.Username).IsUnique();
         });
 
         modelBuilder.Entity<Token>(entity =>

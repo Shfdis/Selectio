@@ -25,6 +25,9 @@ It is written to keep the gateway **easy to develop** and **easy to test**.
   - the gateway must **strip** any incoming `X-User-*` headers from the public request
   - the gateway must inject its own `X-User-*` headers when forwarding internally
 - **Internal services are not exposed** in “gateway-only” mode (`docker-compose.gateway.yml`).
+- **Service data separation**:
+  - services share one Postgres database, but each service owns its own schema (e.g. `auth.*`, `crud.*`)
+  - services must not assume tables live in `public`
 
 ## 2) Technology decision (two viable options)
 

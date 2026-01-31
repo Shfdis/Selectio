@@ -47,22 +47,29 @@ This section describes the Auth service as it is currently implemented in `backe
 
 ### 3.2 Storage
 
-The Auth service uses two databases:
+The Auth service uses **PostgreSQL** (single DB shared across services), and keeps its tables in the **`auth` schema**.
 
-- **SQLite** (pending registrations)
-  - table: `pending_emails`
+Tables (in Postgres schema `auth`):
+
+- `pending_emails` (pending registrations)
   - primary key: `uuid` (GUID)
   - fields: `email`, `username`, `description`, `passwordHash`, `timestamp`
   - cleanup: pending registrations older than 24 hours are removed
 
-- **PostgreSQL** (verified users + tokens)
-  - table: `users`
-    - unique constraints: `email`, `username`
-    - fields: `id`, `email`, `username`, `description`, `passwordHash`, `createdAt`
-  - table: `tokens`
-    - fields: `id`, `userId`, `jwtToken`, `createdAt`, `expiresAt`, `isRevoked`
-    - foreign key: `tokens.userId -> users.id` with **cascade delete**
-    - note: tokens are currently stored on login, but not used for revocation checks
+- `users` (verified users)
+  - unique constraints: `email`
+  - fields: `id`, `email`, `username`, `description`, `passwordHash`, `createdAt`
+
+- `tokens`
+  - fields: `id`, `userId`, `jwtToken`, `createdAt`, `expiresAt`, `isRevoked`
+  - foreign key: `tokens.userId -> users.id` with **cascade delete**
+  - note: tokens are currently stored on login, but not used for revocation checks
+
+#### Database conventions (current direction)
+
+- All services share the same Postgres database (`selectio_main`).
+- Each service owns a dedicated schema inside that DB (e.g. `auth.*`, `crud.*`).
+- Each service keeps its own EF migrations history table inside its schema.
 
 ### 3.3 Password handling
 
@@ -151,8 +158,7 @@ All request/response bodies are JSON.
 
 - **Do not commit secrets** (SMTP passwords, JWT secret keys) to the repository.
 - Configuration keys used by the Auth service:
-  - `ConnectionStrings:PendingEmailsDb` (SQLite)
-  - `ConnectionStrings:UsersDb` (Postgres)
+  - `ConnectionStrings:UsersDb` (Postgres; should target schema `auth`)
   - `Jwt:SecretKey`, `Jwt:Issuer`, `Jwt:Audience`, `Jwt:ExpiryMinutes`
   - `Email:SmtpHost`, `Email:SmtpPort`, `Email:SmtpUsername`, `Email:SmtpPassword`
   - `Email:FromEmail`, `Email:FromName`, `Email:BaseUrl`, `Email:AllowInsecureSsl`

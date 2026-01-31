@@ -53,7 +53,7 @@ class TestAuthService:
         )
         assert response1.status_code == 200
         
-        # Second registration with same email (should still succeed - duplicates allowed in pending)
+        # Second registration with same email (should fail - duplicates rejected at registration)
         user_data2 = {
             "email": unique_email,
             "username": f"user2_{uuid_lib.uuid4().hex[:8]}",
@@ -67,9 +67,30 @@ class TestAuthService:
             timeout=10
         )
         
-        # Should still succeed (pending emails can have duplicates)
-        # The duplicate check happens during verification
-        assert response2.status_code == 200
+        assert response2.status_code == 409, f"Expected 409 for duplicate email, got {response2.status_code}: {response2.text}"
+        data = response2.json()
+        assert "already exists" in data["message"].lower() or "pending" in data["message"].lower()
+
+    def test_two_users_can_share_same_username(self, base_url):
+        shared_username = generate_unique_username("shared")
+
+        email1 = generate_unique_email("shared1")
+        email2 = generate_unique_email("shared2")
+        password1 = "Password123!"
+        password2 = "Password456!"
+
+        _, uuid1 = register_user_and_get_uuid(base_url, email1, shared_username, password1)
+        verify_user(base_url, uuid1)
+
+        _, uuid2 = register_user_and_get_uuid(base_url, email2, shared_username, password2)
+        verify_user(base_url, uuid2)
+
+        login1, _ = login_user(base_url, email1, password1)
+        login2, _ = login_user(base_url, email2, password2)
+
+        assert login1["user"]["username"] == shared_username
+        assert login2["user"]["username"] == shared_username
+        assert login1["user"]["id"] != login2["user"]["id"]
     
     def test_register_user_missing_fields(self, base_url):
         incomplete_data = {
@@ -155,7 +176,7 @@ class TestAuthService:
         )
         assert verify_response1.status_code == 200, f"First verification failed: {verify_response1.text}"
         
-        # Register another user with same email
+        # Register another user with same email - should fail with 409
         user_data2 = {
             "email": unique_email,
             "username": f"duplicateuser2_{uuid_lib.uuid4().hex[:8]}",
@@ -168,18 +189,9 @@ class TestAuthService:
             json=user_data2,
             timeout=10
         )
-        assert reg_response2.status_code == 200
-        # Get UUID from database for second registration
-        uuid2 = get_verification_uuid_from_db(unique_email)
-        
-        # Try to verify second time - should fail with duplicate
-        verify_response2 = requests.post(
-            f"{base_url}/user/verify/{uuid2}",
-            timeout=10
-        )
-        assert verify_response2.status_code == 400, f"Expected 400 for duplicate, got {verify_response2.status_code}: {verify_response2.text}"
-        data = verify_response2.json()
-        assert "already exists" in data["message"].lower()
+        assert reg_response2.status_code == 409, f"Expected 409 for duplicate email after verification, got {reg_response2.status_code}: {reg_response2.text}"
+        data = reg_response2.json()
+        assert "already exists" in data["message"].lower() or "pending" in data["message"].lower()
     
     def test_login_success(self, base_url, unique_email):
         # First register and verify a user

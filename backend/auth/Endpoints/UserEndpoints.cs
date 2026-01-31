@@ -13,15 +13,21 @@ public static class UserEndpoints
 {
     public static void MapUserEndpoints(this WebApplication app)
     {
-        // POST /user - Store user in pending_emails table and send verification email
         app.MapPost(
                 "/user",
                 async (User user, UserDbContext dbContext, IEmailService emailService, CancellationToken cancellationToken) =>
                 {
+                    var emailExists = await dbContext.Users.AnyAsync(u => u.Email == user.email, cancellationToken)
+                        || await dbContext.PendingEmails.AnyAsync(p => p.Email == user.email, cancellationToken);
+                    if (emailExists)
+                    {
+                        return Results.Conflict(
+                            new { message = "A user with this email already exists or is pending verification." }
+                        );
+                    }
+
                     var uuid = Guid.NewGuid();
                     var timestamp = DateTime.UtcNow;
-
-                    // Hash the password before storing
                     var passwordHash = BCrypt.Net.BCrypt.HashPassword(user.password);
 
                     var pendingEmail = new PendingEmail
@@ -37,27 +43,25 @@ public static class UserEndpoints
                     dbContext.PendingEmails.Add(pendingEmail);
                     await dbContext.SaveChangesAsync(cancellationToken);
 
-                    // Send verification email (fire and forget - don't fail registration if email fails)
-                    // This runs in background so registration response is not delayed
-                    _ = Task.Run(async () =>
+                    try
                     {
-                        try
-                        {
-                            await emailService.SendVerificationEmailAsync(
-                                user.email,
-                                user.username,
-                                uuid,
-                                CancellationToken.None
-                            );
-                        }
-                        catch (Exception ex)
-                        {
-                            // Log error but don't fail the registration
-                            // Email sending failures should not prevent user registration
-                            // In production, consider using a proper logging framework
-                            Console.WriteLine($"[EmailService] Failed to send verification email to {user.email}: {ex.Message}");
-                        }
-                    });
+                        await emailService.SendVerificationEmailAsync(
+                            user.email,
+                            user.username,
+                            uuid,
+                            cancellationToken
+                        );
+                    }
+                    catch (Exception)
+                    {
+                        dbContext.PendingEmails.Remove(pendingEmail);
+                        await dbContext.SaveChangesAsync(cancellationToken);
+                        return Results.Problem(
+                            statusCode: 503,
+                            title: "Service Unavailable",
+                            detail: "Unable to send verification email. Please try again later."
+                        );
+                    }
 
                     return Results.Ok(
                         new { message = "User registration pending email verification. Please check your email for the verification link." }
@@ -67,51 +71,19 @@ public static class UserEndpoints
             .WithName("RegisterUser")
             .WithOpenApi();
 
-        // POST /user/verify/{uuid} - Verify UUID and add user to PostgreSQL users table
         app.MapPost(
                 "/user/verify/{uuid}",
-                async (Guid uuid, UserDbContext userDb) =>
-                {
-                    var pendingEmail = await userDb.PendingEmails.FirstOrDefaultAsync(p =>
-                        p.Uuid == uuid
-                    );
-
-                    if (pendingEmail == null)
-                    {
-                        return Results.NotFound(new { message = "Invalid verification UUID" });
-                    }
-
-                    // Create verified user (password is already hashed)
-                    var verifiedUser = new VerifiedUser
-                    {
-                        Email = pendingEmail.Email,
-                        Username = pendingEmail.Username,
-                        Description = pendingEmail.Description,
-                        PasswordHash = pendingEmail.PasswordHash,
-                        CreatedAt = DateTime.UtcNow,
-                    };
-
-                    try
-                    {
-                        userDb.Users.Add(verifiedUser);
-                        await userDb.SaveChangesAsync();
-
-                        // Remove from pending emails
-                        userDb.PendingEmails.Remove(pendingEmail);
-                        await userDb.SaveChangesAsync();
-
-                        return Results.Ok(new { message = "User verified and created successfully" });
-                    }
-                    catch (DbUpdateException)
-                    {
-                        // Handle duplicate email/username
-                        return Results.BadRequest(
-                            new { message = "User with this email or username already exists" }
-                        );
-                    }
-                }
+                async (Guid uuid, UserDbContext userDb) => await ExecuteVerifyByUuidAsync(uuid, userDb)
             )
             .WithName("VerifyUser")
+            .WithOpenApi();
+
+        // GET /user/verify/{uuid} - Browser-friendly; verification links use GET
+        app.MapGet(
+                "/user/verify/{uuid}",
+                async (Guid uuid, UserDbContext userDb) => await ExecuteVerifyByUuidAsync(uuid, userDb)
+            )
+            .WithName("VerifyUserGet")
             .WithOpenApi();
 
         // POST /user/verify - Authenticate user with email and password, return JWT token
@@ -270,6 +242,47 @@ public static class UserEndpoints
 
     private const string GatewayUserIdHeader = "X-User-Id";
     private const string GatewayInternalTokenHeader = "X-Gateway-Internal-Token";
+
+    private static async Task<IResult> ExecuteVerifyByUuidAsync(Guid uuid, UserDbContext userDb)
+    {
+        var pendingEmail = await userDb.PendingEmails.FirstOrDefaultAsync(p =>
+            p.Uuid == uuid
+        );
+
+        if (pendingEmail == null)
+        {
+            return Results.NotFound(new { message = "Invalid verification UUID" });
+        }
+
+        // Create verified user (password is already hashed)
+        var verifiedUser = new VerifiedUser
+        {
+            Email = pendingEmail.Email,
+            Username = pendingEmail.Username,
+            Description = pendingEmail.Description,
+            PasswordHash = pendingEmail.PasswordHash,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        try
+        {
+            userDb.Users.Add(verifiedUser);
+            await userDb.SaveChangesAsync();
+
+            // Remove from pending emails
+            userDb.PendingEmails.Remove(pendingEmail);
+            await userDb.SaveChangesAsync();
+
+            return Results.Ok(new { message = "User verified and created successfully" });
+        }
+        catch (DbUpdateException)
+        {
+            // Handle duplicate email
+            return Results.BadRequest(
+                new { message = "User with this email already exists" }
+            );
+        }
+    }
 
     private static int? TryGetGatewayUserId(HttpContext httpContext, IConfiguration configuration)
     {

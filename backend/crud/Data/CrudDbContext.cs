@@ -20,13 +20,14 @@ public class CrudDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDefaultSchema("crud");
+
         modelBuilder.Entity<UserProfile>(e =>
         {
             e.HasKey(x => x.UserId);
             e.Property(x => x.Username).IsRequired();
             e.Property(x => x.Description).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.AvatarUrl).HasDefaultValue(string.Empty);
-            e.HasIndex(x => x.Username).IsUnique();
         });
 
         modelBuilder.Entity<Book>(e =>
