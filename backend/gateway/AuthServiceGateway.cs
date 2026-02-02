@@ -36,7 +36,6 @@ public static class AuthServiceGateway
             );
         });
 
-        // Support browser-friendly GET verification by converting it to POST to the auth service.
         authGroup.MapGet("/verify/{uuid}", async (HttpContext http, IHttpClientFactory clients) =>
         {
             GatewayRequestUtils.PrepareRequest(http, untrustedHeadersToStrip);

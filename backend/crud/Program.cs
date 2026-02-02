@@ -24,7 +24,6 @@ builder.Services.AddDbContext<CrudDbContext>(options =>
 
 var app = builder.Build();
 
-// Apply migrations on startup (dev-focused; compose runs Development).
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<CrudDbContext>();

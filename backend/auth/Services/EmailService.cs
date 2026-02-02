@@ -13,9 +13,6 @@ public interface IEmailService
     Task SendVerificationEmailAsync(string email, string username, Guid verificationUuid, CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// Records sent verification emails for test verification. Used when Email:CaptureForTests=true.
-/// </summary>
 public sealed record CapturedEmail(string Email, string Username, Guid VerificationUuid);
 
 public sealed class CapturingEmailService : IEmailService
@@ -124,18 +121,15 @@ If you didn't create an account with Selectio, please ignore this email.
             message.Body = bodyBuilder.ToMessageBody();
 
             using var client = new SmtpClient();
-            
-            // For development/testing, allow self-signed certificates
+
             if (_configuration.GetValue<bool>("Email:AllowInsecureSsl", false))
             {
                 client.ServerCertificateValidationCallback = (s, c, h, e) => true;
             }
 
-            // Mail.ru requires STARTTLS on port 587 (or SSL on port 465)
             _logger.LogInformation("Connecting to SMTP server {Host}:{Port}", smtpHost, smtpPort);
             await client.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls, cancellationToken);
 
-            // Mail.ru requires authentication
             if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
             {
                 throw new InvalidOperationException("SMTP username and password are required");

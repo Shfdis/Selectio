@@ -22,7 +22,6 @@ public class Token
 
     public bool IsRevoked { get; set; } = false;
 
-    // Navigation property
     [ForeignKey(nameof(UserId))]
     public VerifiedUser? User { get; set; }
 }

@@ -8,7 +8,7 @@ public class BookComment
     public int AuthorUserId { get; set; }
 
     public string Content { get; set; } = string.Empty;
-    public int Rating { get; set; } // 1..5
+    public int Rating { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Book? Book { get; set; }

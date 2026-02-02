@@ -13,7 +13,7 @@ public class UserBook
     public int BookId { get; set; }
 
     public LibraryStatus Status { get; set; } = LibraryStatus.WantToRead;
-    public int? Rating { get; set; } // 1..5
+    public int? Rating { get; set; }
 
     public Book? Book { get; set; }
 }

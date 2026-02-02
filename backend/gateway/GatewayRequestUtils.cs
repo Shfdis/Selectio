@@ -66,8 +66,6 @@ public static class GatewayRequestUtils
     {
         var contentType = resp.Content.Headers.ContentType?.ToString() ?? "application/json";
         var body = await resp.Content.ReadAsStringAsync();
-
-        // Preserve upstream status code and body.
         return Results.Text(body, contentType, statusCode: (int)resp.StatusCode);
     }
 }

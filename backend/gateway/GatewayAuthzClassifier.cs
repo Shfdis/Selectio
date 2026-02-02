@@ -4,37 +4,31 @@ public static class GatewayAuthzClassifier
 {
     public static AuthzRequirement Classify(string method, string path)
     {
-        // Auth routes are handled by AuthServiceGateway.
         if (path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase))
         {
             return AuthzRequirement.Public;
         }
 
-        // Moderator endpoints (must take precedence over broad public GET rules).
         if (path.Contains("/suggestions", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Moderator;
         if (path.EndsWith("/approve", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Moderator;
         if (path.EndsWith("/reject", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Moderator;
 
-        // Public CRUD reads.
         if (HttpMethods.IsGet(method))
         {
-            // User-scoped reads must be checked before broad public prefixes.
             if (path.Equals("/api/users/favorites", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
             if (path.Equals("/api/users/me/book-comments", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
             if (path.StartsWith("/api/books", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;
             if (path.StartsWith("/api/communities", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;
             if (path.StartsWith("/api/users/", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;
-            if (path.StartsWith("/api/posts/", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public; // may become moderator-only for suggested
+            if (path.StartsWith("/api/posts/", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;
             if (path.Contains("/comments", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;
         }
 
-        // User-scoped auth surface.
         if (path.Equals("/api/auth/me", StringComparison.OrdinalIgnoreCase))
         {
             return AuthzRequirement.User;
         }
 
-        // User-scoped CRUD writes.
         if (path.Equals("/api/users/profile", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPut(method))
         {
             return AuthzRequirement.User;
@@ -52,7 +46,6 @@ public static class GatewayAuthzClassifier
         if (path.StartsWith("/api/books/", StringComparison.OrdinalIgnoreCase) && path.EndsWith("/comments", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPost(method)) return AuthzRequirement.User;
         if (path.Equals("/api/communities", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPost(method)) return AuthzRequirement.User;
 
-        // Owner endpoints.
         if (path.StartsWith("/api/posts/", StringComparison.OrdinalIgnoreCase) && (HttpMethods.IsPut(method) || HttpMethods.IsDelete(method)))
         {
             return AuthzRequirement.Owner;
@@ -63,7 +56,6 @@ public static class GatewayAuthzClassifier
             return AuthzRequirement.Owner;
         }
 
-        // Default: require auth for anything else under /api.
         return AuthzRequirement.User;
     }
 
@@ -73,7 +65,6 @@ public static class GatewayAuthzClassifier
         if (!HttpMethods.IsGet(method)) return false;
         if (!path.StartsWith("/api/posts/", StringComparison.OrdinalIgnoreCase)) return false;
 
-        // /api/posts/{id}
         var rest = path["/api/posts/".Length..];
         if (rest.Contains('/')) return false;
         return int.TryParse(rest, out postId);

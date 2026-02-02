@@ -71,7 +71,6 @@ public static class CommunityEndpoints
             db.Communities.Add(community);
             await db.SaveChangesAsync();
 
-            // Ensure owner is also a member with Owner role.
             var ownerMember = new CommunityMember
             {
                 CommunityId = community.Id,

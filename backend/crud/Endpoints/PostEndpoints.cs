@@ -35,7 +35,6 @@ public static class PostEndpoints
                 return Results.NotFound();
             }
 
-            // Suggested posts should only be visible when the gateway explicitly allows it
             if (post.Status == PostStatus.Suggested)
             {
                 var allowSuggested =
@@ -44,7 +43,6 @@ public static class PostEndpoints
 
                 if (!allowSuggested)
                 {
-                    // Hide existence unless explicitly allowed.
                     return Results.NotFound();
                 }
             }

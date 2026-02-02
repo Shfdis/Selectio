@@ -13,7 +13,6 @@ builder.Services.AddHttpForwarder();
 
 builder.Services.AddSingleton(_ => new HttpMessageInvoker(new SocketsHttpHandler
 {
-    // Reasonable defaults for a gateway.
     UseProxy = false,
     AllowAutoRedirect = false,
     AutomaticDecompression = DecompressionMethods.None
@@ -32,7 +31,6 @@ builder.Services.AddHttpClient("auth-internal", client =>
 builder.Services.AddSingleton<GatewayProxy>();
 builder.Services.AddSingleton<CrudAuthzClient>();
 
-// JWT validation (must match Auth service config).
 var jwtSecret = builder.Configuration["Jwt:SecretKey"]
     ?? "your-super-secret-key-change-this-in-production-minimum-32-characters";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "SelectioAuth";
@@ -56,7 +54,6 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// CORS: allow frontend origin so browser cross-origin requests succeed.
 var allowAnyOrigin = string.Equals(builder.Configuration["Cors:AllowAnyOrigin"], "true", StringComparison.OrdinalIgnoreCase);
 var allowedOriginsConfig = builder.Configuration["Cors:AllowedOrigins"] ?? "";
 var allowedOrigins = allowedOriginsConfig

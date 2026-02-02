@@ -67,7 +67,6 @@ public sealed class CrudAuthzClient(IHttpClientFactory clients, IConfiguration c
 
     public async Task<int?> ResolveCommunityIdForModeratorRequirement(HttpContext http, string path)
     {
-        // /api/communities/{id}/suggestions
         if (path.StartsWith("/api/communities/", StringComparison.OrdinalIgnoreCase) &&
             path.EndsWith("/suggestions", StringComparison.OrdinalIgnoreCase))
         {
@@ -76,7 +75,6 @@ public sealed class CrudAuthzClient(IHttpClientFactory clients, IConfiguration c
             return int.TryParse(idText, out var communityId) ? communityId : null;
         }
 
-        // /api/posts/{id}/approve or /reject
         if (path.StartsWith("/api/posts/", StringComparison.OrdinalIgnoreCase) &&
             (path.EndsWith("/approve", StringComparison.OrdinalIgnoreCase) || path.EndsWith("/reject", StringComparison.OrdinalIgnoreCase)))
         {

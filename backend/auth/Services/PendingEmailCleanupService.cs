@@ -7,7 +7,7 @@ public class PendingEmailCleanupService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<PendingEmailCleanupService> _logger;
-    private readonly TimeSpan _checkInterval = TimeSpan.FromHours(1); // Check every hour
+    private readonly TimeSpan _checkInterval = TimeSpan.FromHours(1);
 
     public PendingEmailCleanupService(
         IServiceProvider serviceProvider,

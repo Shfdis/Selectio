@@ -55,7 +55,6 @@ public static class LikeFavoriteEndpoints
                 await db.SaveChangesAsync();
             }
 
-            // idempotent: deleting non-existent like returns 200
             return Results.Ok(new { postId = id, userId, liked = false });
         });
 
@@ -99,7 +98,6 @@ public static class LikeFavoriteEndpoints
                 await db.SaveChangesAsync();
             }
 
-            // idempotent
             return Results.Ok(new { postId = id, userId, favorited = false });
         });
 

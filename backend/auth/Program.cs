@@ -16,7 +16,6 @@ const string ServiceSchema = "auth";
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Register email service (or capturing service for tests)
 var captureForTests = builder.Configuration.GetValue<bool>("Email:CaptureForTests", false);
 if (captureForTests)
 {
@@ -28,10 +27,8 @@ else
     builder.Services.AddScoped<IEmailService, EmailService>();
 }
 
-// Register background service for cleaning up old pending emails
 builder.Services.AddHostedService<PendingEmailCleanupService>();
 
-// Configure PostgreSQL for verified users
 builder.Services.AddDbContext<UserDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("UsersDb"),
@@ -39,7 +36,6 @@ builder.Services.AddDbContext<UserDbContext>(options =>
     )
 );
 
-// Configure JWT Authentication
 var jwtSecret = builder.Configuration["Jwt:SecretKey"] 
     ?? "your-super-secret-key-change-this-in-production-minimum-32-characters";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "SelectioAuth";
@@ -66,19 +62,15 @@ var app = builder.Build();
 
 static void BaselineIfCreatedWithoutMigrations(DbContext db, string schema)
 {
-    // Scenario: DB was previously created via EnsureCreated().
-    // Tables exist, but __EFMigrationsHistory doesn't, so Migrate() would try to re-create tables.
     var databaseCreator = db.GetService<IRelationalDatabaseCreator>();
     var history = db.GetService<IHistoryRepository>();
 
     static bool HasNonHistoryTables(DbContext db, string schema)
     {
-        // Avoid treating a DB with only __EFMigrationsHistory as “existing schema”.
         var provider = db.Database.ProviderName ?? string.Empty;
 
         if (provider.Contains("Sqlite", StringComparison.OrdinalIgnoreCase))
         {
-            // Exclude EF history and SQLite internal tables.
             return db.Database.SqlQueryRaw<long>(
                     """
                     SELECT COUNT(*) AS cnt
@@ -91,7 +83,6 @@ static void BaselineIfCreatedWithoutMigrations(DbContext db, string schema)
                 .FirstOrDefault() > 0;
         }
 
-        // Default relational check (PostgreSQL, etc.)
         return db.Database.SqlQueryRaw<long>(
                 """
                 SELECT COUNT(*) AS cnt
@@ -117,7 +108,6 @@ static void BaselineIfCreatedWithoutMigrations(DbContext db, string schema)
         return;
     }
 
-    // If the DB has no user tables, we should not “baseline”; just let Migrate() create everything.
     if (!HasNonHistoryTables(db, schema))
     {
         return;
@@ -125,7 +115,6 @@ static void BaselineIfCreatedWithoutMigrations(DbContext db, string schema)
 
     if (!history.Exists())
     {
-        // IHistoryRepository doesn't expose CreateIfNotExists() in EF Core 8; create explicitly.
         db.Database.ExecuteSqlRaw(history.GetCreateScript());
     }
 
@@ -147,7 +136,6 @@ static void BaselineIfCreatedWithoutMigrations(DbContext db, string schema)
                 .FirstOrDefault() > 0;
         }
 
-        // PostgreSQL (and most relational): check pg_indexes in the target schema
         return db.Database.SqlQueryRaw<long>(
                 """
                 SELECT COUNT(*) AS cnt
@@ -172,9 +160,6 @@ static void BaselineIfCreatedWithoutMigrations(DbContext db, string schema)
             continue;
         }
 
-        // If the DB was created without migrations, it's likely in a "current schema" state.
-        // Do not baseline migrations that *haven't* actually been applied to the schema yet.
-        // Example: when a new migration drops an existing index, we must let Migrate() run it.
         if (migrationId.Contains("DropUsernameUniqueIndex", StringComparison.Ordinal) &&
             HasIndex(db, schema, "IX_users_Username"))
         {
@@ -186,7 +171,6 @@ static void BaselineIfCreatedWithoutMigrations(DbContext db, string schema)
     }
 }
 
-// Apply migrations (with baseline for existing dev DBs)
 using (var scope = app.Services.CreateScope())
 {
 
@@ -195,8 +179,6 @@ using (var scope = app.Services.CreateScope())
     BaselineIfCreatedWithoutMigrations(userDb, ServiceSchema);
     userDb.Database.Migrate();
 
-    // Defensive: if a prior baseline run marked migrations as applied without actually changing schema,
-    // enforce the current rule (usernames are NOT unique) by dropping the legacy unique index if present.
     var provider = userDb.Database.ProviderName ?? string.Empty;
     if (provider.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) ||
         provider.Contains("Postgre", StringComparison.OrdinalIgnoreCase))
@@ -216,10 +198,8 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Map user endpoints
 app.MapUserEndpoints();
 
-// Test endpoint for verifying email was sent (only when capture mode enabled)
 if (captureForTests)
 {
     app.MapGet(

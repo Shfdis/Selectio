@@ -38,7 +38,6 @@ public class UserDbContext : DbContext
             entity.HasIndex(e => e.JwtToken);
             entity.HasIndex(e => e.UserId);
 
-            // Configure cascade delete: when a user is deleted, all their tokens are deleted
             entity.HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.UserId)

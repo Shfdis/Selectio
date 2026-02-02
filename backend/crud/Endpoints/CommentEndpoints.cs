@@ -13,7 +13,6 @@ public static class CommentEndpoints
 {
     public static IEndpointRouteBuilder MapCommentEndpoints(this IEndpointRouteBuilder app)
     {
-        // Post comments
         app.MapGet("/api/posts/{id:int}/comments", async (CrudDbContext db, int id, int? page, int? pageSize) =>
         {
             var (p, ps) = EndpointHelpers.NormalizePagination(page, pageSize, defaultPageSize: 50, maxPageSize: 200);
@@ -58,7 +57,6 @@ public static class CommentEndpoints
             return Results.Ok(new PostCommentDto(comment.Id, comment.PostId, comment.AuthorUserId, comment.Content, comment.CreatedAt));
         }).WithTags("Comments");
 
-        // Comment edit/delete (post comments only; book comments are immutable for now)
         app.MapPut("/api/comments/{id:int}", async (HttpContext http, CrudDbContext db, int id, UpdateCommentRequest body) =>
         {
             var (_, error) = EndpointHelpers.RequireUserId(http);
@@ -89,7 +87,6 @@ public static class CommentEndpoints
             return Results.Ok(new { message = "deleted" });
         }).WithTags("Comments");
 
-        // Book comments
         app.MapGet("/api/books/{id:int}/comments", async (CrudDbContext db, int id, int? page, int? pageSize) =>
         {
             var (p, ps) = EndpointHelpers.NormalizePagination(page, pageSize, defaultPageSize: 50, maxPageSize: 200);
@@ -140,7 +137,6 @@ public static class CommentEndpoints
             return Results.Ok(new BookCommentDto(comment.Id, comment.BookId, comment.AuthorUserId, comment.Content, comment.Rating, comment.CreatedAt));
         }).WithTags("Comments");
 
-        // Current user's book comments
         app.MapGet("/api/users/me/book-comments", async (HttpContext http, CrudDbContext db, int? page, int? pageSize) =>
         {
             var (userId, error) = EndpointHelpers.RequireUserId(http);

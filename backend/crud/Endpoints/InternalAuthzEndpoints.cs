@@ -73,7 +73,6 @@ public static class InternalAuthzEndpoints
             var expected = _configuration["Gateway:InternalToken"] ?? string.Empty;
             if (string.IsNullOrWhiteSpace(expected))
             {
-                // Misconfigured service: fail closed.
                 return Results.Unauthorized();
             }
 

@@ -12,7 +12,6 @@ public static class ModerationEndpoints
 {
     public static IEndpointRouteBuilder MapModerationEndpoints(this IEndpointRouteBuilder app)
     {
-        // Suggested posts list (gateway enforces moderator role; CRUD just returns suggested posts)
         app.MapGet("/api/communities/{id:int}/suggestions", async (CrudDbContext db, int id, int? page, int? pageSize) =>
         {
             var p = page.GetValueOrDefault(1);
@@ -45,7 +44,6 @@ public static class ModerationEndpoints
             return Results.Ok(items);
         }).WithTags("Moderation");
 
-        // Approve: Suggested -> Published
         app.MapPost("/api/posts/{id:int}/approve", async (CrudDbContext db, int id) =>
         {
             var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id);
@@ -62,7 +60,6 @@ public static class ModerationEndpoints
             return Results.Ok(new ModerationDecisionResponse(post.Id, post.Status.ToString()));
         }).WithTags("Moderation");
 
-        // Reject: delete suggested post
         app.MapPost("/api/posts/{id:int}/reject", async (CrudDbContext db, int id) =>
         {
             var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id);

@@ -16,7 +16,6 @@ public static class CrudServiceGateway
         {
             GatewayRequestUtils.PrepareRequest(http, untrustedHeadersToStrip);
 
-            // Non-/api routes are not part of the public surface.
             if (!http.Request.Path.StartsWithSegments("/api"))
             {
                 await Results.NotFound().ExecuteAsync(http);
@@ -26,7 +25,6 @@ public static class CrudServiceGateway
             var path = http.Request.Path.Value ?? string.Empty;
             var method = http.Request.Method ?? "GET";
 
-            // Auth routes are mapped by AuthServiceGateway.
             if (path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase))
             {
                 await Results.NotFound().ExecuteAsync(http);
@@ -46,7 +44,6 @@ public static class CrudServiceGateway
                 }
             }
 
-            // Special case: /api/posts/{id} can be public or moderator-only depending on status.
             if (GatewayAuthzClassifier.IsGetPostById(method, path, out var postIdForVisibility))
             {
                 var postInfo = await authzClient.FetchPostInfo(http, postIdForVisibility);
@@ -72,7 +69,6 @@ public static class CrudServiceGateway
                         return;
                     }
 
-                    // Allow CRUD to return suggested post.
                     http.Items[GatewayHeaders.AllowSuggested] = "true";
                 }
             }
@@ -97,7 +93,6 @@ public static class CrudServiceGateway
                 }
             }
 
-            // Forward to CRUD.
             await proxy.ProxyWithGatewayIdentity(
                 http,
                 forwarder,
@@ -111,7 +106,6 @@ public static class CrudServiceGateway
 
     private static async Task<IResult?> RequireOwnerOr403(CrudAuthzClient authzClient, HttpContext http, int userId, string path)
     {
-        // Posts: /api/posts/{id}
         if (TryGetSingleSegmentId(path, "/api/posts/", out var postId))
         {
             var info = await authzClient.FetchPostInfo(http, postId);
@@ -120,7 +114,6 @@ public static class CrudServiceGateway
             return null;
         }
 
-        // Comments: /api/comments/{id}
         if (TryGetSingleSegmentId(path, "/api/comments/", out var commentId))
         {
             var info = await authzClient.FetchPostCommentInfo(http, commentId);

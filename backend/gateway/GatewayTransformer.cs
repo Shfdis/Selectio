@@ -40,20 +40,17 @@ public sealed class GatewayTransformer : HttpTransformer
             httpContext.Request.QueryString
         );
 
-        // Always forward the request id.
         if (_http.Request.Headers.TryGetValue(GatewayHeaders.RequestId, out var requestId))
         {
             proxyRequest.Headers.TryAddWithoutValidation(GatewayHeaders.RequestId, requestId.ToString());
         }
 
-        // Never trust identity/authz headers from the public request (they should have been stripped already).
         proxyRequest.Headers.Remove(GatewayHeaders.UserId);
         proxyRequest.Headers.Remove(GatewayHeaders.UserEmail);
         proxyRequest.Headers.Remove(GatewayHeaders.UserName);
         proxyRequest.Headers.Remove(GatewayHeaders.AllowSuggested);
         proxyRequest.Headers.Remove(GatewayHeaders.InternalToken);
 
-        // By default, do not forward client JWT to internal services.
         if (!_allowJwtForward)
         {
             proxyRequest.Headers.Remove("Authorization");

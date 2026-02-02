@@ -78,7 +78,6 @@ public static class UserEndpoints
             .WithName("VerifyUser")
             .WithOpenApi();
 
-        // GET /user/verify/{uuid} - Browser-friendly; verification links use GET
         app.MapGet(
                 "/user/verify/{uuid}",
                 async (Guid uuid, UserDbContext userDb) => await ExecuteVerifyByUuidAsync(uuid, userDb)
@@ -86,7 +85,6 @@ public static class UserEndpoints
             .WithName("VerifyUserGet")
             .WithOpenApi();
 
-        // POST /user/verify - Authenticate user with email and password, return JWT token
         app.MapPost(
                 "/user/verify",
                 async (
@@ -95,7 +93,6 @@ public static class UserEndpoints
                     IConfiguration configuration
                 ) =>
                 {
-                    // Find user by email
                     var user = await userDb.Users.FirstOrDefaultAsync(u =>
                         u.Email == loginRequest.email
                     );
@@ -105,20 +102,18 @@ public static class UserEndpoints
                         return Results.Unauthorized();
                     }
 
-                    // Verify password
                     if (!BCrypt.Net.BCrypt.Verify(loginRequest.password, user.PasswordHash))
                     {
                         return Results.Unauthorized();
                     }
 
-                    // Generate JWT token
                     var jwtSecret = configuration["Jwt:SecretKey"]
                         ?? "your-super-secret-key-change-this-in-production-minimum-32-characters";
                     var jwtIssuer = configuration["Jwt:Issuer"] ?? "SelectioAuth";
                     var jwtAudience = configuration["Jwt:Audience"] ?? "SelectioUsers";
                     var jwtExpiryMinutes = int.Parse(
                         configuration["Jwt:ExpiryMinutes"] ?? "1440"
-                    ); // Default 24 hours
+                    );
 
                     var tokenHandler = new JwtSecurityTokenHandler();
                     var key = Encoding.UTF8.GetBytes(jwtSecret);
@@ -146,7 +141,6 @@ public static class UserEndpoints
                     var token = tokenHandler.CreateToken(tokenDescriptor);
                     var tokenString = tokenHandler.WriteToken(token);
 
-                    // Store token in database
                     var dbToken = new Token
                     {
                         UserId = user.Id,
@@ -177,20 +171,16 @@ public static class UserEndpoints
             .WithName("LoginUser")
             .WithOpenApi();
 
-        // GET /user/identify - Get user data from JWT token
         app.MapGet(
                 "/user/identify",
                 async (HttpContext httpContext, UserDbContext userDb, IConfiguration configuration) =>
                 {
-                    // Prefer gateway-provided identity when accompanied by the shared internal token.
-                    // This allows the gateway to be the single enforcement point without forwarding client JWT.
                     var userId = TryGetGatewayUserId(httpContext, configuration) ?? TryGetJwtUserId(httpContext);
                     if (userId is null)
                     {
                         return Results.Unauthorized();
                     }
 
-                    // Fetch user from database
                     var user = await userDb.Users.FirstOrDefaultAsync(u => u.Id == userId.Value);
                     if (user == null)
                     {
@@ -211,7 +201,6 @@ public static class UserEndpoints
             .WithName("IdentifyUser")
             .WithOpenApi();
 
-        // DELETE /user/delete - Delete user account and all associated tokens (cascade delete)
         app.MapDelete(
                 "/user/delete",
                 async (HttpContext httpContext, UserDbContext userDb, IConfiguration configuration) =>
@@ -222,14 +211,12 @@ public static class UserEndpoints
                         return Results.Unauthorized();
                     }
 
-                    // Fetch user from database
                     var user = await userDb.Users.FirstOrDefaultAsync(u => u.Id == userId.Value);
                     if (user == null)
                     {
                         return Results.NotFound(new { message = "User not found" });
                     }
 
-                    // Delete user - tokens will be cascade deleted automatically
                     userDb.Users.Remove(user);
                     await userDb.SaveChangesAsync();
 
@@ -254,7 +241,6 @@ public static class UserEndpoints
             return Results.NotFound(new { message = "Invalid verification UUID" });
         }
 
-        // Create verified user (password is already hashed)
         var verifiedUser = new VerifiedUser
         {
             Email = pendingEmail.Email,
@@ -269,7 +255,6 @@ public static class UserEndpoints
             userDb.Users.Add(verifiedUser);
             await userDb.SaveChangesAsync();
 
-            // Remove from pending emails
             userDb.PendingEmails.Remove(pendingEmail);
             await userDb.SaveChangesAsync();
 
@@ -277,7 +262,6 @@ public static class UserEndpoints
         }
         catch (DbUpdateException)
         {
-            // Handle duplicate email
             return Results.BadRequest(
                 new { message = "User with this email already exists" }
             );
