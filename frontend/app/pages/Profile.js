@@ -4,6 +4,7 @@ import { removeToken } from '../utils/secureStore';
 import { userApi } from '../slices/userSlice';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
 import ProfileListCard from '../components/ProfileListCard';
+import ReviewCard from '../components/ReviewCard';
 import BottomNavBar from '../components/BottomNavBar';
 import { useMemo, useState } from 'react';
 
@@ -18,7 +19,7 @@ export default function Profile() {
   const displayName = currentUser?.username || 'Ария Бочкина';
   const description =
     currentUser?.description ||
-    'Люблю погружаться в фэнтезийные и постапокалиптические миры, но самый любимый жанр - сянься fk dklf ofk firnfi firk ifjg ifdik fikn ijfd ijvgd find';
+    'Люблю погружаться в фэнтезийные и постапокалиптические миры, но самый любимый жанр - сянься';
 
   const tabItems = useMemo(
     () => [
@@ -91,6 +92,25 @@ export default function Profile() {
                 style={styles.cardSpacing}
               />
               <ProfileListCard title="Прочитанное" countText="0 книг" leftColor="#D6C596" disabled />
+            </View>
+          ) : activeTab === 'reviews' ? (
+            <View style={styles.reviews}>
+              <ReviewCard
+                title="Хаски и его учитель белый кот"
+                author="Митбан"
+                rating={4}
+                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные персонажи, постоянные эмоциональные качели, а главное - романтические линии"
+                showMore
+                disabled
+                style={styles.reviewSpacing}
+              />
+              <ReviewCard
+                title="Хаски и его учитель белый кот"
+                author="Митбан"
+                rating={5}
+                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные"
+                disabled
+              />
             </View>
           ) : (
             <Text style={styles.emptyState}>Пока пусто</Text>
@@ -200,6 +220,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: '6%',
     paddingTop: '6%',
     paddingBottom: '6%',
+  },
+  reviews: {
+    width: '100%',
+  },
+  reviewSpacing: {
+    marginBottom: '6%',
   },
   emptyState: {
     fontSize: 16,
