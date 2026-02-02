@@ -69,11 +69,11 @@ class TestCrudLikesFavorites:
         items = r2.json()
         assert any(i["postId"] == post_id for i in items)
 
-        # favorite again (idempotent)
+        # favorite again
         r3 = requests.post(f"{crud_base_url}/api/posts/{post_id}/favorite", headers=headers, timeout=5)
         assert r3.status_code == 200
 
-        # unfavorite twice (idempotent)
+        # unfavorite twice
         r4 = requests.delete(f"{crud_base_url}/api/posts/{post_id}/favorite", headers=headers, timeout=5)
         assert r4.status_code == 200
         r5 = requests.delete(f"{crud_base_url}/api/posts/{post_id}/favorite", headers=headers, timeout=5)

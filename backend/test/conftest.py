@@ -12,9 +12,6 @@ from helpers import seed_crud_books, cleanup_seeded_books
 def setup_services():
     compose_file = os.environ.get("SELECTIO_COMPOSE_FILE", "docker-compose.yml")
     framework = DockerComposeTestFramework(compose_file=compose_file)
-    
-    # Schema-per-service change: ensure we always start from a clean DB volume.
-    # This avoids stale tables in `public` or other mismatched schemas across runs.
     framework.stop(remove_volumes=True)
 
     # Start services
@@ -58,7 +55,7 @@ def seeded_books_for_crud(setup_services):
         try:
             cleanup_seeded_books(title="The Hobbit")
         except subprocess.CalledProcessError:
-            # Book may be referenced by Posts/other FKs; ignore so teardown does not fail
+            # Book may be referenced by Posts/other FKs
             pass
 
 

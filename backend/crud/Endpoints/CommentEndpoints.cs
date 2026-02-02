@@ -140,6 +140,26 @@ public static class CommentEndpoints
             return Results.Ok(new BookCommentDto(comment.Id, comment.BookId, comment.AuthorUserId, comment.Content, comment.Rating, comment.CreatedAt));
         }).WithTags("Comments");
 
+        // Current user's book comments
+        app.MapGet("/api/users/me/book-comments", async (HttpContext http, CrudDbContext db, int? page, int? pageSize) =>
+        {
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
+
+            var (p, ps) = EndpointHelpers.NormalizePagination(page, pageSize, defaultPageSize: 50, maxPageSize: 200);
+
+            var items = await db.BookComments
+                .Where(c => c.AuthorUserId == userId)
+                .OrderBy(c => c.CreatedAt)
+                .ThenBy(c => c.Id)
+                .Skip((p - 1) * ps)
+                .Take(ps)
+                .Select(c => new BookCommentDto(c.Id, c.BookId, c.AuthorUserId, c.Content, c.Rating, c.CreatedAt))
+                .ToListAsync();
+
+            return Results.Ok(items);
+        }).WithTags("Comments");
+
         return app;
     }
 }

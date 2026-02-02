@@ -20,9 +20,9 @@ def _register_via_gateway(base_url: str, email: str, username: str, password: st
     )
     assert resp.status_code == 200, resp.text
     data = resp.json()
-    # UUID should NOT be in response (security requirement)
+    # UUID should NOT be in response
     assert "uuid" not in data, "UUID should not be returned in registration response"
-    # Get UUID from database instead (has built-in retry logic)
+    # Get UUID from database
     return get_verification_uuid_from_db(email)
 
 
@@ -88,7 +88,7 @@ class TestGateway:
         assert isinstance(data, list)
 
     def test_header_stripping_does_not_grant_access(self, gateway_base_url):
-        # PUT /api/users/profile is user-scoped. Client-supplied X-User-Id must be stripped.
+        # PUT Client-supplied X-User-Id must be stripped.
         resp = requests.put(
             f"{gateway_base_url}/api/users/profile",
             headers={"X-User-Id": "999"},
@@ -99,7 +99,7 @@ class TestGateway:
         data = resp.json()
         assert data["error"]["code"] == "unauthorized"
 
-    def test_jwt_injects_user_headers_to_crud(self, gateway_base_url):
+    def test_jwt_injects_user_headers_to_crud(self, gateway_base_url, seeded_books):
         token = _create_user_token(gateway_base_url)
         headers = {"Authorization": f"Bearer {token}"}
 
@@ -114,6 +114,29 @@ class TestGateway:
         data = resp.json()
         assert data["username"] == new_username
 
+        # Book comments are user-scoped.
+        books = requests.get(f"{gateway_base_url}/api/books", timeout=15).json()
+        assert books, "expected seeded books"
+        book_id = books[0]["id"]
+
+        c_resp = requests.post(
+            f"{gateway_base_url}/api/books/{book_id}/comments",
+            headers=headers,
+            json={"content": "from gateway", "rating": 5},
+            timeout=15,
+        )
+        assert c_resp.status_code == 200, c_resp.text
+
+        mine = requests.get(
+            f"{gateway_base_url}/api/users/me/book-comments",
+            headers=headers,
+            timeout=15,
+        )
+        assert mine.status_code == 200, mine.text
+        items = mine.json()
+        assert isinstance(items, list)
+        assert any(i["content"] == "from gateway" and i["bookId"] == book_id for i in items)
+
     def test_owner_enforcement_posts(self, gateway_base_url, seeded_books):
         token_a = _create_user_token(gateway_base_url)
         token_b = _create_user_token(gateway_base_url)
@@ -121,12 +144,12 @@ class TestGateway:
         headers_a = {"Authorization": f"Bearer {token_a}"}
         headers_b = {"Authorization": f"Bearer {token_b}"}
 
-        # Pick a book (seeded).
+        # Pick a book.
         books = requests.get(f"{gateway_base_url}/api/books", timeout=15).json()
         assert books, "expected seeded books"
         book_id = books[0]["id"]
 
-        # Create a community as user A (owner).
+        # Create a community as user A.
         community_name = f"gw_comm_{uuid_lib.uuid4().hex[:8]}"
         c_resp = requests.post(
             f"{gateway_base_url}/api/communities",
@@ -147,7 +170,7 @@ class TestGateway:
         assert p_resp.status_code == 200, p_resp.text
         post_id = p_resp.json()["id"]
 
-        # User B cannot edit user A's post (blocked at gateway).
+        # User B cannot edit user A's post.
         edit_resp = requests.put(
             f"{gateway_base_url}/api/posts/{post_id}",
             headers=headers_b,
@@ -207,7 +230,7 @@ class TestGateway:
         assert sugg_member.status_code == 403
         assert sugg_member.json()["error"]["code"] == "forbidden"
 
-        # Owner can list suggestions (Owner counts as Moderator for gateway).
+        # Owner can list suggestions.
         sugg_owner = requests.get(
             f"{gateway_base_url}/api/communities/{community_id}/suggestions",
             headers=h_owner,

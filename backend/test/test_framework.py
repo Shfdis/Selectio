@@ -15,7 +15,7 @@ class DockerComposeTestFramework:
         # Default to parent directory (backend root) where docker-compose.yml is located
         self.project_dir = project_dir or Path(__file__).parent.parent
 
-        # Allow overriding compose file for split pipelines (e.g., gateway-only mode).
+        # Allow overriding compose file for split pipelines.
         compose_file = os.environ.get("SELECTIO_COMPOSE_FILE", compose_file)
         # Compose file should be relative to project_dir
         if not Path(compose_file).is_absolute():
@@ -145,21 +145,21 @@ class DockerComposeTestFramework:
                 for c in containers
             )
 
-            # Check auth service is running (it may not have healthcheck)
+            # Check auth service is running
             auth_running = any(
                 c.get('Service') == 'auth' and 
                 c.get('State') == 'running'
                 for c in containers
             )
 
-            # Check crud service is running (it may not have healthcheck)
+            # Check crud service is running
             crud_running = any(
                 c.get('Service') == 'crud' and
                 c.get('State') == 'running'
                 for c in containers
             )
 
-            # Check gateway service is running (it may not have healthcheck)
+            # Check gateway service is running
             gateway_running = any(
                 c.get('Service') == 'gateway' and
                 c.get('State') == 'running'
@@ -288,7 +288,7 @@ def main():
         "--timeout",
         type=int,
         default=120,
-        help="Timeout in seconds for wait command (default: 120)"
+        help="Timeout in seconds for wait command"
     )
     parser.add_argument(
         "--compose-file",

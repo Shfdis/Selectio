@@ -105,6 +105,62 @@ class TestCrudComments:
         items = r2.json()
         assert any(c["id"] == comment_id for c in items)
 
+    def test_my_book_comments_filters_and_paginates(self, crud_base_url):
+        book_id = self._get_first_book_id(crud_base_url)
+
+        user1_id = 7001
+        user2_id = 7002
+
+        h1 = {"X-User-Id": str(user1_id)}
+        h2 = {"X-User-Id": str(user2_id)}
+
+        # user1 creates 3 comments
+        for i in range(3):
+            r = requests.post(
+                f"{crud_base_url}/api/books/{book_id}/comments",
+                json={"content": f"u1_{i}", "rating": 5},
+                headers=h1,
+                timeout=5,
+            )
+            assert r.status_code == 200, r.text
+
+        # user2 creates 1 comment
+        r_other = requests.post(
+            f"{crud_base_url}/api/books/{book_id}/comments",
+            json={"content": "u2_only", "rating": 4},
+            headers=h2,
+            timeout=5,
+        )
+        assert r_other.status_code == 200, r_other.text
+
+        # user1 fetches their comments
+        r_list = requests.get(
+            f"{crud_base_url}/api/users/me/book-comments?page=1&pageSize=2",
+            headers=h1,
+            timeout=5,
+        )
+        assert r_list.status_code == 200, r_list.text
+        data = r_list.json()
+        assert isinstance(data, list)
+        assert len(data) == 2
+        assert all(c["authorUserId"] == user1_id for c in data)
+
+        # page 2 should contain the remaining 1 comment for user1
+        r_list2 = requests.get(
+            f"{crud_base_url}/api/users/me/book-comments?page=2&pageSize=2",
+            headers=h1,
+            timeout=5,
+        )
+        assert r_list2.status_code == 200, r_list2.text
+        data2 = r_list2.json()
+        assert isinstance(data2, list)
+        assert len(data2) == 1
+        assert all(c["authorUserId"] == user1_id for c in data2)
+
+    def test_my_book_comments_requires_user_header(self, crud_base_url):
+        r = requests.get(f"{crud_base_url}/api/users/me/book-comments", timeout=5)
+        assert r.status_code == 401
+
 
 if __name__ == "__main__":
     import pytest

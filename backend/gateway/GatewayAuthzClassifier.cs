@@ -20,7 +20,7 @@ public static class GatewayAuthzClassifier
         {
             // User-scoped reads must be checked before broad public prefixes.
             if (path.Equals("/api/users/favorites", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
-
+            if (path.Equals("/api/users/me/book-comments", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
             if (path.StartsWith("/api/books", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;
             if (path.StartsWith("/api/communities", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;
             if (path.StartsWith("/api/users/", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;

@@ -17,7 +17,7 @@ def get_verification_uuid_from_db(
     # Escape single quotes in email for SQL query
     escaped_email = email.replace("'", "''")
 
-    # Execute psql query via docker exec with retry logic (Postgres: pending_emails in selectio_main)
+    # Execute psql query via docker exec with retry
     for attempt in range(max_retries):
         try:
             cmd = [
@@ -181,7 +181,6 @@ def seed_crud_books(
     title: str = "Gateway test seed book",
     author: str = "Test Author",
 ) -> None:
-    """Insert a book into the crud Books table via docker-exec for gateway tests."""
     cmd = [
         "docker", "exec", container_name,
         "psql", "-U", "postgres", "-d", db_name, "-c",
@@ -196,7 +195,6 @@ def cleanup_seeded_books(
     db_name: str = "selectio_main",
     title: str = "Gateway test seed book",
 ) -> None:
-    """Remove seeded book(s) from the crud Books table via docker-exec."""
     escaped_title = title.replace("'", "''")
     cmd = [
         "docker", "exec", container_name,

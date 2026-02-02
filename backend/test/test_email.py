@@ -16,12 +16,12 @@ class TestEmailVerification:
         
         data = register_user(base_url, unique_email, username, password)
         
-        # Verify response does NOT contain UUID (security requirement)
+        # Verify response does NOT contain UUID
         assert "uuid" not in data, "UUID should not be returned in registration response"
         assert "message" in data
         assert "email verification" in data["message"].lower()
         
-        # Verify UUID exists in database (but not in response)
+        # Verify UUID exists in database
         uuid = get_verification_uuid_from_db(unique_email)
         assert len(uuid) > 0  # UUID should not be empty
     
@@ -115,7 +115,7 @@ class TestEmailVerification:
         # Verify
         verify_user(base_url, uuid)
         
-        # Try to verify again - should fail (user removed from pending)
+        # Try to verify again - should fail
         response = requests.post(
             f"{base_url}/user/verify/{uuid}",
             timeout=10
@@ -152,7 +152,7 @@ class TestEmailVerification:
         _, uuid = register_user_and_get_uuid(base_url, unique_email, username, password)
         verify_user(base_url, uuid)
         
-        # User should be able to login (proves they're in verified users table)
+        # User should be able to login
         login_data, token = login_user(base_url, unique_email, password)
         
         assert "token" in login_data

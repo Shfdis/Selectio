@@ -13,7 +13,7 @@ from helpers import (
 class TestAuthService:
     def test_health_check(self, base_url):
         response = requests.get(f"{base_url}/", timeout=5)
-        # Service should respond (even if 404)
+        # Service should respond
         assert response.status_code in [200, 404, 401]
     
     def test_register_user(self, base_url, unique_email):
@@ -32,7 +32,7 @@ class TestAuthService:
         
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         data = response.json()
-        # Verify UUID is NOT in response (security requirement)
+        # Verify UUID is NOT in response
         assert "uuid" not in data, "UUID should not be returned in registration response"
         assert "message" in data
         assert "User registration pending email verification" in data["message"]
@@ -53,7 +53,7 @@ class TestAuthService:
         )
         assert response1.status_code == 200
         
-        # Second registration with same email (should fail - duplicates rejected at registration)
+        # Second registration with same email
         user_data2 = {
             "email": unique_email,
             "username": f"user2_{uuid_lib.uuid4().hex[:8]}",
@@ -105,9 +105,7 @@ class TestAuthService:
             timeout=10
         )
         
-        # ASP.NET Core should return 400 Bad Request for missing required fields
-        # However, if the model allows nulls, it might return 200
-        # Let's check for either 400 or 500 (server error) or 200 (if validation is lenient)
+        # Should return 400 Bad Request for missing required fields.
         assert response.status_code in [400, 500], f"Expected 400 or 500, got {response.status_code}: {response.text}"
     
     def test_verify_user_with_uuid(self, base_url, unique_email):
@@ -221,7 +219,7 @@ class TestAuthService:
         )
         assert verify_response.status_code == 200
         
-        # Now try to login
+        # try to login
         login_data = {
             "email": unique_email,
             "password": password
@@ -669,7 +667,7 @@ class TestAuthService:
         assert login_response.status_code == 200
         token = login_response.json()["token"]
         
-        # Identify (verify user exists)
+        # Identify
         headers = {"Authorization": f"Bearer {token}"}
         identify_response = requests.get(
             f"{base_url}/user/identify",
@@ -688,7 +686,7 @@ class TestAuthService:
         )
         assert delete_response.status_code == 200
         
-        # Verify deletion: try to login (should fail)
+        # Verify deletion: try to login
         login_response2 = requests.post(
             f"{base_url}/user/verify",
             json=login_data,
@@ -696,7 +694,7 @@ class TestAuthService:
         )
         assert login_response2.status_code == 401
         
-        # Verify deletion: try to identify (should fail)
+        # Verify deletion: try to identify
         identify_response2 = requests.get(
             f"{base_url}/user/identify",
             headers=headers,
