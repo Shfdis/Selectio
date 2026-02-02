@@ -7,6 +7,8 @@ import ProfileListCard from '../components/ProfileListCard';
 import ReviewCard from '../components/ReviewCard';
 import BottomNavBar from '../components/BottomNavBar';
 import { useMemo, useState } from 'react';
+import PostCard from '../components/PostCard';
+import { useNavigation } from 'expo-router';
 
 const windowHeight = Dimensions.get('window').height;
 const paddedHeight = windowHeight * 0.24;
@@ -15,11 +17,12 @@ export default function Profile() {
   const dispatch = useDispatch();
   const { data: currentUser } = useGetCurrentUserQuery();
   const [activeTab, setActiveTab] = useState('books');
+  const navigation = useNavigation();
 
-  const displayName = currentUser?.username || 'Ария Бочкина';
+  const displayName = currentUser?.username || 'Новый пользователь';
   const description =
     currentUser?.description ||
-    'Люблю погружаться в фэнтезийные и постапокалиптические миры, но самый любимый жанр - сянься';
+    'Напишите что-нибудь о себе\n\nЗайдите в настройки, чтобы изменить описание';
 
   const tabItems = useMemo(
     () => [
@@ -39,6 +42,7 @@ export default function Profile() {
         onPress: async () => {
           await removeToken();
           dispatch(userApi.util.resetApiState());
+          navigation.navigate('home');
         },
       },
     ]);
@@ -74,7 +78,9 @@ export default function Profile() {
           ))}
         </View>
 
-        <View style={styles.contentArea}>
+        <View
+          style={[styles.contentArea, activeTab === 'favorites' ? styles.contentAreaFullWidth : null]}
+        >
           {activeTab === 'books' ? (
             <View style={styles.cards}>
               <ProfileListCard
@@ -98,18 +104,55 @@ export default function Profile() {
               <ReviewCard
                 title="Хаски и его учитель белый кот"
                 author="Митбан"
-                rating={4}
+                rating={5}
                 text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные персонажи, постоянные эмоциональные качели, а главное - романтические линии"
-                showMore
                 disabled
                 style={styles.reviewSpacing}
               />
               <ReviewCard
-                title="Хаски и его учитель белый кот"
-                author="Митбан"
-                rating={5}
+                title="Благие знамения"
+                author="Нил Гейман"
+                rating={4}
                 text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные"
                 disabled
+              />
+            </View>
+          ) : activeTab === 'favorites' ? (
+            <View style={styles.favorites}>
+              <PostCard
+                username="ShadowMilkEveryDay"
+                dateText="07.01.26"
+                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные персонажи, постоянные эмоциональные качели, а главное - романтические линии, к которым хочется возвращаться вновь и вновь!!"
+                imageSource= {{"uri": 'https://i.pinimg.com/474x/56/e5/19/56e5193bb2b6234748387a105f4e37f4.jpg?nii=t'}}
+                initialLikes={69}
+                initialComments={52}
+                initiallyLiked={false}
+                initiallyBookmarked={true}
+                onPressComment={() => {}}
+                book={{
+                  imageUrl: 'https://static.kinoafisha.info/k/series_posters/1920x1080/upload/series/posters/8/5/0/2058/808438341595445105.jpg',
+                  title: 'Благие знамения',
+                  author: 'Нил Гейман',
+                  genreFirst: 'Приключения',
+                  genreSecond: 'Комедия',
+                }}
+              />
+              <PostCard
+                username="ShadowMilkEveryDay"
+                dateText="07.01.26"
+                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные персонажи, постоянные эмоциональные качели, а главное - романтические линии"
+                initialLikes={12}
+                initialComments={3}
+                initiallyLiked={true}
+                initiallyBookmarked={true}
+                onPressComment={() => {}}
+                book={{
+                  imageUrl: 'https://ir.ozone.ru/s3/multimedia-1-i/8427096306.jpg',
+                  title: 'Хаски и его учитель белый кот',
+                  author: 'Митбан',
+                  genreFirst: 'Фэнтези',
+                  genreSecond: 'Романтика',
+                }}
               />
             </View>
           ) : (
@@ -221,11 +264,18 @@ const styles = StyleSheet.create({
     paddingTop: '6%',
     paddingBottom: '6%',
   },
+  contentAreaFullWidth: {
+    paddingHorizontal: 0,
+    paddingTop: 0,
+  },
   reviews: {
     width: '100%',
   },
   reviewSpacing: {
     marginBottom: '6%',
+  },
+  favorites: {
+    width: '100%',
   },
   emptyState: {
     fontSize: 16,

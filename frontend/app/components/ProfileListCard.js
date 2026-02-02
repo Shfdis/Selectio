@@ -4,24 +4,17 @@ export default function ProfileListCard({
   title,
   countText = '0 книг',
   leftColor = '#CCB985',
-  disabled = true,
-  onPress,
+  onPress = () => {},
   style,
 }) {
-  const Container = disabled ? View : Pressable;
-
   return (
-    <Container
-      style={[styles.card, style]}
-      {...(!disabled ? { onPress } : null)}
-      {...(!disabled ? null : { accessible: false })}
-    >
+    <Pressable style={[styles.card, style]} onPress={onPress}>
       <View style={[styles.leftBlock, { backgroundColor: leftColor }]} />
       <View style={styles.textBlock}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.count}>{countText}</Text>
       </View>
-    </Container>
+    </Pressable>
   );
 }
 
