@@ -9,6 +9,9 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register'
 import Profile from './pages/Profile';
+import EditProfile from './pages/EditProfile';
+import WantToRead from './pages/WantToRead';
+import InProgress from './pages/InProgress';
 SplashScreen.preventAutoHideAsync();
 
 const Stack = createNativeStackNavigator();
@@ -51,6 +54,21 @@ export default function App() {
           <Stack.Screen
             name="profile"
             component={Profile}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="editProfile"
+            component={EditProfile}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="wantToRead"
+            component={WantToRead}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="inProgress"
+            component={InProgress}
             options={{ headerShown: false }}
           />
         </Stack.Navigator>

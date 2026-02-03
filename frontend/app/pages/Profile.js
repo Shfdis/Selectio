@@ -1,26 +1,26 @@
-import { View, Text, StyleSheet, Image, Pressable, ScrollView, Alert, Dimensions } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { removeToken } from '../utils/secureStore';
-import { userApi } from '../slices/userSlice';
-import { useGetCurrentUserQuery } from '../slices/userSlice';
+import { View, Text, StyleSheet, Image, Pressable, ScrollView, Dimensions } from 'react-native';
+import { useGetCurrentUserQuery, useGetUserProfileQuery } from '../slices/userSlice';
 import ProfileListCard from '../components/ProfileListCard';
 import ReviewCard from '../components/ReviewCard';
 import BottomNavBar from '../components/BottomNavBar';
 import { useMemo, useState } from 'react';
 import PostCard from '../components/PostCard';
-import { useNavigation } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import { inProgressBooks, readBooks, wantToReadBooks } from '../data/libraryBooks';
 
 const windowHeight = Dimensions.get('window').height;
 const paddedHeight = windowHeight * 0.24;
 
 export default function Profile() {
-  const dispatch = useDispatch();
   const { data: currentUser } = useGetCurrentUserQuery();
+  const userId = currentUser?.id;
+  const { data: profile } = useGetUserProfileQuery(userId, { skip: !userId });
   const [activeTab, setActiveTab] = useState('books');
   const navigation = useNavigation();
 
-  const displayName = currentUser?.username || 'Новый пользователь';
+  const displayName = profile?.username || currentUser?.username || 'Новый пользователь';
   const description =
+    profile?.description ||
     currentUser?.description ||
     'Напишите что-нибудь о себе\n\nЗайдите в настройки, чтобы изменить описание';
 
@@ -34,18 +34,14 @@ export default function Profile() {
   );
 
   const onPressSettings = () => {
-    Alert.alert('Настройки', 'Хотите выйти из аккаунта?', [
-      { text: 'Отмена', style: 'cancel' },
-      {
-        text: 'Выйти',
-        style: 'destructive',
-        onPress: async () => {
-          await removeToken();
-          dispatch(userApi.util.resetApiState());
-          navigation.navigate('home');
-        },
-      },
-    ]);
+    navigation.navigate('editProfile');
+  };
+
+  const onPressWantToRead = () => {
+    navigation.navigate('wantToRead');
+  };
+  const onPressInProgress = () => {
+    navigation.navigate('inProgress');
   };
 
   return (
@@ -85,19 +81,24 @@ export default function Profile() {
             <View style={styles.cards}>
               <ProfileListCard
                 title="Хочу прочитать"
-                countText="0 книг"
+                countText={`${wantToReadBooks.length} книг`}
                 leftColor="#CCB985"
-                disabled
+                onPress={onPressWantToRead}
                 style={styles.cardSpacing}
               />
               <ProfileListCard
                 title="В процессе"
-                countText="0 книг"
+                countText={`${inProgressBooks.length} книг`}
                 leftColor="#CCB985"
-                disabled
+                onPress={onPressInProgress}
                 style={styles.cardSpacing}
               />
-              <ProfileListCard title="Прочитанное" countText="0 книг" leftColor="#D6C596" disabled />
+              <ProfileListCard
+                title="Прочитанное"
+                countText={`${readBooks.length} книг`}
+                leftColor="#D6C596"
+                disabled
+              />
             </View>
           ) : activeTab === 'reviews' ? (
             <View style={styles.reviews}>
