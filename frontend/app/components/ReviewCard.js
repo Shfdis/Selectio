@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 
 function StarsRow({ rating = 5 }) {
-  const full = Math.max(0, Math.min(5, Math.floor(rating)));
+  const full = Math.max(1, Math.min(5, Math.floor(rating)));
   const empty = 5 - full;
 
   return (
