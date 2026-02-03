@@ -6,6 +6,7 @@ export default function BookCard({
     genreFirst,
     genreSecond,
     onClick = () => {},
+    genreAccessory = null,
   }) {
   
     return (
@@ -30,6 +31,7 @@ export default function BookCard({
                         {genreSecond}
                     </Text>
                 </View>
+                {genreAccessory}
             </View>
           </View>
         </View>
@@ -76,11 +78,14 @@ const styles = StyleSheet.create({
       genreBox: {
         flexDirection: 'row',
         marginTop: 'auto',
+        alignItems: 'center',
       },
       genre: {
+        width: 105,
+        minWidth: 105,
         borderRadius: 20,
         backgroundColor: '#CCB985',
-        marginRight: 8,
+        marginRight: 3,
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderWidth: 1,
@@ -94,5 +99,5 @@ const styles = StyleSheet.create({
         fontFamily: 'Playfair',
         fontWeight: 400,
         lineHeight: 15,
-      }
+      },
 });

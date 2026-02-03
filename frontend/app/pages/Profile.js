@@ -43,6 +43,9 @@ export default function Profile() {
   const onPressInProgress = () => {
     navigation.navigate('inProgress');
   };
+  const onPressReadBooks = () => {
+    navigation.navigate('readBooks');
+  };
 
   return (
     <View style={styles.screen}>
@@ -97,7 +100,7 @@ export default function Profile() {
                 title="Прочитанное"
                 countText={`${readBooks.length} книг`}
                 leftColor="#D6C596"
-                disabled
+                onPress={onPressReadBooks}
               />
             </View>
           ) : activeTab === 'reviews' ? (

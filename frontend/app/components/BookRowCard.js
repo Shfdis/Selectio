@@ -1,4 +1,4 @@
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import BookCard from './BookCard';
 
 export default function BookRowCard({
@@ -6,9 +6,33 @@ export default function BookRowCard({
   onPressBook = () => {},
   onPressMore = () => {},
   isMoreActive = false,
+  showAddReview = false,
+  onPressAddReview = () => {},
+  userRating,
+  onPressUserRating = () => {},
+  showMoreButton = true,
+  showDivider = true,
 }) {
+  const hasUserRating = typeof userRating === 'number' && !Number.isNaN(userRating);
+  const ratingValue = hasUserRating ? Math.max(1, Math.min(5, Math.floor(userRating))) : null;
+
+  const genreAccessory = hasUserRating ? (
+    <Pressable style={styles.userRatingBadgeInline} onPress={onPressUserRating} hitSlop={10}>
+      <Image
+        source={require('../assets/icons/review-star-filled.png')}
+        style={styles.userRatingStarInline}
+        resizeMode="contain"
+      />
+      <Text style={styles.userRatingTextInline}>{ratingValue}</Text>
+    </Pressable>
+  ) : showAddReview ? (
+    <Pressable style={styles.addReviewButtonInline} onPress={onPressAddReview} hitSlop={10}>
+      <Image source={require('../assets/icons/icon_plus.png')} style={styles.addReviewIconInline} resizeMode="contain" />
+    </Pressable>
+  ) : null;
+
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, showDivider ? null : styles.rowNoDivider]}>
       <View style={styles.bookWrap}>
         <BookCard
           imageUrl={book?.imageUrl}
@@ -17,20 +41,23 @@ export default function BookRowCard({
           genreFirst={book?.genreFirst}
           genreSecond={book?.genreSecond}
           onClick={onPressBook}
+          genreAccessory={genreAccessory}
         />
       </View>
 
-      <Pressable
-        style={[styles.moreButton, isMoreActive ? styles.moreButtonActive : null]}
-        onPress={onPressMore}
-        hitSlop={10}
-      >
-        <Image
-          source={require('../assets/icons/icon-black-more.png')}
-          style={styles.moreIcon}
-          resizeMode="contain"
-        />
-      </Pressable>
+      {showMoreButton ? (
+        <Pressable
+          style={[styles.moreButton, isMoreActive ? styles.moreButtonActive : null]}
+          onPress={onPressMore}
+          hitSlop={10}
+        >
+          <Image
+            source={require('../assets/icons/icon-black-more.png')}
+            style={styles.moreIcon}
+            resizeMode="contain"
+          />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -47,9 +74,50 @@ const styles = StyleSheet.create({
     borderBottomColor: '#CAC7B9',
     backgroundColor: '#ECE8DD',
   },
+  rowNoDivider: {
+    borderBottomWidth: 0,
+  },
   bookWrap: {
     flex: 1,
     paddingRight: '4%',
+  },
+  addReviewButtonInline: {
+    marginLeft: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    borderRadius: 20,
+    backgroundColor: '#555C40',
+    borderWidth: 1,
+    borderColor: '#CAC7B9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addReviewIconInline: {
+    width: 18,
+    height: 18,
+  },
+  userRatingBadgeInline: {
+    marginLeft: 0,
+    paddingVertical: 2,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#CAC7B9',
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+  },
+  userRatingStarInline: {
+    width: 14,
+    height: 14,
+    right: '20%',
+  },
+  userRatingTextInline: {
+    fontSize: 16,
+    color: '#2D2800',
+    fontFamily: 'Playfair',
+    fontWeight: 600,
+    lineHeight: 16,
+    paddingBottom: '2%',
   },
   moreButton: {
     width: 30,
