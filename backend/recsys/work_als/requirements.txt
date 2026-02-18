@@ -1,8 +1,0 @@
-numpy
-scipy
-tqdm
-pyarrow
-implicit
-psycopg2-binary
-pgvector
-scikit-learn

@@ -1,22 +1,21 @@
 services:
-  db:
+  postgres:
     image: pgvector/pgvector:pg16
+    container_name: recsys_postgres
     environment:
       POSTGRES_DB: recsys
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - work_als_pgdata:/var/lib/postgresql/data
-      - ./sql:/sql:ro
+      - recsys_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d recsys"]
-      interval: 2s
-      timeout: 3s
-      retries: 30
-    restart: unless-stopped
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  work_als_pgdata:
-
+  recsys_data:
+    driver: local
