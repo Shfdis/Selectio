@@ -32,37 +32,44 @@ export default function BookRowCard({
   ) : null;
 
   return (
-    <View style={[styles.row, showDivider ? null : styles.rowNoDivider]}>
-      <View style={styles.bookWrap}>
-        <BookCard
-          imageUrl={book?.imageUrl}
-          title={book?.title}
-          author={book?.author}
-          genreFirst={book?.genreFirst}
-          genreSecond={book?.genreSecond}
-          onClick={onPressBook}
-          genreAccessory={genreAccessory}
-        />
-      </View>
-
-      {showMoreButton ? (
-        <Pressable
-          style={[styles.moreButton, isMoreActive ? styles.moreButtonActive : null]}
-          onPress={onPressMore}
-          hitSlop={10}
-        >
-          <Image
-            source={require('../assets/icons/icon-black-more.png')}
-            style={styles.moreIcon}
-            resizeMode="contain"
+    <View style={styles.rowOuter}>
+      <View style={styles.row}>
+        <View style={styles.bookWrap}>
+          <BookCard
+            imageUrl={book?.imageUrl}
+            title={book?.title}
+            author={book?.author}
+            genreFirst={book?.genreFirst}
+            genreSecond={book?.genreSecond}
+            onClick={onPressBook}
+            genreAccessory={genreAccessory}
           />
-        </Pressable>
-      ) : null}
+        </View>
+
+        {showMoreButton ? (
+          <Pressable
+            style={[styles.moreButton, isMoreActive ? styles.moreButtonActive : null]}
+            onPress={onPressMore}
+            hitSlop={10}
+          >
+            <Image
+              source={require('../assets/icons/icon-black-more.png')}
+              style={styles.moreIcon}
+              resizeMode="contain"
+            />
+          </Pressable>
+        ) : null}
+      </View>
+      {showDivider ? <View style={styles.rowDivider} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  rowOuter: {
+    width: '100%',
+    backgroundColor: '#ECE8DD',
+  },
   row: {
     width: '100%',
     flexDirection: 'row',
@@ -70,12 +77,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: '6%',
     paddingVertical: '6%',
-    borderBottomWidth: 1,
-    borderBottomColor: '#CAC7B9',
-    backgroundColor: '#ECE8DD',
   },
-  rowNoDivider: {
-    borderBottomWidth: 0,
+  rowDivider: {
+    height: 1,
+    backgroundColor: '#CAC7B9',
+    marginHorizontal: '6%',
   },
   bookWrap: {
     flex: 1,

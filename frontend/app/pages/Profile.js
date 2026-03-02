@@ -167,7 +167,10 @@ export default function Profile() {
 
       <BottomNavBar
         activeKey="profile"
-        disabled
+        disabled={false}
+        onPressKey={(key) => {
+          if (key === 'search') navigation.navigate('book');
+        }}
         icons={{
           home: require('../assets/icons/icon-book.png'),
           groups: require('../assets/icons/icon-groups.png'),
