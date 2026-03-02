@@ -2,6 +2,7 @@ using crud.Contracts;
 using crud.Data;
 using crud.Entities;
 using crud.Infrastructure;
+using crud.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -23,11 +24,35 @@ public static class PostEndpoints
         posts.MapPost("/suggest", async (HttpContext http, CrudDbContext db, CreatePostRequest body) =>
             await CreatePostAsync(http, db, body, PostStatus.Suggested));
 
+        posts.MapGet("/recommended", async (HttpContext http, CrudDbContext db, int? page, int? pageSize) =>
+        {
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
+            var (p, ps) = EndpointHelpers.NormalizePagination(page, pageSize, 20, 100);
+            var userEmb = await EmbeddingService.GetUserEmbeddingAsync(db, userId);
+            var postsWithEmb = await db.Posts
+                .Where(post => post.Status == PostStatus.Published && post.Embedding != null && post.Embedding.Length == EmbeddingService.Dimensions)
+                .ToListAsync();
+            if (userEmb == null || postsWithEmb.Count == 0)
+            {
+                return Results.Ok(new List<PostDto>());
+            }
+            var scored = postsWithEmb
+                .Select(post => (Post: post, Score: EmbeddingService.CosineSimilarity(userEmb, post.Embedding!)))
+                .OrderByDescending(x => x.Score)
+                .ThenByDescending(x => x.Post.CreatedAt)
+                .Skip((p - 1) * ps)
+                .Take(ps)
+                .ToList();
+            var dtos = scored.Select(x => ToDto(x.Post)).ToList();
+            return Results.Ok(dtos);
+        });
+
         posts.MapGet("/{id:int}", async (HttpContext http, CrudDbContext db, int id) =>
         {
             var post = await db.Posts
                 .Where(p => p.Id == id)
-                .Select(p => new PostDto(p.Id, p.CommunityId, p.AuthorUserId, p.BookId, p.Content, p.Status, p.CreatedAt))
+                .Select(p => new PostDto(p.Id, p.CommunityId, p.AuthorUserId, p.BookId, p.Content, p.PhotoUrl, p.Status, p.CreatedAt))
                 .FirstOrDefaultAsync();
 
             if (post is null)
@@ -62,7 +87,9 @@ public static class PostEndpoints
             if (post is null) return Results.NotFound();
 
             post.Content = body.Content!.Trim();
+            if (body.PhotoUrl != null) post.PhotoUrl = body.PhotoUrl.Trim();
             await db.SaveChangesAsync();
+            await EmbeddingService.UpdatePostAndCommunityEmbeddingsAsync(db, post.Id, post.CommunityId, post.BookId, post.Status);
             return Results.Ok(ToDto(post));
         });
 
@@ -74,8 +101,10 @@ public static class PostEndpoints
             var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id);
             if (post is null) return Results.NotFound();
 
+            var communityId = post.CommunityId;
             db.Posts.Remove(post);
             await db.SaveChangesAsync();
+            await EmbeddingService.OnPostDeletedAsync(db, communityId);
             return Results.Ok(new { message = "deleted" });
         });
 
@@ -95,11 +124,41 @@ public static class PostEndpoints
                     post.AuthorUserId,
                     post.BookId,
                     post.Content,
+                    post.PhotoUrl,
                     post.Status,
                     post.CreatedAt
                 ))
                 .ToListAsync();
 
+            return Results.Ok(items);
+        }).WithTags("Posts");
+
+        app.MapGet("/api/users/me/feed", async (HttpContext http, CrudDbContext db, int? page, int? pageSize) =>
+        {
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
+            var (p, ps) = EndpointHelpers.NormalizePagination(page, pageSize, 20, 100);
+            var communityIds = await db.CommunityMembers
+                .Where(m => m.UserId == userId)
+                .Select(m => m.CommunityId)
+                .ToListAsync();
+            var items = await db.Posts
+                .Where(post => post.Status == PostStatus.Published && communityIds.Contains(post.CommunityId))
+                .OrderByDescending(post => post.CreatedAt)
+                .ThenByDescending(post => post.Id)
+                .Skip((p - 1) * ps)
+                .Take(ps)
+                .Select(post => new PostDto(
+                    post.Id,
+                    post.CommunityId,
+                    post.AuthorUserId,
+                    post.BookId,
+                    post.Content,
+                    post.PhotoUrl,
+                    post.Status,
+                    post.CreatedAt
+                ))
+                .ToListAsync();
             return Results.Ok(items);
         }).WithTags("Posts");
 
@@ -125,6 +184,7 @@ public static class PostEndpoints
             CommunityId = body.CommunityId,
             BookId = body.BookId,
             Content = body.Content!.Trim(),
+            PhotoUrl = string.IsNullOrWhiteSpace(body.PhotoUrl) ? null : body.PhotoUrl!.Trim(),
             AuthorUserId = userId,
             Status = status,
             CreatedAt = DateTime.UtcNow
@@ -132,11 +192,12 @@ public static class PostEndpoints
 
         db.Posts.Add(post);
         await db.SaveChangesAsync();
+        await EmbeddingService.UpdatePostAndCommunityEmbeddingsAsync(db, post.Id, post.CommunityId, post.BookId, post.Status);
 
         return Results.Ok(ToDto(post));
     }
 
     private static PostDto ToDto(Post post) =>
-        new(post.Id, post.CommunityId, post.AuthorUserId, post.BookId, post.Content, post.Status, post.CreatedAt);
+        new(post.Id, post.CommunityId, post.AuthorUserId, post.BookId, post.Content, post.PhotoUrl, post.Status, post.CreatedAt);
 }
 
