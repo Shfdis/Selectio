@@ -29,8 +29,6 @@ export default function ReadBooks({ route }) {
         return next;
       });
     }
-
-    // prevent re-applying on next focus/render
     navigation.setParams({ reviewUpdate: undefined });
   }, [navigation, route?.params?.reviewUpdate]);
 

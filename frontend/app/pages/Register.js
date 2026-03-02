@@ -43,7 +43,6 @@ export default function Register() {
             await registerUser({ email, password, username, description: '' }).unwrap();
             navigation.navigate('login');
           } catch (e) {
-            // handled by registerError effect
           }
         })();
         }} />

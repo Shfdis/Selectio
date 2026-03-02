@@ -4,7 +4,7 @@ export default function LibraryHeader({
   title,
   onPressBack,
   onPressAdd = () => {},
-  activeId = null, // 'sort' | 'filter' | `more-${n}` | null
+  activeId = null,
   onToggleActive = () => {},
 }) {
   return (
