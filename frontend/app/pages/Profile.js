@@ -170,6 +170,7 @@ export default function Profile() {
         disabled={false}
         onPressKey={(key) => {
           if (key === 'search') navigation.navigate('book');
+          if (key === 'groups') navigation.navigate('community');
         }}
         icons={{
           home: require('../assets/icons/icon-book.png'),
