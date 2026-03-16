@@ -15,6 +15,7 @@ import InProgress from './pages/InProgress';
 import ReadBooks from './pages/ReadBooks';
 import NewReview from './pages/NewReview';
 import Book from './pages/Book';
+import Community from './pages/Community';
 SplashScreen.preventAutoHideAsync();
 
 const Stack = createNativeStackNavigator();
@@ -87,6 +88,11 @@ export default function App() {
           <Stack.Screen
             name="book"
             component={Book}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="community"
+            component={Community}
             options={{ headerShown: false }}
           />
         </Stack.Navigator>
