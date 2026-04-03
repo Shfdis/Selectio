@@ -1,8 +1,9 @@
 import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
+import GreenHeaderStrip from '../components/GreenHeaderStrip';
 import PostCard from '../components/PostCard';
-import { EXAMPLE_COMMUNITY, EXAMPLE_POSTS } from '../data/communityPage';
+import { exampleCommunity, examplePosts } from '../data/communityPage';
 
 function GenrePill({ label }) {
   return (
@@ -14,12 +15,17 @@ function GenrePill({ label }) {
 
 export default function Community() {
   const navigation = useNavigation();
-  const community = EXAMPLE_COMMUNITY;
+  const scrollRef = useRef(null);
+  const community = exampleCommunity;
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   const onPressBack = () => {
     navigation.goBack();
   };
+
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, []);
 
   const onPressSubscribe = () => {
     setIsSubscribed(true);
@@ -34,19 +40,10 @@ export default function Community() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.headerGreenStrip}>
-        <Pressable style={styles.backButton} onPress={onPressBack} hitSlop={10}>
-          <View style={styles.backButtonCircle}>
-            <Image
-              source={require('../assets/icons/icon_back_white.png')}
-              style={styles.backIcon}
-              resizeMode="contain"
-            />
-          </View>
-        </Pressable>
-      </View>
+      <GreenHeaderStrip onPressBack={onPressBack} onPressStrip={scrollToTop} />
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -134,7 +131,7 @@ export default function Community() {
         <View style={styles.divider} />
 
         <View style={styles.postsSection}>
-          {EXAMPLE_POSTS.map((p) => (
+          {examplePosts.map((p) => (
             <PostCard
               key={p.id}
               username={p.username}
@@ -160,40 +157,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ECE8DD',
   },
-  headerGreenStrip: {
-    width: '100%',
-    height: 107,
-    backgroundColor: '#555C40',
-    justifyContent: 'flex-end',
-    paddingBottom: 10,
-  },
   headerGreenBlock: {
     width: '100%',
     backgroundColor: '#555C40',
     paddingBottom: '5%',
     alignItems: 'center',
-  },
-  backButton: {
-    position: 'absolute',
-    left: 23,
-    top: 52,
-    width: 45,
-    height: 45,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  backButtonCircle: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#40462E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backIcon: {
-    width: 24,
-    height: 24,
   },
   coverWrap: {
     width: 156,
@@ -301,10 +269,13 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+    backgroundColor: '#ECE8DD',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingTop: 0,
-    paddingBottom: '20%',
+    paddingBottom: '15%',
+    backgroundColor: '#ECE8DD',
   },
   scrollContentInner: {
     paddingHorizontal: '6%',

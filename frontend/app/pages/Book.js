@@ -1,34 +1,32 @@
 import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-native';
+import { useRef, useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
+import GreenHeaderStrip from '../components/GreenHeaderStrip';
 import BookInfoBlock from '../components/BookInfoBlock';
 import ReviewCard from '../components/ReviewCard';
-import { EXAMPLE_BOOK, EXAMPLE_REVIEWS } from '../data/bookPage';
+import { exampleBook, exampleReviews } from '../data/bookPage';
 
 export default function Book() {
   const navigation = useNavigation();
-  const book = EXAMPLE_BOOK;
+  const scrollRef = useRef(null);
+  const book = exampleBook;
 
   const onPressBack = () => {
     navigation.goBack();
   };
 
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, []);
+
   const onPressAddToLibrary = () => {};
 
   return (
     <View style={styles.screen}>
-      <View style={styles.headerGreenStrip}>
-        <Pressable style={styles.backButton} onPress={onPressBack} hitSlop={10}>
-          <View style={styles.backButtonCircle}>
-            <Image
-              source={require('../assets/icons/icon_back_white.png')}
-              style={styles.backIcon}
-              resizeMode="contain"
-            />
-          </View>
-        </Pressable>
-      </View>
+      <GreenHeaderStrip onPressBack={onPressBack} onPressStrip={scrollToTop} />
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -74,7 +72,7 @@ export default function Book() {
           <View style={styles.divider} />
 
           <View style={styles.reviewsSection}>
-            {EXAMPLE_REVIEWS.map((r) => (
+            {exampleReviews.map((r) => (
               <View key={r.id} style={styles.reviewItem}>
                 <View style={styles.reviewHeader}>
                   <Image source={r.avatarSource} style={styles.reviewAvatar} resizeMode="cover" />
@@ -116,13 +114,6 @@ const styles = StyleSheet.create({
     marginTop: '9%',
     backgroundColor: '#CAC7B9',
   },
-  headerGreenStrip: {
-    width: '100%',
-    height: 107,
-    backgroundColor: '#555C40',
-    justifyContent: 'flex-end',
-    paddingBottom: 10,
-  },
   headerGreenBlock: {
     width: '100%',
     backgroundColor: '#555C40',
@@ -131,28 +122,6 @@ const styles = StyleSheet.create({
   },
   scrollContentInner: {
     paddingHorizontal: '6%',
-  },
-  backButton: {
-    position: 'absolute',
-    left: 23,
-    top: 52,
-    width: 45,
-    height: 45,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  backButtonCircle: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#40462E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backIcon: {
-    width: 24,
-    height: 24,
   },
   coverWrap: {
     width: '40%',
@@ -192,10 +161,13 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+    backgroundColor: '#ECE8DD',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingTop: 0,
-    paddingBottom: '20%',
+    paddingBottom: '10%',
+    backgroundColor: '#ECE8DD',
   },
   infoSection: {
     width: '100%',

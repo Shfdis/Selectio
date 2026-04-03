@@ -8,7 +8,6 @@ import { store } from './store/store';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register'
-import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
 import WantToRead from './pages/WantToRead';
 import InProgress from './pages/InProgress';
@@ -16,6 +15,9 @@ import ReadBooks from './pages/ReadBooks';
 import NewReview from './pages/NewReview';
 import Book from './pages/Book';
 import Community from './pages/Community';
+import Genre from './pages/Genre';
+import MyCommunities from './pages/MyCommunities';
+import MainScreen from './pages/MainScreen';
 SplashScreen.preventAutoHideAsync();
 
 const Stack = createNativeStackNavigator();
@@ -56,8 +58,8 @@ export default function App() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
-            name="profile"
-            component={Profile}
+            name="main"
+            component={MainScreen}
             options={{ headerShown: false }}
           />
           <Stack.Screen
@@ -93,6 +95,16 @@ export default function App() {
           <Stack.Screen
             name="community"
             component={Community}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="myCommunities"
+            component={MyCommunities}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="genre"
+            component={Genre}
             options={{ headerShown: false }}
           />
         </Stack.Navigator>
