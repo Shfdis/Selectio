@@ -17,7 +17,7 @@ export default function Login() {
   useEffect(() => {
     if (!currentUser || hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
-    navigation.navigate('profile');
+    navigation.navigate('main');
   }, [currentUser, navigation]);
 
   useEffect(() => {
@@ -47,9 +47,7 @@ export default function Login() {
           }
           try {
             await loginUser({ email, password }).unwrap();
-            // navigation happens when getCurrentUser refetches successfully
           } catch (e) {
-            // handled by loginError effect (and keeps this handler simple)
           }
         })();
         }} />

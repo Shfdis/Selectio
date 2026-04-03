@@ -12,7 +12,7 @@ export default function Home() {
   useEffect(() => {
     if (!currentUser || hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
-    navigation.navigate('profile');
+    navigation.navigate('main');
   }, [currentUser, navigation]);
 
   if (!currentUser && isLoading) {

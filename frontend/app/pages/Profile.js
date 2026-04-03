@@ -2,7 +2,6 @@ import { View, Text, StyleSheet, Image, Pressable, ScrollView, Dimensions } from
 import { useGetCurrentUserQuery, useGetUserProfileQuery } from '../slices/userSlice';
 import ProfileListCard from '../components/ProfileListCard';
 import ReviewCard from '../components/ReviewCard';
-import BottomNavBar from '../components/BottomNavBar';
 import { useMemo, useState } from 'react';
 import PostCard from '../components/PostCard';
 import { useNavigation } from '@react-navigation/native';
@@ -11,7 +10,7 @@ import { inProgressBooks, readBooks, wantToReadBooks } from '../data/libraryBook
 const windowHeight = Dimensions.get('window').height;
 const paddedHeight = windowHeight * 0.24;
 
-export default function Profile() {
+export function ProfileMainContent() {
   const { data: currentUser } = useGetCurrentUserQuery();
   const userId = currentUser?.id;
   const { data: profile } = useGetUserProfileQuery(userId, { skip: !userId });
@@ -164,21 +163,6 @@ export default function Profile() {
           )}
         </View>
       </ScrollView>
-
-      <BottomNavBar
-        activeKey="profile"
-        disabled={false}
-        onPressKey={(key) => {
-          if (key === 'search') navigation.navigate('book');
-          if (key === 'groups') navigation.navigate('community');
-        }}
-        icons={{
-          home: require('../assets/icons/icon-book.png'),
-          groups: require('../assets/icons/icon-groups.png'),
-          search: require('../assets/icons/icon-search.png'),
-          profile: require('../assets/icons/icon-profile-filled.png'),
-        }}
-      />
     </View>
   );
 }
@@ -190,10 +174,13 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+    backgroundColor: '#ECE8DD',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingTop: '12%',
-    paddingBottom: '24%',
+    paddingBottom: 0,
+    backgroundColor: '#ECE8DD',
   },
   padded: {
     paddingHorizontal: '6%',
@@ -275,6 +262,7 @@ const styles = StyleSheet.create({
   contentAreaFullWidth: {
     paddingHorizontal: 0,
     paddingTop: 0,
+    paddingBottom: 0,
   },
   reviews: {
     width: '100%',

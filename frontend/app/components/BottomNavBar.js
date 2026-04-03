@@ -15,7 +15,7 @@ function NavItem({ iconSource, label, active = false, disabled = true, onPress }
 }
 
 export default function BottomNavBar({
-  activeKey = 'profile',
+  activeKey,
   disabled = true,
   onPressKey,
   icons,

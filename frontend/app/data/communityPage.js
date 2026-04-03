@@ -1,4 +1,4 @@
-export const EXAMPLE_COMMUNITY = {
+export const exampleCommunity = {
   coverImageUrl: 'https://i.pinimg.com/736x/3e/fa/ed/3efaed6718c988bcbbd018d4c0c5fecf.jpg',
   subscribersCount: '11.8k',
   name: 'ShadowMilkEveryDay',
@@ -7,7 +7,11 @@ export const EXAMPLE_COMMUNITY = {
     'Сообщество для тех, кого очаровала трагическая история некогда благородного Milk Cookie. Обсуждаем лор, теорий, арты, геймплей и всё, что связано с этим харизматичным антагонистом. От его изысканных манер до бездны отчаяния, породившей тёмную магию. Здесь собираются те, кто видит в тени не просто злодея, а одну из самых глубоких душ в мире печенья.',
 };
 
-export const EXAMPLE_POSTS = [
+export const myCommunitiesStripCount = 6;
+
+export const mySubscribedCommunityCovers = Array.from({ length: 18 }, () => exampleCommunity.coverImageUrl);
+
+export const examplePosts = [
   {
     id: '1',
     username: 'ShadowMilkEveryDay',
