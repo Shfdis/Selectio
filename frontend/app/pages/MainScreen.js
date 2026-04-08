@@ -2,10 +2,10 @@ import { View, StyleSheet } from 'react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRoute } from '@react-navigation/native';
 import BottomNavBar from '../components/BottomNavBar';
-import { RecommendationsMainContent } from './Recommendations';
-import { CommunitiesMainContent } from './Communities';
-import { SearchMainContent } from './Search';
-import { ProfileMainContent } from './Profile';
+import { Recommendations } from './Recommendations';
+import { Communities } from './Communities';
+import { Search } from './Search';
+import { Profile } from './Profile';
 
 const defaultMainTab = 'profile';
 
@@ -59,25 +59,25 @@ export default function MainScreen() {
           style={[styles.layer, tab === 'home' ? styles.layerVisible : styles.layerHidden]}
           pointerEvents={tab === 'home' ? 'auto' : 'none'}
         >
-          <RecommendationsMainContent />
+          <Recommendations />
         </View>
         <View
           style={[styles.layer, tab === 'groups' ? styles.layerVisible : styles.layerHidden]}
           pointerEvents={tab === 'groups' ? 'auto' : 'none'}
         >
-          <CommunitiesMainContent />
+          <Communities />
         </View>
         <View
           style={[styles.layer, tab === 'search' ? styles.layerVisible : styles.layerHidden]}
           pointerEvents={tab === 'search' ? 'auto' : 'none'}
         >
-          <SearchMainContent />
+          <Search />
         </View>
         <View
           style={[styles.layer, tab === 'profile' ? styles.layerVisible : styles.layerHidden]}
           pointerEvents={tab === 'profile' ? 'auto' : 'none'}
         >
-          <ProfileMainContent />
+          <Profile />
         </View>
       </View>
       <BottomNavBar activeKey={tab} disabled={false} onPressKey={onPressKey} icons={icons} />

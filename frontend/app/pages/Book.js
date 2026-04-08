@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-native';
 import { useRef, useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import GreenHeaderStrip from '../components/GreenHeaderStrip';
+import GreenHeader from '../components/GreenHeader';
 import BookInfoBlock from '../components/BookInfoBlock';
 import ReviewCard from '../components/ReviewCard';
 import { exampleBook, exampleReviews } from '../data/bookPage';
@@ -23,7 +23,7 @@ export default function Book() {
 
   return (
     <View style={styles.screen}>
-      <GreenHeaderStrip onPressBack={onPressBack} onPressStrip={scrollToTop} />
+      <GreenHeader onPressBack={onPressBack} onPressStrip={scrollToTop} />
 
       <ScrollView
         ref={scrollRef}

@@ -3,8 +3,9 @@ import BookRowCard from './BookRowCard';
 import ScreenHeader from './ScreenHeader';
 import StarRatingInput from './StarRatingInput';
 
-export default function ReviewEditorScreen({
+export default function ReviewEditor({
   headerTitle,
+  headerTitleStyle,
   book,
   rating,
   onChangeRating,
@@ -22,6 +23,7 @@ export default function ReviewEditorScreen({
     <View style={styles.screen}>
       <ScreenHeader
         headerTitle={headerTitle}
+        headerTitleStyle={headerTitleStyle}
         onPressBack={onPressBack}
         onPressConfirm={onPressConfirm}
         confirmDisabled={confirmDisabled}

@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-nati
 import { useNavigation } from '@react-navigation/native';
 import { useState, useRef, useCallback } from 'react';
 import HorizontalCoverSection from '../components/HorizontalCoverSection';
-import SearchStickyHeader from '../components/SearchStickyHeader';
+import SearchHeader from '../components/SearchHeader';
 import { exampleBook } from '../data/bookPage';
 
 const coverImageUri = exampleBook.imageUrl;
@@ -22,7 +22,7 @@ function GenreCard({ label, coverUri, onPressGenre }) {
   );
 }
 
-export function SearchMainContent() {
+export function Search() {
   const navigation = useNavigation();
   const scrollRef = useRef(null);
   const [query, setQuery] = useState('');
@@ -41,7 +41,7 @@ export function SearchMainContent() {
 
   return (
     <View style={styles.screen}>
-      <SearchStickyHeader value={query} onChangeText={setQuery} onPress={scrollToTop} />
+      <SearchHeader value={query} onChangeText={setQuery} onPress={scrollToTop} />
 
       <ScrollView
         ref={scrollRef}

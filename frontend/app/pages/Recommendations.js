@@ -13,9 +13,10 @@ const recommendedCovers = [coverImageUri, coverImageUri, coverImageUri, coverIma
 const feedPosts = [...examplePosts, ...examplePosts, ...examplePosts].map((p, i) => ({
   ...p,
   id: `${p.id}-feed-${i}`,
+  threadPostId: p.id,
 }));
 
-export function RecommendationsMainContent() {
+export function Recommendations() {
   const navigation = useNavigation();
   const scrollRef = useRef(null);
 
@@ -49,6 +50,7 @@ export function RecommendationsMainContent() {
           {feedPosts.map((p) => (
             <PostCard
               key={p.id}
+              postId={p.threadPostId}
               username={p.username}
               dateText={p.dateText}
               text={p.text}
@@ -58,7 +60,6 @@ export function RecommendationsMainContent() {
               initialComments={p.initialComments}
               initiallyLiked={p.initiallyLiked}
               initiallyBookmarked={p.initiallyBookmarked}
-              onPressComment={() => {}}
             />
           ))}
         </View>
