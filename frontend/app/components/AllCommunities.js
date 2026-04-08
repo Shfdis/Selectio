@@ -1,12 +1,26 @@
 import { View, StyleSheet, Image, Pressable, ScrollView, useWindowDimensions } from 'react-native';
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import PageHeader from '../components/PageHeader';
-import { mySubscribedCommunityCovers } from '../data/communityPage';
+import PageHeader from './PageHeader';
 
-const myCommunitiesSubtitle = 'Отсортировано по последним добавленным';
+const horizontalPadding = 15;
+const horizontalGap = 14;
+const verticalGap = 21;
 
-export default function MyCommunities() {
+function buildRows(coverCount) {
+  const rows = [];
+  for (let i = 0; i < coverCount; i += 3) {
+    rows.push(Array.from({ length: Math.min(3, coverCount - i) }, (_, j) => i + j));
+  }
+  return rows;
+}
+
+export default function AllCommunities({
+  headerTitle,
+  headerSubtitle,
+  coverImageUrls,
+  coverPressRoute,
+}) {
   const navigation = useNavigation();
   const scrollRef = useRef(null);
   const { width } = useWindowDimensions();
@@ -15,22 +29,15 @@ export default function MyCommunities() {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, []);
 
-  const pad = 15;
-  const gapH = 14;
-  const gapV = 21;
-  const cardSize = (width - pad * 2 - gapH * 2) / 3;
-
-  const coverCount = mySubscribedCommunityCovers.length;
-  const rows = [];
-  for (let i = 0; i < coverCount; i += 3) {
-    rows.push(Array.from({ length: Math.min(3, coverCount - i) }, (_, j) => i + j));
-  }
+  const cardSize = (width - horizontalPadding * 2 - horizontalGap * 2) / 3;
+  const coverCount = coverImageUrls.length;
+  const rows = useMemo(() => buildRows(coverCount), [coverCount]);
 
   return (
     <View style={styles.screen}>
       <PageHeader
-        title="Мои сообщества"
-        subtitle={myCommunitiesSubtitle}
+        title={headerTitle}
+        subtitle={headerSubtitle}
         onPressBack={() => navigation.goBack()}
         onPressStrip={scrollToTop}
         headerStyle={styles.pageHeaderTall}
@@ -40,7 +47,7 @@ export default function MyCommunities() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingHorizontal: pad, paddingTop: gapV },
+          { paddingHorizontal: horizontalPadding, paddingTop: verticalGap },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -50,8 +57,8 @@ export default function MyCommunities() {
             style={[
               styles.row,
               {
-                marginBottom: rowIndex < rows.length - 1 ? gapV : 0,
-                gap: gapH,
+                marginBottom: rowIndex < rows.length - 1 ? verticalGap : 0,
+                gap: horizontalGap,
               },
             ]}
           >
@@ -66,10 +73,10 @@ export default function MyCommunities() {
                     borderRadius: 10,
                   },
                 ]}
-                onPress={() => navigation.navigate('community')}
+                onPress={() => navigation.navigate(coverPressRoute)}
               >
                 <Image
-                  source={{ uri: mySubscribedCommunityCovers[index] }}
+                  source={{ uri: coverImageUrls[index] }}
                   style={styles.cover}
                   resizeMode="cover"
                 />

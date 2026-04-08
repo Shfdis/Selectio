@@ -62,7 +62,7 @@ export default function EditProfile() {
   return (
     <View style={styles.screen}>
       <ScreenHeader
-        headerTitle="Настройки"
+        headerTitle="Настройки профиля"
         onPressBack={() => navigation.goBack()}
         onPressConfirm={onPressSave}
         confirmDisabled={isLoading}

@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
 import { useMemo, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import BookCard from './BookCard';
 
 export default function PostCard({
@@ -13,9 +14,11 @@ export default function PostCard({
   initialComments = 0,
   initiallyLiked = false,
   initiallyBookmarked = true,
-  onPressComment = () => {},
+  onPressComment,
+  postId = '1',
   style,
 }) {
+  const navigation = useNavigation();
   const [liked, setLiked] = useState(initiallyLiked);
   const [bookmarked, setBookmarked] = useState(initiallyBookmarked);
   const [likes, setLikes] = useState(initialLikes);
@@ -40,6 +43,14 @@ export default function PostCard({
         : require('../assets/icons/icon_bookmark.png'),
     [bookmarked],
   );
+
+  const handlePressComment = () => {
+    if (onPressComment) {
+      onPressComment();
+      return;
+    }
+    navigation.navigate('postComments', { postId });
+  };
 
   return (
     <View style={[styles.wrapper, style]}>
@@ -87,7 +98,7 @@ export default function PostCard({
           </Pressable>
           <Text style={styles.count}>{likes}</Text>
 
-          <Pressable style={[styles.action, styles.actionSpacer]} onPress={onPressComment} hitSlop={10}>
+          <Pressable style={[styles.action, styles.actionSpacer]} onPress={handlePressComment} hitSlop={10}>
             <Image source={require('../assets/icons/icon_chat.png')} style={styles.icon} resizeMode="contain" />
           </Pressable>
           <Text style={styles.count}>{initialComments}</Text>

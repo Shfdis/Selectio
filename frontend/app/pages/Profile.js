@@ -6,11 +6,13 @@ import { useMemo, useState } from 'react';
 import PostCard from '../components/PostCard';
 import { useNavigation } from '@react-navigation/native';
 import { inProgressBooks, readBooks, wantToReadBooks } from '../data/libraryBooks';
+import { examplePosts } from '../data/communityPage';
+import { profileReviews } from '../data/profilePage';
 
 const windowHeight = Dimensions.get('window').height;
 const paddedHeight = windowHeight * 0.24;
 
-export function ProfileMainContent() {
+export function Profile() {
   const { data: currentUser } = useGetCurrentUserQuery();
   const userId = currentUser?.id;
   const { data: profile } = useGetUserProfileQuery(userId, { skip: !userId });
@@ -104,59 +106,36 @@ export function ProfileMainContent() {
             </View>
           ) : activeTab === 'reviews' ? (
             <View style={styles.reviews}>
-              <ReviewCard
-                title="Хаски и его учитель белый кот"
-                author="Митбан"
-                rating={5}
-                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные персонажи, постоянные эмоциональные качели, а главное - романтические линии"
-                disabled
-                style={styles.reviewSpacing}
-              />
-              <ReviewCard
-                title="Благие знамения"
-                author="Нил Гейман"
-                rating={4}
-                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные"
-                disabled
-              />
+              {profileReviews.map((review, idx) => (
+                <ReviewCard
+                  key={review.id}
+                  title={review.title}
+                  author={review.author}
+                  rating={review.rating}
+                  text={review.text}
+                  disabled={false}
+                  onPressEdit={() => navigation.navigate('editReview', { review })}
+                  style={idx < profileReviews.length - 1 ? styles.reviewSpacing : null}
+                />
+              ))}
             </View>
           ) : activeTab === 'favorites' ? (
             <View style={styles.favorites}>
-              <PostCard
-                username="ShadowMilkEveryDay"
-                dateText="07.01.26"
-                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные персонажи, постоянные эмоциональные качели, а главное - романтические линии, к которым хочется возвращаться вновь и вновь!!"
-                imageSource= {{"uri": 'https://i.pinimg.com/474x/56/e5/19/56e5193bb2b6234748387a105f4e37f4.jpg?nii=t'}}
-                initialLikes={69}
-                initialComments={52}
-                initiallyLiked={false}
-                initiallyBookmarked={true}
-                onPressComment={() => {}}
-                book={{
-                  imageUrl: 'https://static.kinoafisha.info/k/series_posters/1920x1080/upload/series/posters/8/5/0/2058/808438341595445105.jpg',
-                  title: 'Благие знамения',
-                  author: 'Нил Гейман',
-                  genreFirst: 'Приключения',
-                  genreSecond: 'Комедия',
-                }}
-              />
-              <PostCard
-                username="ShadowMilkEveryDay"
-                dateText="07.01.26"
-                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные персонажи, постоянные эмоциональные качели, а главное - романтические линии"
-                initialLikes={12}
-                initialComments={3}
-                initiallyLiked={true}
-                initiallyBookmarked={true}
-                onPressComment={() => {}}
-                book={{
-                  imageUrl: 'https://ir.ozone.ru/s3/multimedia-1-i/8427096306.jpg',
-                  title: 'Хаски и его учитель белый кот',
-                  author: 'Митбан',
-                  genreFirst: 'Фэнтези',
-                  genreSecond: 'Романтика',
-                }}
-              />
+              {examplePosts.map((p) => (
+                <PostCard
+                  key={p.id}
+                  postId={p.id}
+                  username={p.username}
+                  dateText={p.dateText}
+                  text={p.text}
+                  imageSource={p.imageSource}
+                  book={p.book}
+                  initialLikes={p.initialLikes}
+                  initialComments={p.initialComments}
+                  initiallyLiked={p.initiallyLiked}
+                  initiallyBookmarked={p.initiallyBookmarked}
+                />
+              ))}
             </View>
           ) : (
             <Text style={styles.emptyState}>Пока пусто</Text>

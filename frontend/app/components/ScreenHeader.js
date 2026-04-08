@@ -2,9 +2,11 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function ScreenHeader({
   headerTitle,
+  headerTitleStyle,
   onPressBack,
-  onPressConfirm,
+  onPressConfirm = () => {},
   confirmDisabled = false,
+  showConfirmButton = true,
 }) {
   return (
     <View style={styles.header}>
@@ -16,20 +18,24 @@ export default function ScreenHeader({
         />
       </Pressable>
 
-      <Text style={styles.headerTitle}>{headerTitle}</Text>
+      <Text style={[styles.headerTitle, headerTitleStyle]}>{headerTitle}</Text>
 
-      <Pressable
-        style={styles.iconButton}
-        onPress={onPressConfirm}
-        hitSlop={10}
-        disabled={confirmDisabled}
-      >
-        <Image
-          source={require('../assets/icons/icon_check_mark.png')}
-          style={styles.checkIcon}
-          resizeMode="contain"
-        />
-      </Pressable>
+      {showConfirmButton ? (
+        <Pressable
+          style={styles.iconButton}
+          onPress={onPressConfirm}
+          hitSlop={10}
+          disabled={confirmDisabled}
+        >
+          <Image
+            source={require('../assets/icons/icon_check_mark.png')}
+            style={styles.checkIcon}
+            resizeMode="contain"
+          />
+        </Pressable>
+      ) : (
+        <View style={styles.iconSlotSpacer} />
+      )}
     </View>
   );
 }
@@ -47,13 +53,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     color: '#2D2800',
     fontFamily: 'Mak',
     fontWeight: 300,
     lineHeight: 29,
     textAlign: 'center',
     flex: 1,
+    maxWidth: '60%',
+    transform: [{ translateY: 8 }],
   },
   iconButton: {
     width: '13%',
@@ -70,6 +78,10 @@ const styles = StyleSheet.create({
   checkIcon: {
     width: '45%',
     height: '45%',
+  },
+  iconSlotSpacer: {
+    width: '13%',
+    aspectRatio: 1,
   },
 });
 

@@ -1,6 +1,6 @@
 import { View, StyleSheet, Image, Pressable } from 'react-native';
 
-export default function GreenHeaderStrip({ onPressBack, onPressStrip }) {
+export default function GreenHeader({ onPressBack, onPressStrip, onPressSettings }) {
   return (
     <View style={styles.strip}>
       {onPressStrip ? (
@@ -20,6 +20,18 @@ export default function GreenHeaderStrip({ onPressBack, onPressStrip }) {
           />
         </View>
       </Pressable>
+
+      {onPressSettings ? (
+        <Pressable style={styles.settingsButton} onPress={onPressSettings} hitSlop={10}>
+          <View style={styles.backButtonCircle}>
+            <Image
+              source={require('../assets/icons/icon_settings_white.png')}
+              style={styles.settingsIcon}
+              resizeMode="contain"
+            />
+          </View>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -57,5 +69,19 @@ const styles = StyleSheet.create({
   backIcon: {
     width: 24,
     height: 24,
+  },
+  settingsButton: {
+    position: 'absolute',
+    right: 23,
+    top: 52,
+    width: 45,
+    height: 45,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  settingsIcon: {
+    width: 28,
+    height: 28,
   },
 });

@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { StyleSheet } from 'react-native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
-import ReviewEditorScreen from '../components/ReviewEditorScreen';
+import ReviewEditor from '../components/ReviewEditor';
 
 export default function NewReview({ route }) {
   const navigation = useNavigation();
@@ -26,8 +27,9 @@ export default function NewReview({ route }) {
   };
 
   return (
-    <ReviewEditorScreen
-      headerTitle="Новый Отзыв"
+    <ReviewEditor
+      headerTitle="Новый отзыв"
+      headerTitleStyle={styles.headerTitleRaise}
       book={book}
       rating={rating}
       onChangeRating={setRating}
@@ -39,3 +41,9 @@ export default function NewReview({ route }) {
     />
   );
 }
+
+const styles = StyleSheet.create({
+  headerTitleRaise: {
+    transform: [{ translateY: -3 }],
+  },
+});

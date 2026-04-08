@@ -24,6 +24,7 @@ export default function HorizontalCoverSection({
   style,
   squareCovers = false,
   openAllButton,
+  plusButton,
   titleStyle,
   subtitleStyle,
 }) {
@@ -45,14 +46,27 @@ export default function HorizontalCoverSection({
           />
         ))}
       </ScrollView>
-      {openAllButton ? (
-        <Pressable
-          style={styles.openAllButton}
-          onPress={openAllButton.onPress}
-          hitSlop={10}
-        >
-          <Text style={styles.openAllText}>{openAllButton.label}</Text>
-        </Pressable>
+      {openAllButton || plusButton ? (
+        <View style={styles.actionsRow}>
+          {openAllButton ? (
+            <Pressable
+              style={styles.openAllButton}
+              onPress={openAllButton.onPress}
+              hitSlop={10}
+            >
+              <Text style={styles.openAllText}>{openAllButton.label}</Text>
+            </Pressable>
+          ) : null}
+          {plusButton ? (
+            <Pressable style={styles.plusButton} onPress={plusButton.onPress} hitSlop={10}>
+              <Image
+                source={require('../assets/icons/icon_plus.png')}
+                style={styles.plusIcon}
+                resizeMode="contain"
+              />
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
@@ -100,8 +114,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  openAllButton: {
+  actionsRow: {
     marginTop: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  openAllButton: {
     alignSelf: 'flex-start',
     minWidth: 138,
     height: 29,
@@ -119,5 +138,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Playfair',
     fontWeight: '500',
     lineHeight: 17,
+  },
+  plusButton: {
+    width: 50,
+    height: 29,
+    borderRadius: 20,
+    backgroundColor: '#565d3f',
+    borderWidth: 1,
+    borderColor: '#CAC7B9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plusIcon: {
+    width: 18,
+    height: 18,
+    tintColor: '#ECE8DD',
   },
 });

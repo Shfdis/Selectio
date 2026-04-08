@@ -13,11 +13,18 @@ import WantToRead from './pages/WantToRead';
 import InProgress from './pages/InProgress';
 import ReadBooks from './pages/ReadBooks';
 import NewReview from './pages/NewReview';
+import EditReview from './pages/EditReview';
 import Book from './pages/Book';
 import Community from './pages/Community';
+import MyCommunity from './pages/MyCommunity';
 import Genre from './pages/Genre';
-import MyCommunities from './pages/MyCommunities';
+import AllMySubscriptions from './pages/AllMySubscriptions';
+import AllMyCreatedCommunities from './pages/AllMyCreatedCommunities';
 import MainScreen from './pages/MainScreen';
+import NewCommunity from './pages/NewCommunity';
+import EditCommunity from './pages/EditCommunity';
+import PostComments from './pages/PostComments';
+import NewPost from './pages/NewPost';
 SplashScreen.preventAutoHideAsync();
 
 const Stack = createNativeStackNavigator();
@@ -88,6 +95,11 @@ export default function App() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="editReview"
+            component={EditReview}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="book"
             component={Book}
             options={{ headerShown: false }}
@@ -98,8 +110,38 @@ export default function App() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
-            name="myCommunities"
-            component={MyCommunities}
+            name="myCommunity"
+            component={MyCommunity}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="newPost"
+            component={NewPost}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="postComments"
+            component={PostComments}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="allMySubscriptions"
+            component={AllMySubscriptions}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="allMyCreatedCommunities"
+            component={AllMyCreatedCommunities}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="newCommunity"
+            component={NewCommunity}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="editCommunity"
+            component={EditCommunity}
             options={{ headerShown: false }}
           />
           <Stack.Screen

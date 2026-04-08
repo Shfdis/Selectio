@@ -2,24 +2,27 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useRef, useCallback } from 'react';
 import HorizontalCoverSection from '../components/HorizontalCoverSection';
-import SearchStickyHeader, {
+import SearchHeader, {
   defaultCommunitiesSearchPlaceholder,
-} from '../components/SearchStickyHeader';
+} from '../components/SearchHeader';
 import PostCard from '../components/PostCard';
 import {
   examplePosts,
+  myCreatedCommunityCovers,
   myCommunitiesStripCount,
   mySubscribedCommunityCovers,
 } from '../data/communityPage';
 
-const myCommunityCoversStrip = mySubscribedCommunityCovers.slice(0, myCommunitiesStripCount);
+const mySubscribedCommunityCoversStrip = mySubscribedCommunityCovers.slice(0, myCommunitiesStripCount);
+const myCreatedCommunityCoversStrip = myCreatedCommunityCovers.slice(0, myCommunitiesStripCount);
 
 const feedPosts = [...examplePosts, ...examplePosts].map((p, i) => ({
   ...p,
   id: `${p.id}-dup-${i}`,
+  threadPostId: p.id,
 }));
 
-export function CommunitiesMainContent() {
+export function Communities() {
   const navigation = useNavigation();
   const scrollRef = useRef(null);
   const [query, setQuery] = useState('');
@@ -31,10 +34,13 @@ export function CommunitiesMainContent() {
   const onPressCommunityCover = () => {
     navigation.navigate('community');
   };
+  const onPressCreatedCommunityCover = () => {
+    navigation.navigate('myCommunity');
+  };
 
   return (
     <View style={styles.screen}>
-      <SearchStickyHeader
+      <SearchHeader
         value={query}
         onChangeText={setQuery}
         placeholder={defaultCommunitiesSearchPlaceholder}
@@ -48,17 +54,34 @@ export function CommunitiesMainContent() {
         showsVerticalScrollIndicator={false}
       >
         <HorizontalCoverSection
-          title="Мои сообщества"
+          title="Мои подписки"
           subtitle="Сообщества, на которые вы подписались"
-          covers={myCommunityCoversStrip}
+          covers={mySubscribedCommunityCoversStrip}
           onPressCover={onPressCommunityCover}
+          style={styles.subscribedCommunitiesSection}
+          squareCovers
+          titleStyle={styles.myCommunitiesTitle}
+          subtitleStyle={styles.myCommunitiesSubtitle}
+          openAllButton={{
+            label: 'Открыть все',
+            onPress: () => navigation.navigate('allMySubscriptions'),
+          }}
+        />
+        <HorizontalCoverSection
+          title="Созданные сообщества"
+          subtitle="Сообщества, которые вы создали"
+          covers={myCreatedCommunityCoversStrip}
+          onPressCover={onPressCreatedCommunityCover}
           style={styles.myCommunitiesSection}
           squareCovers
           titleStyle={styles.myCommunitiesTitle}
           subtitleStyle={styles.myCommunitiesSubtitle}
           openAllButton={{
             label: 'Открыть все',
-            onPress: () => navigation.navigate('myCommunities'),
+            onPress: () => navigation.navigate('allMyCreatedCommunities'),
+          }}
+          plusButton={{
+            onPress: () => navigation.navigate('newCommunity'),
           }}
         />
 
@@ -66,6 +89,7 @@ export function CommunitiesMainContent() {
           {feedPosts.map((p) => (
             <PostCard
               key={p.id}
+              postId={p.threadPostId}
               username={p.username}
               dateText={p.dateText}
               text={p.text}
@@ -75,7 +99,6 @@ export function CommunitiesMainContent() {
               initialComments={p.initialComments}
               initiallyLiked={p.initiallyLiked}
               initiallyBookmarked={p.initiallyBookmarked}
-              onPressComment={() => {}}
             />
           ))}
         </View>
@@ -100,6 +123,10 @@ const styles = StyleSheet.create({
   },
   myCommunitiesSection: {
     backgroundColor: '#E4DFD0',
+    paddingBottom: 23,
+  },
+  subscribedCommunitiesSection: {
+    backgroundColor: '#ECE8DD',
     paddingBottom: 23,
   },
   myCommunitiesTitle: {
