@@ -1,6 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-export const LIBRARY_SHELF_IDS = ['wantToRead', 'inProgress', 'read'];
+const libraryShelfIds = ['wantToRead', 'inProgress', 'read'];
 
 export const LIBRARY_SHELF_LABELS = {
   wantToRead: 'Хочу прочитать',
@@ -15,7 +15,7 @@ export const LIBRARY_SHELF_ICONS = {
 };
 
 function otherShelves(currentList) {
-  return LIBRARY_SHELF_IDS.filter((id) => id !== currentList);
+  return libraryShelfIds.filter((id) => id !== currentList);
 }
 
 export default function LibraryMoveSheet({

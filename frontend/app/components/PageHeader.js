@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
 
-export const defaultPageHeaderSubtitle = 'Отсортировано по популярности';
+const defaultPageHeaderSubtitle = 'Отсортировано по популярности';
 
 export default function PageHeader({
   title,

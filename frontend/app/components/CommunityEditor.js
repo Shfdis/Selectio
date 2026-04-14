@@ -4,7 +4,7 @@ import GenrePill from './GenrePill';
 import LibraryFilterSheet from './LibraryFilterSheet';
 import { libraryFilterGenres } from '../data/libraryBooks';
 
-export function CommunityAddGenresButton({ onPress }) {
+function CommunityAddGenresButton({ onPress }) {
   return (
     <Pressable style={styles.addGenresButton} onPress={onPress} hitSlop={10}>
       <Text style={styles.addGenresText}>Добавить жанры</Text>
@@ -12,7 +12,7 @@ export function CommunityAddGenresButton({ onPress }) {
   );
 }
 
-export function CommunityGenrePills({ genres = [] }) {
+function CommunityGenrePills({ genres = [] }) {
   const list = Array.isArray(genres) ? genres : [];
   return (
     <View style={styles.selectedGenresWrap}>
