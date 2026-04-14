@@ -1,5 +1,8 @@
+import { useCallback, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import GenrePill from './GenrePill';
+import LibraryFilterSheet from './LibraryFilterSheet';
+import { libraryFilterGenres } from '../data/libraryBooks';
 
 export function CommunityAddGenresButton({ onPress }) {
   return (
@@ -9,15 +12,18 @@ export function CommunityAddGenresButton({ onPress }) {
   );
 }
 
-export function CommunityGenrePills({ genres }) {
+export function CommunityGenrePills({ genres = [] }) {
+  const list = Array.isArray(genres) ? genres : [];
   return (
     <View style={styles.selectedGenresWrap}>
-      {genres.map((genre) => (
+      {list.map((genre) => (
         <GenrePill key={genre} label={genre} />
       ))}
     </View>
   );
 }
+
+const maxCommunityGenres = 6;
 
 export default function CommunityEditor({
   coverImageSource,
@@ -26,60 +32,140 @@ export default function CommunityEditor({
   onChangeDisplayName,
   description,
   onChangeDescription,
-  onPressGenresPicker,
-  genresSection,
+  selectedGenres = [],
+  onSelectedGenresChange,
+  addGenresWhenEmpty = false,
 }) {
+  const [genreSheetVisible, setGenreSheetVisible] = useState(false);
+  const [genreSheetDraft, setGenreSheetDraft] = useState([]);
+
+  const controlled = typeof onSelectedGenresChange === 'function';
+  const [uncontrolledGenres, setUncontrolledGenres] = useState(() =>
+    Array.isArray(selectedGenres) ? [...selectedGenres] : [],
+  );
+
+  const safeGenres = useMemo(() => {
+    if (controlled) {
+      return Array.isArray(selectedGenres) ? selectedGenres : [];
+    }
+    return uncontrolledGenres;
+  }, [controlled, selectedGenres, uncontrolledGenres]);
+
+  const commitGenres = useCallback(
+    (next) => {
+      const list = Array.isArray(next) ? [...next] : [];
+      if (controlled) {
+        onSelectedGenresChange(list);
+      } else {
+        setUncontrolledGenres(list);
+      }
+    },
+    [controlled, onSelectedGenresChange],
+  );
+
+  const openGenreSheet = useCallback(() => {
+    setGenreSheetDraft([...safeGenres]);
+    setGenreSheetVisible(true);
+  }, [safeGenres]);
+
+  const onToggleGenreDraft = useCallback((genre) => {
+    setGenreSheetDraft((prev) => {
+      const base = Array.isArray(prev) ? prev : [];
+      if (base.includes(genre)) {
+        return base.filter((g) => g !== genre);
+      }
+      if (base.length >= maxCommunityGenres) {
+        return base;
+      }
+      return [...base, genre];
+    });
+  }, []);
+
+  const onApplyGenreSheet = useCallback(() => {
+    commitGenres([...genreSheetDraft]);
+    setGenreSheetVisible(false);
+  }, [genreSheetDraft, commitGenres]);
+  const genresSection =
+    addGenresWhenEmpty && safeGenres.length === 0 ? (
+      <CommunityAddGenresButton onPress={openGenreSheet} />
+    ) : (
+      <CommunityGenrePills genres={safeGenres} />
+    );
+
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={styles.avatarSection}>
-        <View style={styles.avatarWrap}>
-          <Image source={coverImageSource} style={styles.avatar} resizeMode="cover" />
-        </View>
-        <Pressable style={styles.changeAvatarButton} onPress={onPressChangeAvatar ?? (() => {})} hitSlop={10}>
-          <Text style={styles.changeAvatarText}>Изменить аватарку</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.form}>
-        <Text style={styles.label}>Отображаемое имя</Text>
-        <TextInput
-          value={displayName}
-          onChangeText={onChangeDisplayName}
-          style={styles.input}
-          placeholder=""
-          placeholderTextColor="#81876D"
-        />
-
-        <View style={styles.genresHeaderRow}>
-          <Text style={styles.label}>Выбранные жанры</Text>
-          <Pressable style={styles.listButton} onPress={onPressGenresPicker} hitSlop={10}>
-            <Image source={require('../assets/icons/icon_list.png')} style={styles.listIcon} resizeMode="contain" />
+    <View style={styles.root}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.avatarSection}>
+          <View style={styles.avatarWrap}>
+            <Image source={coverImageSource} style={styles.avatar} resizeMode="cover" />
+          </View>
+          <Pressable style={styles.changeAvatarButton} onPress={onPressChangeAvatar ?? (() => {})} hitSlop={10}>
+          <Image
+            source={require('../assets/icons/icon_photo-add.png')}
+            style={styles.changeAvatarIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.changeAvatarText}>Изменить фото</Text>
           </Pressable>
         </View>
 
-        {genresSection}
+        <View style={styles.form}>
+          <Text style={styles.label}>Отображаемое имя</Text>
+          <TextInput
+            value={displayName}
+            onChangeText={onChangeDisplayName}
+            style={styles.input}
+            placeholder=""
+            placeholderTextColor="#81876D"
+          />
 
-        <Text style={[styles.label, styles.descriptionLabel]}>Описание</Text>
-        <TextInput
-          value={description}
-          onChangeText={onChangeDescription}
-          style={[styles.input, styles.descriptionInput]}
-          multiline
-          textAlignVertical="top"
-          placeholder=""
-          placeholderTextColor="#81876D"
-        />
-      </View>
-    </ScrollView>
+          <View style={styles.genresHeaderRow}>
+            <Text style={styles.label}>Выбранные жанры</Text>
+            <Pressable style={styles.listButton} onPress={openGenreSheet} hitSlop={10}>
+              <Image source={require('../assets/icons/icon_list.png')} style={styles.listIcon} resizeMode="contain" />
+            </Pressable>
+          </View>
+
+          {genresSection}
+
+          <Text style={[styles.label, styles.descriptionLabel]}>Описание</Text>
+          <TextInput
+            value={description}
+            onChangeText={onChangeDescription}
+            style={[styles.input, styles.descriptionInput]}
+            multiline
+            textAlignVertical="top"
+            placeholder=""
+            placeholderTextColor="#81876D"
+          />
+        </View>
+      </ScrollView>
+
+      <LibraryFilterSheet
+        visible={genreSheetVisible}
+        layout="rows"
+        rowsPreset="community"
+        title="Выберите жанры (не больше 6)"
+        genres={libraryFilterGenres}
+        selectedGenres={genreSheetDraft}
+        maxSelectedGenres={maxCommunityGenres}
+        onToggleGenre={onToggleGenreDraft}
+        onApply={onApplyGenreSheet}
+        onClose={() => setGenreSheetVisible(false)}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   scroll: {
     flex: 1,
     backgroundColor: '#ECE8DD',
@@ -108,13 +194,29 @@ const styles = StyleSheet.create({
   },
   changeAvatarButton: {
     marginTop: 16,
+    width: 172,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#E4DFD0',
+    borderWidth: 1,
+    borderColor: '#81876D',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  changeAvatarIcon: {
+    position: 'absolute',
+    left: '3%',
+    width: 24,
+    height: 24,
   },
   changeAvatarText: {
-    fontSize: 17,
+    fontSize: 16,
     color: '#2D2800',
     fontFamily: 'Playfair',
-    fontWeight: '400',
+    fontWeight: '500',
     lineHeight: 20,
+    left: '9%',
   },
   form: {
     paddingHorizontal: 28,
@@ -141,7 +243,6 @@ const styles = StyleSheet.create({
     marginTop: 28,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
     gap: 8,
   },
   listButton: {

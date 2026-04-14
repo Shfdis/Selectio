@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
-import CommunityScreen from '../components/CommunityScreen';
+import CommunityScreenLayout from '../components/CommunityScreen';
 import { exampleCommunity, examplePosts } from '../data/communityPage';
 
 export default function Community() {
@@ -22,7 +22,7 @@ export default function Community() {
   };
 
   return (
-    <CommunityScreen
+    <CommunityScreenLayout
       community={community}
       posts={examplePosts}
       onPressBack={onPressBack}
@@ -50,8 +50,8 @@ export default function Community() {
             </Pressable>
             <Pressable
               style={[styles.subscribedButton, styles.subscribedButtonOffer]}
-              hitSlop={10}
               onPress={() => navigation.navigate('newPost')}
+              hitSlop={10}
             >
               <Image
                 source={require('../assets/icons/icon_offer.png')}

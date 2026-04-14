@@ -1,9 +1,9 @@
-import AllCommunities from '../components/AllCommunities';
+import CommunityCoversGridScreen from '../components/AllCommunities';
 import { mySubscribedCommunityCovers } from '../data/communityPage';
 
-export default function AllMySubscriptions() {
+export default function MySubscriptions() {
   return (
-    <AllCommunities
+    <CommunityCoversGridScreen
       headerTitle="Мои подписки"
       headerSubtitle="Отсортировано по последним добавленным"
       coverImageUrls={mySubscribedCommunityCovers}

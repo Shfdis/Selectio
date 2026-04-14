@@ -1,7 +1,11 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+const TITLE_BLOCK_LINE_HEIGHT = 43;
+const TITLE_CLUSTER_MIN_HEIGHT = TITLE_BLOCK_LINE_HEIGHT * 2;
+
 export default function LibraryHeader({
   title,
+  titleIcon,
   onPressBack,
   onPressAdd = () => {},
   activeId = null,
@@ -10,7 +14,12 @@ export default function LibraryHeader({
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <Text style={styles.title}>{title}</Text>
+        <View style={styles.titleCluster}>
+          {titleIcon ? (
+            <Image source={titleIcon} style={styles.titleLeadingIcon} resizeMode="contain" />
+          ) : null}
+          <Text style={styles.title}>{title}</Text>
+        </View>
 
         <Pressable style={styles.backButton} onPress={onPressBack} hitSlop={10}>
           <Image
@@ -70,16 +79,33 @@ const styles = StyleSheet.create({
   topRow: {
     width: '100%',
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
+  titleCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    flex: 1,
+    minWidth: 0,
+    minHeight: TITLE_CLUSTER_MIN_HEIGHT,
+    marginRight: 8,
+    gap: 10,
+  },
+  titleLeadingIcon: {
+    width: 36,
+    height: 36,
+    flexShrink: 0,
+  },
   title: {
+    flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
     fontSize: 36,
     color: '#2D2800',
     fontFamily: 'Mak',
     fontWeight: 300,
     lineHeight: 43,
-    width: '78%',
   },
   backButton: {
     width: 45,

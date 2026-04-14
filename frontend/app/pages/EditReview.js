@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
-import ReviewEditor from '../components/ReviewEditor';
+import { CommonActions, useNavigation } from '@react-navigation/native';
+import ReviewEditorScreen from '../components/ReviewEditor';
 
 export default function EditReview({ route }) {
   const navigation = useNavigation();
@@ -14,11 +14,35 @@ export default function EditReview({ route }) {
   const [text, setText] = useState(initialText);
 
   const onSubmit = () => {
-    navigation.goBack();
+    const safeRating = Math.max(1, Math.min(5, Math.floor(rating)));
+    const textStr = typeof text === 'string' ? text : '';
+
+    if (typeof review?.idx === 'number') {
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 1,
+          routes: [
+            { name: 'main', params: { mainTab: 'profile' } },
+            {
+              name: 'readBooks',
+              params: {
+                reviewUpdate: {
+                  idx: review.idx,
+                  rating: safeRating,
+                  text: textStr,
+                },
+              },
+            },
+          ],
+        }),
+      );
+    } else {
+      navigation.goBack();
+    }
   };
 
   return (
-    <ReviewEditor
+    <ReviewEditorScreen
       headerTitle="Редактирование отзыва"
       book={book}
       rating={rating}

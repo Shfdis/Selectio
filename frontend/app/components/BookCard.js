@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
+import GenrePill from './GenrePill';
 export default function BookCard({
     imageUrl,
     title,
@@ -7,6 +8,8 @@ export default function BookCard({
     genreSecond,
     onClick = () => {},
     genreAccessory = null,
+    showAddReview = false,
+    onPressAddReview = () => {},
   }) {
   
     return (
@@ -20,18 +23,23 @@ export default function BookCard({
             <Text style={styles.author} numberOfLines={1}>
               {author}
             </Text>
-            <View style={styles.genreBox}>
-                <View style={styles.genre}>
-                    <Text style={styles.genreText}>
-                        {genreFirst}
-                    </Text>
-                </View>
-                <View style={styles.genre}>
-                    <Text style={styles.genreText}>
-                        {genreSecond}
-                    </Text>
-                </View>
-                {genreAccessory}
+            <View style={styles.genreSection}>
+              <View style={styles.genreBox}>
+                <GenrePill label={genreFirst} />
+                <GenrePill label={genreSecond} />
+              </View>
+              {showAddReview ? (
+                <Pressable style={styles.addReviewButton} onPress={onPressAddReview} hitSlop={8}>
+                  <Image
+                    source={require('../assets/icons/icon_plus.png')}
+                    style={styles.addReviewIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.addReviewText}>Добавить отзыв</Text>
+                </Pressable>
+              ) : genreAccessory ? (
+                <View style={styles.ratingBelow}>{genreAccessory}</View>
+              ) : null}
             </View>
           </View>
         </View>
@@ -50,10 +58,14 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
       },
     topRow: {
+        flex: 1,
+        minWidth: 0,
         alignItems: 'flex-start',
         marginLeft: '4%',
       },
     titleBlock: {
+        width: '100%',
+        minWidth: 0,
         flex: 1,
         alignItems: 'flex-start',
       },
@@ -63,7 +75,7 @@ const styles = StyleSheet.create({
         fontFamily: 'Playfair',
         fontWeight: 400,
         lineHeight: 22,
-        maxWidth: 200,
+        width: '100%',
       },
     author: {
         marginTop: '3.5%',
@@ -72,32 +84,48 @@ const styles = StyleSheet.create({
         fontFamily: 'Playfair',
         fontWeight: 400,
         lineHeight: 14,
-        maxWidth: 200,
+        width: '100%',
         marginBottom: '8%',
       },
-      genreBox: {
-        flexDirection: 'row',
+      genreSection: {
+        width: '100%',
         marginTop: 'auto',
-        alignItems: 'center',
       },
-      genre: {
-        width: 105,
-        minWidth: 105,
-        borderRadius: 20,
-        backgroundColor: '#CCB985',
-        marginRight: 3,
-        paddingHorizontal: 10,
+      genreBox: {
+        width: '100%',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        rowGap: 4,
+        columnGap: 6,
+      },
+      ratingBelow: {
+        marginTop: 6,
+        alignSelf: 'flex-start',
+      },
+      addReviewButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: 8,
+        marginTop: 6,
+        paddingHorizontal: 14,
         paddingVertical: 4,
+        borderRadius: 20,
+        backgroundColor: '#555C40',
         borderWidth: 1,
         borderColor: '#CAC7B9',
-        alignItems: 'center',
-        justifyContent: 'center',
       },
-      genreText: {
+      addReviewIcon: {
+        width: 16,
+        height: 16,
+        tintColor: '#ECE8DD',
+      },
+      addReviewText: {
         fontSize: 12,
-        color: '#2D2800',
+        lineHeight: 17,
+        color: '#ECE8DD',
         fontFamily: 'Playfair',
-        fontWeight: 400,
-        lineHeight: 15,
+        fontWeight: '500',
       },
 });

@@ -1,15 +1,21 @@
 import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-native';
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import GreenHeader from '../components/GreenHeader';
 import BookInfoBlock from '../components/BookInfoBlock';
 import ReviewCard from '../components/ReviewCard';
+import BookAddToLibrary from '../components/BookAddToLibrary';
+import LibraryMoveSheet, { LIBRARY_SHELF_ICONS, LIBRARY_SHELF_LABELS } from '../components/LibraryMoveSheet';
 import { exampleBook, exampleReviews } from '../data/bookPage';
 
 export default function Book() {
   const navigation = useNavigation();
   const scrollRef = useRef(null);
   const book = exampleBook;
+
+  const [libraryShelf, setLibraryShelf] = useState(null);
+  const [addSheetVisible, setAddSheetVisible] = useState(false);
+  const [moveSheetVisible, setMoveSheetVisible] = useState(false);
 
   const onPressBack = () => {
     navigation.goBack();
@@ -19,7 +25,23 @@ export default function Book() {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, []);
 
-  const onPressAddToLibrary = () => {};
+  const onPressLibraryButton = () => {
+    if (libraryShelf == null) {
+      setAddSheetVisible(true);
+    } else {
+      setMoveSheetVisible(true);
+    }
+  };
+
+  const onSelectShelfFromAddSheet = (shelf) => {
+    setLibraryShelf(shelf);
+    setAddSheetVisible(false);
+  };
+
+  const onRemoveFromLibrary = () => {
+    setLibraryShelf(null);
+    setMoveSheetVisible(false);
+  };
 
   return (
     <View style={styles.screen}>
@@ -54,13 +76,43 @@ export default function Book() {
               genreSecond={book.genreSecond}
             />
 
-            <Pressable style={styles.addButton} onPress={onPressAddToLibrary} hitSlop={10}>
-              <Image
-                source={require('../assets/icons/icon_plus.png')}
-                style={styles.addIcon}
-                resizeMode="contain"
-              />
-              <Text style={styles.addButtonText}>Добавить в библиотеку</Text>
+            <Pressable
+              style={
+                !libraryShelf
+                  ? styles.addButton
+                  : moveSheetVisible
+                    ? styles.moveLibraryButtonActive
+                    : styles.moveLibraryButton
+              }
+              onPress={onPressLibraryButton}
+              hitSlop={10}
+            >
+              {libraryShelf ? (
+                <>
+                  <Image
+                    source={require('../assets/icons/icon_move-down.png')}
+                    style={styles.moveLibraryIcon}
+                    resizeMode="contain"
+                  />
+                  <Image
+                    source={LIBRARY_SHELF_ICONS[libraryShelf]}
+                    style={styles.shelfBadgeIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.moveLibraryButtonText}>
+                    {moveSheetVisible ? LIBRARY_SHELF_LABELS[libraryShelf] : 'Переместить'}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Image
+                    source={require('../assets/icons/icon_plus.png')}
+                    style={styles.addIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.addButtonText}>Добавить в библиотеку</Text>
+                </>
+              )}
             </Pressable>
           </View>
           <View style={styles.rowDivider} />
@@ -100,6 +152,24 @@ export default function Book() {
           </View>
         </View>
       </ScrollView>
+
+      <BookAddToLibrary
+        visible={addSheetVisible}
+        bookTitle={book.title}
+        onSelectShelf={onSelectShelfFromAddSheet}
+        onClose={() => setAddSheetVisible(false)}
+      />
+      <LibraryMoveSheet
+        visible={moveSheetVisible && libraryShelf != null}
+        bookTitle={book.title}
+        list={libraryShelf}
+        onMoveToShelf={(target) => {
+          setLibraryShelf(target);
+          setMoveSheetVisible(false);
+        }}
+        onDelete={onRemoveFromLibrary}
+        onClose={() => setMoveSheetVisible(false)}
+      />
     </View>
   );
 }
@@ -154,10 +224,9 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 17,
     color: '#2D2800',
-    fontFamily: 'Playfair',
+    fontFamily: 'CrimsonText-SemiBold',
     fontWeight: 600,
     lineHeight: 20,
-    marginBottom: '2%',
   },
   scroll: {
     flex: 1,
@@ -199,6 +268,51 @@ const styles = StyleSheet.create({
     fontFamily: 'Playfair',
     fontWeight: 500,
     lineHeight: 20,
+  },
+  moveLibraryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: '8%',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 40,
+    backgroundColor: '#E4DFD0',
+    borderWidth: 1,
+    borderColor: '#CAC7B9',
+    gap: 8,
+    width: '100%',
+  },
+  moveLibraryIcon: {
+    width: 22,
+    height: 22,
+  },
+  shelfBadgeIcon: {
+    width: 22,
+    height: 22,
+  },
+  moveLibraryButtonText: {
+    fontSize: 20,
+    color: '#2D2800',
+    fontFamily: 'Playfair',
+    fontWeight: 500,
+    lineHeight: 22,
+  },
+  moveLibraryButtonActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: '8%',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 40,
+    backgroundColor: '#CCB985',
+    borderWidth: 1,
+    borderColor: '#CAC7B9',
+    gap: 8,
+    width: '100%',
   },
   descriptionSection: {
     width: '100%',
@@ -258,7 +372,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
     color: '#2D2800',
-    fontFamily: 'Playfair',
+    fontFamily: 'CrimsonText',
     fontWeight: 400,
     lineHeight: 14,
     opacity: 0.9,

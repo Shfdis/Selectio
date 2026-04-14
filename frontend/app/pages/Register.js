@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Alert } from 'react-native'
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
 import LoginRegisterHeader from '../components/LoginRegisterHeader';
 import InputComponent from '../components/InputComponent';
@@ -21,7 +21,7 @@ export default function Register() {
     });
     if (lastAlertKeyRef.current === alertKey) return;
     lastAlertKeyRef.current = alertKey;
-    Alert.alert("Не удалось зарегистрироваться", "Проверьте введенные данные", [{ text: "OK" }]);
+    Alert.alert("Не удалось зарегистрироваться", "Проверьте введенные данные", [{ text: 'Ок' }]);
   }, [registerError]);
 
   return (
@@ -36,7 +36,7 @@ export default function Register() {
       <GreenRoundedButton text="Зарегистрироваться" onPress={() => {
         (async () => {
           if (!email || !password || !username) {
-            Alert.alert("Заполните поля", "Введите имя, email и пароль", [{ text: "OK" }]);
+            Alert.alert("Заполните поля", "Введите имя, email и пароль", [{ text: 'Ок' }]);
             return;
           }
           try {

@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import CommunityScreen from '../components/CommunityScreen';
+import CommunityScreenLayout from '../components/CommunityScreen';
 import { examplePosts, myCreatedCommunity } from '../data/communityPage';
 
 export default function MyCommunity() {
@@ -13,20 +13,22 @@ export default function MyCommunity() {
   const onPressSettings = () => {
     navigation.navigate('editCommunity');
   };
+  const onPressCreatePost = () => {
+    navigation.navigate('newPost');
+  };
+  const onPressSuggestedPosts = () => {
+    navigation.navigate('suggestedPosts');
+  };
 
   return (
-    <CommunityScreen
+    <CommunityScreenLayout
       community={community}
       posts={examplePosts}
       onPressBack={onPressBack}
       onPressSettings={onPressSettings}
       renderActionArea={() => (
         <View style={styles.actionButtonsRow}>
-          <Pressable
-            style={styles.actionButton}
-            hitSlop={10}
-            onPress={() => navigation.navigate('newPost')}
-          >
+          <Pressable style={styles.actionButton} onPress={onPressCreatePost} hitSlop={10}>
             <Image
               source={require('../assets/icons/icon_write.png')}
               style={styles.actionIcon}
@@ -36,7 +38,7 @@ export default function MyCommunity() {
               Создать пост
             </Text>
           </Pressable>
-          <Pressable style={styles.actionButton} hitSlop={10}>
+          <Pressable style={styles.actionButton} onPress={onPressSuggestedPosts} hitSlop={10}>
             <Image
               source={require('../assets/icons/icon_list.png')}
               style={styles.actionIcon}

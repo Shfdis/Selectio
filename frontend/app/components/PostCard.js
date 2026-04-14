@@ -5,6 +5,7 @@ import BookCard from './BookCard';
 
 export default function PostCard({
   avatarSource = require('../assets/icons/profile-avatar.png'),
+  postId,
   username,
   dateText,
   text,
@@ -15,7 +16,6 @@ export default function PostCard({
   initiallyLiked = false,
   initiallyBookmarked = true,
   onPressComment,
-  postId = '1',
   style,
 }) {
   const navigation = useNavigation();
@@ -36,6 +36,16 @@ export default function PostCard({
     [liked],
   );
 
+  const onCommentPress = () => {
+    if (typeof onPressComment === 'function') {
+      onPressComment();
+      return;
+    }
+    if (postId != null && postId !== '') {
+      navigation.navigate('postComments', { postId: String(postId) });
+    }
+  };
+
   const bookmarkIcon = useMemo(
     () =>
       bookmarked
@@ -43,14 +53,6 @@ export default function PostCard({
         : require('../assets/icons/icon_bookmark.png'),
     [bookmarked],
   );
-
-  const handlePressComment = () => {
-    if (onPressComment) {
-      onPressComment();
-      return;
-    }
-    navigation.navigate('postComments', { postId });
-  };
 
   return (
     <View style={[styles.wrapper, style]}>
@@ -98,7 +100,7 @@ export default function PostCard({
           </Pressable>
           <Text style={styles.count}>{likes}</Text>
 
-          <Pressable style={[styles.action, styles.actionSpacer]} onPress={handlePressComment} hitSlop={10}>
+          <Pressable style={[styles.action, styles.actionSpacer]} onPress={onCommentPress} hitSlop={10}>
             <Image source={require('../assets/icons/icon_chat.png')} style={styles.icon} resizeMode="contain" />
           </Pressable>
           <Text style={styles.count}>{initialComments}</Text>
@@ -154,7 +156,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
     color: '#2D2800',
-    fontFamily: 'Playfair',
+    fontFamily: 'CrimsonText',
     fontWeight: 400,
     lineHeight: 14,
     opacity: 0.9,
@@ -219,7 +221,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 17,
     color: '#2D2800',
-    fontFamily: 'Playfair',
+    fontFamily: 'CrimsonText',
     fontWeight: 400,
     lineHeight: 20,
   },

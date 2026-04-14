@@ -4,6 +4,8 @@ import { Provider } from 'react-redux';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { PlayfairDisplay_400Regular, PlayfairDisplay_600SemiBold } from '@expo-google-fonts/playfair-display';
+import { CrimsonText_400Regular, CrimsonText_600SemiBold } from '@expo-google-fonts/crimson-text';
 import { store } from './store/store';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -25,6 +27,7 @@ import NewCommunity from './pages/NewCommunity';
 import EditCommunity from './pages/EditCommunity';
 import PostComments from './pages/PostComments';
 import NewPost from './pages/NewPost';
+import SuggestedPosts from './pages/SuggestedPosts';
 SplashScreen.preventAutoHideAsync();
 
 const Stack = createNativeStackNavigator();
@@ -32,7 +35,10 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   const [fontsLoaded] = useFonts({
     'Mak': require('./assets/fonts/MAK.otf'),
-    'Playfair': require('./assets/fonts/PlayfairDisplay.ttf'),
+    'Playfair': PlayfairDisplay_400Regular,
+    'Playfair-SemiBold': PlayfairDisplay_600SemiBold,
+    'CrimsonText': CrimsonText_400Regular,
+    'CrimsonText-SemiBold': CrimsonText_600SemiBold,
   });
 
   useEffect(() => {
@@ -122,6 +128,11 @@ export default function App() {
           <Stack.Screen
             name="postComments"
             component={PostComments}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="suggestedPosts"
+            component={SuggestedPosts}
             options={{ headerShown: false }}
           />
           <Stack.Screen

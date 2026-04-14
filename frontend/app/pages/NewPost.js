@@ -1,14 +1,22 @@
 import { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import NewPostEditor, { defaultAttachPhotoHandler } from '../components/NewPostEditor';
+import NewPostEditor from '../components/NewPostEditor';
+import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
 
 export default function NewPost() {
   const navigation = useNavigation();
   const [bookSearchQuery, setBookSearchQuery] = useState('');
+  const [selectedBook, setSelectedBook] = useState(null);
   const [comment, setComment] = useState('');
+  const [attachedPhotoUri, setAttachedPhotoUri] = useState(null);
 
   const onPressConfirm = () => {
     navigation.goBack();
+  };
+
+  const onPressAttachPhoto = async () => {
+    const uri = await pickImageFromLibrary();
+    if (uri) setAttachedPhotoUri(uri);
   };
 
   return (
@@ -17,9 +25,12 @@ export default function NewPost() {
       onPressConfirm={onPressConfirm}
       bookSearchQuery={bookSearchQuery}
       onChangeBookSearchQuery={setBookSearchQuery}
+      selectedBook={selectedBook}
+      onSelectBook={setSelectedBook}
       comment={comment}
       onChangeComment={setComment}
-      onPressAttachPhoto={defaultAttachPhotoHandler}
+      attachedPhotoUri={attachedPhotoUri}
+      onPressAttachPhoto={onPressAttachPhoto}
     />
   );
 }

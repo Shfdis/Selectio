@@ -1,17 +1,16 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
-import CommunityEditor, { CommunityAddGenresButton } from '../components/CommunityEditor';
+import CommunityEditor from '../components/CommunityEditor';
+import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
 
 export default function NewCommunity() {
   const navigation = useNavigation();
+  const [coverUri, setCoverUri] = useState(null);
   const [displayName, setDisplayName] = useState('');
   const [description, setDescription] = useState('');
-
-  const onPressGenresPicker = () => {
-    Alert.alert('Выбор жанров', 'Здесь будет открываться выбор жанров.', [{ text: 'OK' }]);
-  };
+  const [selectedGenres, setSelectedGenres] = useState([]);
 
   const onPressSave = () => {
     navigation.goBack();
@@ -26,13 +25,20 @@ export default function NewCommunity() {
       />
 
       <CommunityEditor
-        coverImageSource={require('../assets/icons/profile-avatar.png')}
+        coverImageSource={
+          coverUri ? { uri: coverUri } : require('../assets/icons/profile-avatar.png')
+        }
+        onPressChangeAvatar={async () => {
+          const uri = await pickImageFromLibrary();
+          if (uri) setCoverUri(uri);
+        }}
         displayName={displayName}
         onChangeDisplayName={setDisplayName}
         description={description}
         onChangeDescription={setDescription}
-        onPressGenresPicker={onPressGenresPicker}
-        genresSection={<CommunityAddGenresButton onPress={onPressGenresPicker} />}
+        selectedGenres={selectedGenres}
+        onSelectedGenresChange={setSelectedGenres}
+        addGenresWhenEmpty
       />
     </View>
   );

@@ -3,13 +3,10 @@ import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'reac
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { removeToken } from '../utils/secureStore';
-import {
-  userApi,
-  useGetCurrentUserQuery,
-  useGetUserProfileQuery,
-  useUpdateProfileMutation,
-} from '../slices/userSlice';
+import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
+import { userApi, useGetCurrentUserQuery, useGetUserProfileQuery, useUpdateProfileMutation } from '../slices/userSlice';
 import ScreenHeader from '../components/ScreenHeader';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 
 export default function EditProfile() {
   const navigation = useNavigation();
@@ -21,42 +18,42 @@ export default function EditProfile() {
 
   const [username, setUsername] = useState('');
   const [description, setDescription] = useState('');
+  const [avatarUri, setAvatarUri] = useState('');
+  const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
 
   useEffect(() => {
     setUsername(profile?.username ?? currentUser?.username ?? '');
     setDescription(profile?.description ?? currentUser?.description ?? '');
-  }, [profile?.username, profile?.description, currentUser?.username, currentUser?.description]);
+    setAvatarUri(profile?.avatarUrl ?? '');
+  }, [profile?.username, profile?.description, profile?.avatarUrl, currentUser?.username, currentUser?.description]);
+
+  const onPressChangeAvatar = async () => {
+    const uri = await pickImageFromLibrary();
+    if (uri) setAvatarUri(uri);
+  };
 
   const onPressSave = async () => {
     try {
       await updateProfile({
         username,
         description,
-        avatarUrl: profile?.avatarUrl ?? '',
+        avatarUrl: avatarUri || profile?.avatarUrl || '',
       }).unwrap();
       dispatch(userApi.util.invalidateTags(['User']));
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Не удалось сохранить', 'Попробуйте ещё раз', [{ text: 'OK' }]);
+      Alert.alert('Не удалось сохранить', 'Попробуйте ещё раз', [{ text: 'Ок' }]);
     }
   };
 
-  const onPressLogout = async () => {
-    Alert.alert('Выход', 'Вы уверены, что хотите выйти из аккаунта?', [
-      { text: 'Отмена', style: 'cancel' },
-      {
-        text: 'Выйти',
-        style: 'destructive',
-        onPress: async () => {
-          await removeToken();
-          dispatch(userApi.util.resetApiState());
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'home' }],
-          });
-        },
-      },
-    ]);
+  const onConfirmLogout = async () => {
+    setLogoutDialogVisible(false);
+    await removeToken();
+    dispatch(userApi.util.resetApiState());
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'home' }],
+    });
   };
 
   return (
@@ -69,9 +66,18 @@ export default function EditProfile() {
       />
 
       <View style={styles.avatarSection}>
-        <Image source={require('../assets/icons/profile-avatar.png')} style={styles.avatar} resizeMode="cover" />
-        <Pressable style={styles.changeAvatarButton} onPress={() => {}} hitSlop={10}>
-          <Text style={styles.changeAvatarText}>Изменить аватарку</Text>
+        <Image
+          source={avatarUri ? { uri: avatarUri } : require('../assets/icons/profile-avatar.png')}
+          style={styles.avatar}
+          resizeMode="cover"
+        />
+        <Pressable style={styles.changeAvatarButton} onPress={onPressChangeAvatar} hitSlop={10}>
+          <Image
+            source={require('../assets/icons/icon_photo-add.png')}
+            style={styles.changeAvatarIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.changeAvatarText}>Изменить фото</Text>
         </Pressable>
       </View>
 
@@ -96,10 +102,20 @@ export default function EditProfile() {
           placeholderTextColor="#81876D"
         />
 
-        <Pressable style={styles.logoutButton} onPress={onPressLogout}>
+        <Pressable style={styles.logoutButton} onPress={() => setLogoutDialogVisible(true)}>
           <Text style={styles.logoutText}>Выйти из профиля</Text>
         </Pressable>
       </View>
+
+      <DeleteConfirmDialog
+        visible={logoutDialogVisible}
+        title="Выход"
+        message="Вы уверены, что хотите выйти из аккаунта?"
+        cancelLabel="Отмена"
+        confirmLabel="Выйти"
+        onCancel={() => setLogoutDialogVisible(false)}
+        onConfirm={onConfirmLogout}
+      />
     </View>
   );
 }
@@ -123,14 +139,30 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
   },
   changeAvatarButton: {
-    marginTop: '4%',
+    marginTop: 16,
+    width: 190,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#E4DFD0',
+    borderWidth: 1,
+    borderColor: '#81876D',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  changeAvatarIcon: {
+    position: 'absolute',
+    left: '7%',
+    width: 24,
+    height: 24,
   },
   changeAvatarText: {
-    fontSize: 17,
+    fontSize: 16,
     color: '#2D2800',
     fontFamily: 'Playfair',
-    fontWeight: 400,
+    fontWeight: '500',
     lineHeight: 20,
+    left: '8%',
   },
   form: {
     paddingHorizontal: '6%',
@@ -165,8 +197,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#784C2F',
     borderWidth: 1,
     borderColor: '#2D2800',
-    borderRadius: 20,
-    paddingVertical: '4%',
+    borderRadius: 40,
+    paddingVertical: '3%',
     alignItems: 'center',
     justifyContent: 'center',
   },

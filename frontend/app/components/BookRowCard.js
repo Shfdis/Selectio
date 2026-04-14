@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   userRatingTextInline: {
     fontSize: 16,
     color: '#2D2800',
-    fontFamily: 'Playfair',
+    fontFamily: 'CrimsonText-SemiBold',
     fontWeight: 600,
     lineHeight: 16,
     paddingBottom: '2%',
