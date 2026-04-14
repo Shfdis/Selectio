@@ -2,7 +2,7 @@
 """
 Load work metadata and genre-enhanced embeddings to recsys Postgres.
 Requires: artifacts/work_metadata.json, artifacts/item_embeddings.npz, artifacts/item_embeddings_config.json.
-Exports only works present in both. Exported fields: work_id, title, title_without_series, author, isbn10, isbn13, language, cover_url, genres, embedding.
+Exports only works present in both. Exported fields: work_id, title, title_without_series, author, title_ru, author_ru, isbn10, isbn13, language, cover_url, genres, embedding.
 Adds genre dimensions to embeddings:
   extended[base_dim + genre_idx] += 0.2 * norm(base) * genre_weight.
 genres field: array of genre names with weight > 0.2.
@@ -23,8 +23,13 @@ DEFAULT_BASE_EMBEDDING_DIM = 32
 
 def load_metadata(path: str) -> dict:
     """Load work_id -> {title, title_without_series, author, isbn10, isbn13, language, genre, cover_url}."""
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"Error: {path} is invalid or truncated ({e}).", file=sys.stderr)
+        print("Re-run build_work_metadata.py to regenerate, or restore from backup.", file=sys.stderr)
+        sys.exit(1)
 
 
 def load_embeddings(path: str) -> tuple[list, np.ndarray]:
@@ -124,6 +129,8 @@ def main():
             "title": m.get("title"),
             "title_without_series": m.get("title_without_series"),
             "author": m.get("author"),
+            "title_ru": m.get("title_ru"),
+            "author_ru": m.get("author_ru"),
             "isbn10": m.get("isbn10"),
             "isbn13": m.get("isbn13"),
             "language": m.get("language"),
@@ -164,6 +171,8 @@ def main():
                   title TEXT,
                   title_without_series TEXT,
                   author TEXT,
+                  title_ru TEXT,
+                  author_ru TEXT,
                   isbn10 TEXT,
                   isbn13 TEXT,
                   language TEXT,
@@ -186,14 +195,16 @@ def main():
                 emb_str = "[" + ",".join(str(x) for x in r["embedding"].tolist()) + "]"
                 cur.execute(
                     """
-                    INSERT INTO works (work_id, title, title_without_series, author, isbn10, isbn13, language, cover_url, genres, embedding)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO works (work_id, title, title_without_series, author, title_ru, author_ru, isbn10, isbn13, language, cover_url, genres, embedding)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         r["work_id"],
                         r["title"],
                         r["title_without_series"],
                         r["author"],
+                        r["title_ru"],
+                        r["author_ru"],
                         r["isbn10"],
                         r["isbn13"],
                         r["language"],

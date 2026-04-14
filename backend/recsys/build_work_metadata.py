@@ -10,6 +10,7 @@ import re
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 OUT_PATH = os.path.join(os.path.dirname(__file__), "artifacts", "work_metadata.json")
+CHUNK_SIZE = 2_000_000
 
 
 def load_works(path: str) -> dict:
@@ -243,6 +244,41 @@ def build_metadata(works: dict, books: dict, authors: dict, book_id_to_genres: d
     return out
 
 
+def compute_work_popularity() -> dict[str, int]:
+    """Compute work_id -> interaction count from Goodreads data. Returns dict; empty if data missing."""
+    interactions_path = os.path.join(DATA_DIR, "goodreads_interactions.csv")
+    book_map_path = os.path.join(DATA_DIR, "book_id_map.csv")
+    books_path = os.path.join(DATA_DIR, "goodreads_books.json.gz")
+    if not os.path.isfile(interactions_path) or not os.path.isfile(book_map_path) or not os.path.isfile(books_path):
+        return {}
+
+    book_to_work = {}
+    with gzip.open(books_path, "rt", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                d = json.loads(line)
+                bid = d.get("book_id")
+                wid = d.get("work_id")
+                if bid is not None and wid is not None:
+                    book_to_work[str(bid)] = str(wid)
+            except Exception:
+                continue
+
+    import pandas as pd
+    df_map = pd.read_csv(book_map_path, index_col=0)
+    book_id_series = df_map["book_id"].astype(str)
+    work_counts = {}
+    for chunk in pd.read_csv(interactions_path, chunksize=CHUNK_SIZE):
+        chunk["work_id"] = chunk["book_id"].map(book_id_series).map(book_to_work)
+        chunk = chunk.dropna(subset=["work_id"])
+        chunk["work_id"] = chunk["work_id"].astype(str)
+        for w, c in chunk["work_id"].value_counts().items():
+            work_counts[w] = work_counts.get(w, 0) + c
+    return work_counts
+
+
 def main():
     works_path = os.path.join(DATA_DIR, "goodreads_book_works.json.gz")
     books_path = os.path.join(DATA_DIR, "goodreads_books.json.gz")
@@ -267,6 +303,15 @@ def main():
 
     print("Building metadata...")
     metadata = build_metadata(works, books, authors, book_id_to_genres)
+
+    print("Adding popularity (interaction counts)...", flush=True)
+    work_counts = compute_work_popularity()
+    if work_counts:
+        for work_id in metadata:
+            metadata[work_id]["popularity"] = work_counts.get(work_id, 0)
+        print(f"  Set popularity for {len(metadata)} works", flush=True)
+    else:
+        print("  Interactions data missing; skipping popularity", flush=True)
 
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:

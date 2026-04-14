@@ -5,5 +5,5 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- works table: created by load_to_postgres.py with embedding vector(32 + num_genres).
--- Columns: work_id, title, author, isbn10, isbn13, language, cover_url, genres TEXT[], embedding vector(...)
+-- Columns: work_id, title, title_without_series, author, title_ru, author_ru, isbn10, isbn13, language, cover_url, genres TEXT[], embedding vector(...)
 -- HNSW index: CREATE INDEX ON works USING hnsw (embedding vector_cosine_ops);
