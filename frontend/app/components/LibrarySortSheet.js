@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import LibraryFadeSheetModal from './LibraryFadeSheetModal';
 
-export const SORT_OPTIONS = [
+const sortOptions = [
   { id: 'title-asc', label: 'Названию (А-Я)' },
   { id: 'title-desc', label: 'Названию (Я-А)' },
   { id: 'author-asc', label: 'Последнему добавленному' },
@@ -15,7 +15,7 @@ export default function LibrarySortSheet({ visible, selectedId, onSelect, onClos
         <Pressable style={styles.sheet} onPress={() => {}}>
           <Text style={styles.title}>Сортировать по</Text>
 
-          {SORT_OPTIONS.map((option) => {
+          {sortOptions.map((option) => {
             const isSelected = option.id === selectedId;
 
             return (

@@ -2,7 +2,7 @@ import { forwardRef } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import BookSearchInputRow, { defaultBookSearchPlaceholder } from './SearchInput';
 
-export const defaultSearchPlaceholder = defaultBookSearchPlaceholder;
+const defaultSearchPlaceholder = defaultBookSearchPlaceholder;
 export const defaultCommunitiesSearchPlaceholder = 'Поиск сообществ';
 export const searchHeaderHeight = 103;
 
