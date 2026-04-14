@@ -1,5 +1,5 @@
+import { useCallback, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { useRef, useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import StickyTitleBar from '../components/StickyTitleBar';
 import HorizontalCoverSection from '../components/HorizontalCoverSection';
@@ -16,17 +16,17 @@ const feedPosts = [...examplePosts, ...examplePosts, ...examplePosts].map((p, i)
   threadPostId: p.id,
 }));
 
-export function Recommendations() {
+export function RecommendationsMainContent() {
   const navigation = useNavigation();
   const scrollRef = useRef(null);
-
-  const onPressBook = () => {
-    navigation.navigate('book');
-  };
 
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, []);
+
+  const onPressBook = () => {
+    navigation.navigate('book');
+  };
 
   return (
     <View style={styles.screen}>

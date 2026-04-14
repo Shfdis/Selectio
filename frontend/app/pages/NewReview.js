@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { StyleSheet } from 'react-native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
-import ReviewEditor from '../components/ReviewEditor';
+import ReviewEditorScreen from '../components/ReviewEditor';
 
 export default function NewReview({ route }) {
   const navigation = useNavigation();
@@ -19,17 +18,25 @@ export default function NewReview({ route }) {
       CommonActions.reset({
         index: 1,
         routes: [
-          { name: 'profile' },
-          { name: 'readBooks', params: { reviewUpdate: { idx, rating: safeRating } } },
+          { name: 'main', params: { mainTab: 'profile' } },
+          {
+            name: 'readBooks',
+            params: {
+              reviewUpdate: {
+                idx,
+                rating: safeRating,
+                text: typeof text === 'string' ? text : '',
+              },
+            },
+          },
         ],
       }),
     );
   };
 
   return (
-    <ReviewEditor
+    <ReviewEditorScreen
       headerTitle="Новый отзыв"
-      headerTitleStyle={styles.headerTitleRaise}
       book={book}
       rating={rating}
       onChangeRating={setRating}
@@ -41,9 +48,3 @@ export default function NewReview({ route }) {
     />
   );
 }
-
-const styles = StyleSheet.create({
-  headerTitleRaise: {
-    transform: [{ translateY: -3 }],
-  },
-});

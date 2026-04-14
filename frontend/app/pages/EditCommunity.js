@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
-import CommunityEditor, { CommunityGenrePills } from '../components/CommunityEditor';
+import CommunityEditor from '../components/CommunityEditor';
 import { myCreatedCommunity } from '../data/communityPage';
+import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
 
 export default function EditCommunity() {
   const navigation = useNavigation();
+  const [coverUri, setCoverUri] = useState(null);
   const [displayName, setDisplayName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedGenres, setSelectedGenres] = useState([]);
@@ -14,12 +16,8 @@ export default function EditCommunity() {
   useEffect(() => {
     setDisplayName(myCreatedCommunity?.name ?? '');
     setDescription(myCreatedCommunity?.description ?? '');
-    setSelectedGenres(myCreatedCommunity?.genres ?? []);
+    setSelectedGenres(Array.isArray(myCreatedCommunity?.genres) ? myCreatedCommunity.genres : []);
   }, []);
-
-  const onPressGenresPicker = () => {
-    Alert.alert('Выбор жанров', 'Позже здесь будет открываться редактирование жанров.', [{ text: 'OK' }]);
-  };
 
   const onPressSave = () => {
     navigation.goBack();
@@ -34,13 +32,19 @@ export default function EditCommunity() {
       />
 
       <CommunityEditor
-        coverImageSource={{ uri: myCreatedCommunity.coverImageUrl }}
+        coverImageSource={
+          coverUri ? { uri: coverUri } : { uri: myCreatedCommunity.coverImageUrl }
+        }
+        onPressChangeAvatar={async () => {
+          const uri = await pickImageFromLibrary();
+          if (uri) setCoverUri(uri);
+        }}
         displayName={displayName}
         onChangeDisplayName={setDisplayName}
         description={description}
         onChangeDescription={setDescription}
-        onPressGenresPicker={onPressGenresPicker}
-        genresSection={<CommunityGenrePills genres={selectedGenres} />}
+        selectedGenres={selectedGenres}
+        onSelectedGenresChange={setSelectedGenres}
       />
     </View>
   );

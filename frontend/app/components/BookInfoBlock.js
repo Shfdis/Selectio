@@ -49,7 +49,6 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   genre: {
-    minWidth: 105,
     borderRadius: 20,
     backgroundColor: '#CCB985',
     paddingHorizontal: 10,

@@ -1,13 +1,12 @@
+import { forwardRef } from 'react';
 import { View, StyleSheet, Image, TextInput } from 'react-native';
 
 export const defaultSearchPlaceholder = 'Поиск книг';
 
-export default function SearchInput({
-  value,
-  onChangeText,
-  placeholder = defaultSearchPlaceholder,
-  style,
-}) {
+const SearchInput = forwardRef(function SearchInput(
+  { value, onChangeText, onFocus, placeholder = defaultSearchPlaceholder, style },
+  ref,
+) {
   return (
     <View style={[styles.row, style]}>
       <Image
@@ -16,15 +15,19 @@ export default function SearchInput({
         resizeMode="contain"
       />
       <TextInput
+        ref={ref}
         style={styles.searchInput}
         value={value}
         onChangeText={onChangeText}
+        onFocus={onFocus}
         placeholder={placeholder}
         placeholderTextColor="#565d3f"
       />
     </View>
   );
-}
+});
+
+export default SearchInput;
 
 const styles = StyleSheet.create({
   row: {

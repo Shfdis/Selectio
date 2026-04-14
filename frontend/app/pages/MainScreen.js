@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRoute } from '@react-navigation/native';
 import BottomNavBar from '../components/BottomNavBar';
-import { Recommendations } from './Recommendations';
+import { RecommendationsMainContent } from './Recommendations';
 import { Communities } from './Communities';
 import { Search } from './Search';
 import { Profile } from './Profile';
@@ -10,6 +10,10 @@ import { Profile } from './Profile';
 const defaultMainTab = 'profile';
 
 const validTabs = new Set(['home', 'groups', 'search', 'profile']);
+const SafeRecommendations = RecommendationsMainContent ?? (() => null);
+const SafeCommunities = Communities ?? (() => null);
+const SafeSearch = Search ?? (() => null);
+const SafeProfile = Profile ?? (() => null);
 
 export default function MainScreen() {
   const route = useRoute();
@@ -59,25 +63,25 @@ export default function MainScreen() {
           style={[styles.layer, tab === 'home' ? styles.layerVisible : styles.layerHidden]}
           pointerEvents={tab === 'home' ? 'auto' : 'none'}
         >
-          <Recommendations />
+          <SafeRecommendations />
         </View>
         <View
           style={[styles.layer, tab === 'groups' ? styles.layerVisible : styles.layerHidden]}
           pointerEvents={tab === 'groups' ? 'auto' : 'none'}
         >
-          <Communities />
+          <SafeCommunities />
         </View>
         <View
           style={[styles.layer, tab === 'search' ? styles.layerVisible : styles.layerHidden]}
           pointerEvents={tab === 'search' ? 'auto' : 'none'}
         >
-          <Search />
+          <SafeSearch />
         </View>
         <View
           style={[styles.layer, tab === 'profile' ? styles.layerVisible : styles.layerHidden]}
           pointerEvents={tab === 'profile' ? 'auto' : 'none'}
         >
-          <Profile />
+          <SafeProfile />
         </View>
       </View>
       <BottomNavBar activeKey={tab} disabled={false} onPressKey={onPressKey} icons={icons} />

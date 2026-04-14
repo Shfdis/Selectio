@@ -4,7 +4,7 @@ export default function ScreenHeader({
   headerTitle,
   headerTitleStyle,
   onPressBack,
-  onPressConfirm = () => {},
+  onPressConfirm,
   confirmDisabled = false,
   showConfirmButton = true,
 }) {
@@ -34,7 +34,7 @@ export default function ScreenHeader({
           />
         </Pressable>
       ) : (
-        <View style={styles.iconSlotSpacer} />
+        <View style={styles.headerTrailingSpacer} />
       )}
     </View>
   );
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     flex: 1,
     maxWidth: '60%',
-    transform: [{ translateY: 8 }],
+    transform: [{ translateY: -3 }],
   },
   iconButton: {
     width: '13%',
@@ -71,6 +71,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerTrailingSpacer: {
+    width: '13%',
+    aspectRatio: 1,
+  },
   backIcon: {
     width: '45%',
     height: '55%',
@@ -78,10 +82,6 @@ const styles = StyleSheet.create({
   checkIcon: {
     width: '45%',
     height: '45%',
-  },
-  iconSlotSpacer: {
-    width: '13%',
-    aspectRatio: 1,
   },
 });
 

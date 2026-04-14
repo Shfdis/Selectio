@@ -1,15 +1,15 @@
+import { forwardRef } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import SearchInput, { defaultSearchPlaceholder } from './SearchInput';
+import BookSearchInputRow, { defaultBookSearchPlaceholder } from './SearchInput';
 
-export { defaultSearchPlaceholder };
+export const defaultSearchPlaceholder = defaultBookSearchPlaceholder;
 export const defaultCommunitiesSearchPlaceholder = 'Поиск сообществ';
+export const searchHeaderHeight = 103;
 
-export default function SearchHeader({
-  value,
-  onChangeText,
-  placeholder = defaultSearchPlaceholder,
-  onPress,
-}) {
+const SearchStickyHeader = forwardRef(function SearchStickyHeader(
+  { value, onChangeText, onFocus, placeholder = defaultSearchPlaceholder, onPress },
+  ref,
+) {
   return (
     <View style={styles.stickyHeader}>
       {onPress ? (
@@ -20,15 +20,19 @@ export default function SearchHeader({
           accessibilityLabel="Наверх"
         />
       ) : null}
-      <SearchInput
+      <BookSearchInputRow
+        ref={ref}
         value={value}
         onChangeText={onChangeText}
+        onFocus={onFocus}
         placeholder={placeholder}
         style={onPress ? styles.searchRowLayer : undefined}
       />
     </View>
   );
-}
+});
+
+export default SearchStickyHeader;
 
 const styles = StyleSheet.create({
   stickyHeader: {

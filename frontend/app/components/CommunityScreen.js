@@ -1,10 +1,17 @@
 import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
 import { useRef, useCallback } from 'react';
-import GreenHeader from './GreenHeader';
-import GenrePill from './GenrePill';
+import GreenHeaderStrip from './GreenHeader';
 import PostCard from './PostCard';
 
-export default function CommunityScreen({
+function GenrePill({ label }) {
+  return (
+    <View style={styles.genrePill}>
+      <Text style={styles.genrePillText}>{label}</Text>
+    </View>
+  );
+}
+
+export default function CommunityScreenLayout({
   community,
   posts,
   onPressBack,
@@ -17,12 +24,11 @@ export default function CommunityScreen({
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, []);
 
-  const topGenres = community.genres.slice(0, 3);
-  const bottomGenres = community.genres.slice(3, 6);
+  const headerGenres = Array.isArray(community.genres) ? community.genres.slice(0, 6) : [];
 
   return (
     <View style={styles.screen}>
-      <GreenHeader
+      <GreenHeaderStrip
         onPressBack={onPressBack}
         onPressStrip={scrollToTop}
         onPressSettings={onPressSettings}
@@ -58,17 +64,10 @@ export default function CommunityScreen({
 
           <View style={styles.genreRows}>
             <View style={styles.genreRow}>
-              {topGenres.map((g) => (
-                <GenrePill key={g} label={g} />
+              {headerGenres.map((g, i) => (
+                <GenrePill key={`${g}-${i}`} label={g} />
               ))}
             </View>
-            {bottomGenres.length > 0 && (
-              <View style={styles.genreRow}>
-                {bottomGenres.map((g) => (
-                  <GenrePill key={g} label={g} />
-                ))}
-              </View>
-            )}
           </View>
 
           {renderActionArea ? renderActionArea() : null}
@@ -145,7 +144,7 @@ const styles = StyleSheet.create({
   subscribersText: {
     fontSize: 17,
     color: '#2D2800',
-    fontFamily: 'Playfair',
+    fontFamily: 'CrimsonText',
     fontWeight: 400,
     lineHeight: 20,
   },
@@ -171,6 +170,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginBottom: 8,
+  },
+  genrePill: {
+    borderRadius: 20,
+    backgroundColor: '#CCB985',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#CAC7B9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  genrePillText: {
+    fontSize: 12,
+    color: '#2D2800',
+    fontFamily: 'Playfair',
+    fontWeight: 400,
+    lineHeight: 15,
   },
   scroll: {
     flex: 1,

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TextInput } from 'react-native'
+import {View, StyleSheet, Text, TextInput} from 'react-native';
 
 export default function InputComponent({ description, onChangeText, value }) {
   return (

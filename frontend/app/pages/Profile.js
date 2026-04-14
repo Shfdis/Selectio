@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Image, Pressable, ScrollView, Dimensions } from 'react-native';
+import { View, StyleSheet, Image, Pressable, ScrollView, Dimensions, Text } from 'react-native';
 import { useGetCurrentUserQuery, useGetUserProfileQuery } from '../slices/userSlice';
 import ProfileListCard from '../components/ProfileListCard';
 import ReviewCard from '../components/ReviewCard';
@@ -85,6 +85,7 @@ export function Profile() {
             <View style={styles.cards}>
               <ProfileListCard
                 title="Хочу прочитать"
+                titleIcon={require('../assets/icons/icon_want_read.png')}
                 countText={`${wantToReadBooks.length} книг`}
                 leftColor="#CCB985"
                 onPress={onPressWantToRead}
@@ -92,6 +93,7 @@ export function Profile() {
               />
               <ProfileListCard
                 title="В процессе"
+                titleIcon={require('../assets/icons/icon_open_book.png')}
                 countText={`${inProgressBooks.length} книг`}
                 leftColor="#CCB985"
                 onPress={onPressInProgress}
@@ -99,6 +101,7 @@ export function Profile() {
               />
               <ProfileListCard
                 title="Прочитанное"
+                titleIcon={require('../assets/icons/icon_close_book.png')}
                 countText={`${readBooks.length} книг`}
                 leftColor="#D6C596"
                 onPress={onPressReadBooks}

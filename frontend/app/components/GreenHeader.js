@@ -1,6 +1,6 @@
 import { View, StyleSheet, Image, Pressable } from 'react-native';
 
-export default function GreenHeader({ onPressBack, onPressStrip, onPressSettings }) {
+export default function GreenHeaderStrip({ onPressBack, onPressStrip, onPressSettings }) {
   return (
     <View style={styles.strip}>
       {onPressStrip ? (

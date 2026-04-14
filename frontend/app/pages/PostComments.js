@@ -6,7 +6,7 @@ import { getThreadCommentsForPostId } from '../data/communityPage';
 
 const defaultAvatar = require('../assets/icons/profile-avatar.png');
 
-function CommentRow({ username, dateText, text, initialLikes, initiallyLiked, isLast }) {
+function ThreadCommentItem({ username, dateText, text, initialLikes, initiallyLiked, isLast }) {
   const [liked, setLiked] = useState(initiallyLiked);
   const [likes, setLikes] = useState(initialLikes);
 
@@ -76,7 +76,6 @@ export default function PostComments() {
     <View style={styles.screen}>
       <ScreenHeader
         headerTitle="Комментарии"
-        headerTitleStyle={styles.headerTitleRaise}
         onPressBack={() => navigation.goBack()}
         showConfirmButton={false}
       />
@@ -93,7 +92,7 @@ export default function PostComments() {
           keyboardShouldPersistTaps="handled"
         >
           {threadComments.map((c, index) => (
-            <CommentRow
+            <ThreadCommentItem
               key={c.id}
               username={c.username}
               dateText={c.dateText}
@@ -125,9 +124,6 @@ export default function PostComments() {
 }
 
 const styles = StyleSheet.create({
-  headerTitleRaise: {
-    transform: [{ translateY: -3 }],
-  },
   screen: {
     flex: 1,
     backgroundColor: '#ECE8DD',
@@ -180,7 +176,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
     color: '#2D2800',
-    fontFamily: 'Playfair',
+    fontFamily: 'CrimsonText',
     fontWeight: '400',
     lineHeight: 14,
   },
@@ -216,7 +212,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 17,
     color: '#2D2800',
-    fontFamily: 'Playfair',
+    fontFamily: 'CrimsonText',
     fontWeight: '400',
     lineHeight: 20,
   },

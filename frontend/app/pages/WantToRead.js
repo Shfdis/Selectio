@@ -3,20 +3,31 @@ import { useNavigation } from '@react-navigation/native';
 import LibraryHeader from '../components/LibraryHeader';
 import BookRowCard from '../components/BookRowCard';
 import { useState } from 'react';
-import { wantToReadBooks } from '../data/libraryBooks';
+import { libraryFilterGenres, wantToReadBooks } from '../data/libraryBooks';
+import LibrarySortSheet from '../components/LibrarySortSheet';
+import LibraryFilterSheet from '../components/LibraryFilterSheet';
+import LibraryMoveSheet from '../components/LibraryMoveSheet';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 
 export default function WantToRead() {
   const navigation = useNavigation();
   const [activeId, setActiveId] = useState(null);
+  const [selectedSortId, setSelectedSortId] = useState('title-asc');
+  const [selectedGenres, setSelectedGenres] = useState([]);
+  const [books, setBooks] = useState(wantToReadBooks);
+  const [selectedBookIndex, setSelectedBookIndex] = useState(null);
+  const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
 
-  const books = wantToReadBooks;
+  const selectedBook =
+    typeof selectedBookIndex === 'number' ? books[selectedBookIndex] : null;
 
   return (
     <View style={styles.screen}>
       <LibraryHeader
         title="Хочу прочитать"
+        titleIcon={require('../assets/icons/icon_want_read.png')}
         onPressBack={() => navigation.goBack()}
-        onPressAdd={() => {}}
+        onPressAdd={() => navigation.navigate('main', { mainTab: 'search' })}
         activeId={activeId}
         onToggleActive={(id) => setActiveId((prev) => (prev === id ? null : id))}
       />
@@ -25,12 +36,65 @@ export default function WantToRead() {
           <BookRowCard
             key={`${b.title}-${idx}`}
             book={b}
-            isMoreActive={activeId === `more-${idx}`}
-            onPressMore={() => setActiveId((prev) => (prev === `more-${idx}` ? null : `more-${idx}`))}
-            onPressBook={() => setActiveId(null)}
+            isMoreActive={selectedBookIndex === idx}
+            onPressMore={() => {
+              setSelectedBookIndex((prev) => (prev === idx ? null : idx));
+              setActiveId(null);
+            }}
+            onPressBook={() => {
+              setActiveId(null);
+              setSelectedBookIndex(null);
+            }}
           />
         ))}
       </ScrollView>
+      <LibrarySortSheet
+        visible={activeId === 'sort'}
+        selectedId={selectedSortId}
+        onSelect={(sortId) => setSelectedSortId(sortId)}
+        onClose={() => setActiveId(null)}
+      />
+      <LibraryFilterSheet
+        visible={activeId === 'filter'}
+        layout="rows"
+        rowsPreset="community"
+        title="Жанры"
+        genres={libraryFilterGenres}
+        selectedGenres={selectedGenres}
+        onToggleGenre={(genre) =>
+          setSelectedGenres((prev) =>
+            prev.includes(genre) ? prev.filter((item) => item !== genre) : [...prev, genre],
+          )
+        }
+        onApply={() => setActiveId(null)}
+        onClose={() => setActiveId(null)}
+      />
+      <LibraryMoveSheet
+        visible={selectedBook != null}
+        list="wantToRead"
+        bookTitle={selectedBook?.title || ''}
+        onMoveToShelf={() => {
+          if (typeof selectedBookIndex === 'number') {
+            setBooks((prev) => prev.filter((_, idx) => idx !== selectedBookIndex));
+          }
+          setSelectedBookIndex(null);
+        }}
+        onDelete={() => {
+          setIsDeleteConfirmVisible(true);
+        }}
+        onClose={() => setSelectedBookIndex(null)}
+      />
+      <DeleteConfirmDialog
+        visible={isDeleteConfirmVisible}
+        onCancel={() => setIsDeleteConfirmVisible(false)}
+        onConfirm={() => {
+          if (typeof selectedBookIndex === 'number') {
+            setBooks((prev) => prev.filter((_, idx) => idx !== selectedBookIndex));
+          }
+          setIsDeleteConfirmVisible(false);
+          setSelectedBookIndex(null);
+        }}
+      />
     </View>
   );
 }
