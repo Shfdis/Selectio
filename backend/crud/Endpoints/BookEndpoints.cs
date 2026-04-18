@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace crud.Endpoints;
 
@@ -30,36 +31,39 @@ public static class BookEndpoints
         )
         .Produces<List<BookDto>>(StatusCodes.Status200OK);
 
-        group.MapGet("/recommended", async (HttpContext http, CrudDbContext db, int? page, int? pageSize) =>
+        group.MapGet("/recommended", async (HttpContext http, CrudDbContext db, NpgsqlDataSource dataSource, int? page, int? pageSize, CancellationToken cancellationToken) =>
         {
             var (userId, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
             var (p, ps) = NormalizePagination(page, pageSize);
-            var userEmb = await EmbeddingService.GetUserEmbeddingAsync(db, userId);
-            var userBookIds = await db.UserBooks.Where(ub => ub.UserId == userId).Select(ub => ub.BookId).ToListAsync();
-            var booksWithEmb = await db.Books
-                .Where(b => b.Embedding != null && b.Embedding.Length == EmbeddingService.Dimensions && !userBookIds.Contains(b.Id))
-                .ToListAsync();
-            if (userEmb == null || booksWithEmb.Count == 0)
+            var userEmb = await EmbeddingService.GetUserEmbeddingAsync(db, userId, cancellationToken);
+            var userBookIds = await db.UserBooks.Where(ub => ub.UserId == userId).Select(ub => ub.BookId).ToListAsync(cancellationToken);
+            if (userEmb is null)
             {
                 return Results.Ok(new List<BookDto>());
             }
-            var scored = booksWithEmb
-                .Select(b => (Book: b, Score: EmbeddingService.CosineSimilarity(userEmb, b.Embedding!)))
-                .OrderByDescending(x => x.Score)
-                .Skip((p - 1) * ps)
-                .Take(ps)
-                .ToList();
-            var ids = scored.Select(x => x.Book.Id).ToList();
-            var ordered = await db.Books.Where(b => ids.Contains(b.Id)).ToListAsync();
-            ordered = ordered.OrderBy(b => ids.IndexOf(b.Id)).ToList();
+
+            var ids = await EmbeddingAnnSearch.GetRecommendedBookIdsAsync(
+                dataSource,
+                userEmb,
+                userBookIds,
+                (p - 1) * ps,
+                ps,
+                cancellationToken);
+            if (ids.Count == 0)
+            {
+                return Results.Ok(new List<BookDto>());
+            }
+
+            var books = await db.Books.Where(b => ids.Contains(b.Id)).ToListAsync(cancellationToken);
+            var ordered = ids.Select(id => books.First(b => b.Id == id)).ToList();
             var dtos = await ListBooksAsync(db, ordered, null);
             return Results.Ok(dtos);
         })
         .WithSummary("Recommended books for current user")
         .WithDescription(
             "Requires the authenticated user (gateway injects user id). " +
-            "Uses the user's embedding vs book embeddings (cosine similarity), ordered by score then paginated. " +
+            "Ranks books with embeddings using pgvector cosine distance (HNSW index) against the user's library-derived embedding. " +
             "Books already in the user's library are excluded. " +
             "Returns an empty list if the user has no embedding yet or no eligible books exist."
         )

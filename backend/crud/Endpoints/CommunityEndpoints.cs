@@ -125,6 +125,72 @@ public static class CommunityEndpoints
         .Produces<CommunityDto>(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status404NotFound);
 
+        group.MapPut("/{id:int}", async (HttpContext http, CrudDbContext db, int id, UpdateCommunityRequest body) =>
+        {
+            if (!GatewayIdentity.TryGetUserId(http, out var userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var community = await db.Communities.FirstOrDefaultAsync(c => c.Id == id);
+            if (community is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (community.OwnerUserId != userId)
+            {
+                // Avoid Results.Forbid() here: it expects IAuthenticationService and throws without auth middleware.
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (body.Name is not null)
+            {
+                var name = body.Name.Trim();
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    return Results.BadRequest(new { message = "name cannot be empty" });
+                }
+
+                var taken = await db.Communities.AnyAsync(c => c.Name == name && c.Id != id);
+                if (taken)
+                {
+                    return Results.BadRequest(new { message = "community name already exists" });
+                }
+
+                community.Name = name;
+            }
+
+            if (body.Description is not null)
+            {
+                community.Description = body.Description.Trim();
+            }
+
+            if (body.CoverUrl is not null)
+            {
+                community.CoverUrl = body.CoverUrl.Trim();
+            }
+
+            if (body.Genre is not null)
+            {
+                community.Genre = body.Genre.Trim();
+            }
+
+            await db.SaveChangesAsync();
+            var subscriberCount = await db.CommunityMembers.CountAsync(m => m.CommunityId == id);
+            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genre, community.OwnerUserId, subscriberCount));
+        })
+        .WithSummary("Update community (owner only)")
+        .WithDescription(
+            "Owner-only: updates name, description, coverUrl, and/or genre. Null fields are left unchanged. " +
+            "Name must remain unique among communities (excluding this id)."
+        )
+        .Produces<CommunityDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
         group.MapPost("/{id:int}/join", async (HttpContext http, CrudDbContext db, int id) =>
         {
             if (!GatewayIdentity.TryGetUserId(http, out var userId))

@@ -204,12 +204,12 @@ def cleanup_seeded_books(
     subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=True)
 
 
-def _embedding_to_pg_array(embedding_list: list) -> str:
-    """Format a list of floats as PostgreSQL real[] literal."""
+def _embedding_to_pg_vector_literal(embedding_list: list) -> str:
+    """Format a list of floats as a pgvector text literal for vector(72)."""
     if len(embedding_list) != 72:
         raise ValueError("embedding must have 72 dimensions")
     parts = [str(float(x)) for x in embedding_list]
-    return "{" + ",".join(parts) + "}"
+    return "[" + ",".join(parts) + "]"
 
 
 def seed_crud_book_with_embedding(
@@ -222,14 +222,14 @@ def seed_crud_book_with_embedding(
     """Insert a book with an optional 72-dim embedding. Default embedding is zeros."""
     if embedding_list is None:
         embedding_list = [0.0] * 72
-    arr = _embedding_to_pg_array(embedding_list)
+    vec = _embedding_to_pg_vector_literal(embedding_list)
     esc_title = title.replace("'", "''")
     esc_author = author.replace("'", "''")
     cmd = [
         "docker", "exec", container_name,
         "psql", "-U", "postgres", "-d", db_name, "-c",
         f'INSERT INTO crud."Books" ("Title", "Author", "Description", "Genre", "CoverUrl", "Embedding") '
-        f"VALUES ('{esc_title}', '{esc_author}', '', '', '', '{arr}'::real[]);"
+        f"VALUES ('{esc_title}', '{esc_author}', '', '', '', '{vec}'::vector(72));"
     ]
     subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=True)
 

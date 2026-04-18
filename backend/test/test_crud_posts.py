@@ -4,6 +4,30 @@ import requests
 import uuid
 
 
+def _assert_post_feed_item(item: dict) -> None:
+    """Response shape for feed-style post payloads (GET by id, community posts, me/feed, recommended)."""
+    for key in (
+        "id",
+        "communityId",
+        "authorUserId",
+        "authorUsername",
+        "bookId",
+        "content",
+        "status",
+        "createdAt",
+        "book",
+        "likeCount",
+        "commentCount",
+        "likedByCurrentUser",
+        "favoritedByCurrentUser",
+    ):
+        assert key in item, f"missing {key}: {item.keys()}"
+    b = item["book"]
+    assert isinstance(b, dict)
+    for bk in ("id", "title", "author", "genre", "coverUrl"):
+        assert bk in b
+
+
 class TestCrudPosts:
     def _get_first_book_id(self, crud_base_url: str) -> int:
         r = requests.get(f"{crud_base_url}/api/books", timeout=5)
@@ -43,16 +67,29 @@ class TestCrudPosts:
         assert post["status"] == "Published"
         assert post.get("photoUrl") == "https://example.com/photo.jpg"
 
-        # get
+        # get (feed-shaped)
         r2 = requests.get(f"{crud_base_url}/api/posts/{post_id}", timeout=5)
         assert r2.status_code == 200
-        assert r2.json().get("photoUrl") == "https://example.com/photo.jpg"
+        got = r2.json()
+        _assert_post_feed_item(got)
+        assert got.get("photoUrl") == "https://example.com/photo.jpg"
+        assert got["authorUserId"] == author_id
+        assert got["likeCount"] == 0
+        assert got["commentCount"] == 0
 
         # feed includes post
-        r3 = requests.get(f"{crud_base_url}/api/communities/{community_id}/posts", timeout=5)
+        r3 = requests.get(
+            f"{crud_base_url}/api/communities/{community_id}/posts",
+            headers=author_headers,
+            timeout=5,
+        )
         assert r3.status_code == 200
         feed = r3.json()
         assert any(p["id"] == post_id for p in feed)
+        row = next(p for p in feed if p["id"] == post_id)
+        _assert_post_feed_item(row)
+        assert row["likedByCurrentUser"] is False
+        assert row["favoritedByCurrentUser"] is False
 
         # edit
         r4 = requests.put(
@@ -93,7 +130,9 @@ class TestCrudPosts:
 
         r0b = requests.get(f"{crud_base_url}/api/posts/{post_id}", headers={"X-Allow-Suggested": "true"}, timeout=5)
         assert r0b.status_code == 200
-        assert r0b.json()["status"] == "Suggested"
+        sug = r0b.json()
+        _assert_post_feed_item(sug)
+        assert sug["status"] == "Suggested"
 
         feed = requests.get(f"{crud_base_url}/api/communities/{community_id}/posts", timeout=5).json()
         assert all(p["id"] != post_id for p in feed)
@@ -108,6 +147,8 @@ class TestCrudPosts:
         assert r.status_code == 200
         data = r.json()
         assert isinstance(data, list)
+        for item in data:
+            _assert_post_feed_item(item)
 
     def test_feed_requires_user(self, crud_base_url):
         r = requests.get(f"{crud_base_url}/api/users/me/feed", timeout=5)
@@ -131,6 +172,32 @@ class TestCrudPosts:
         items = feed.json()
         assert isinstance(items, list)
         assert any(p["id"] == post_id for p in items)
+        for p in items:
+            if p["id"] == post_id:
+                _assert_post_feed_item(p)
+                break
+
+    def test_feed_like_and_favorite_flags(self, crud_base_url):
+        user_id = 8002
+        headers = {"X-User-Id": str(user_id)}
+        book_id = self._get_first_book_id(crud_base_url)
+        community_id = self._create_community(crud_base_url, owner_id=user_id)
+        r = requests.post(
+            f"{crud_base_url}/api/posts",
+            json={"communityId": community_id, "bookId": book_id, "content": "flags"},
+            headers=headers,
+            timeout=5,
+        )
+        assert r.status_code == 200
+        post_id = r.json()["id"]
+        requests.post(f"{crud_base_url}/api/posts/{post_id}/like", headers=headers, timeout=5).raise_for_status()
+        requests.post(f"{crud_base_url}/api/posts/{post_id}/favorite", headers=headers, timeout=5).raise_for_status()
+        feed = requests.get(f"{crud_base_url}/api/users/me/feed", headers=headers, timeout=5).json()
+        row = next(p for p in feed if p["id"] == post_id)
+        _assert_post_feed_item(row)
+        assert row["likedByCurrentUser"] is True
+        assert row["favoritedByCurrentUser"] is True
+        assert row["likeCount"] >= 1
 
 
 if __name__ == "__main__":

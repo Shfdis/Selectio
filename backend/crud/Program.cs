@@ -1,6 +1,8 @@
 using crud.Data;
 using crud.Endpoints;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using Pgvector;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,20 +17,45 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
+var crudConnectionString = builder.Configuration.GetConnectionString("CrudDb")
+    ?? throw new InvalidOperationException("ConnectionStrings:CrudDb is required.");
+
+// Ensure schema + pgvector extension exist BEFORE building NpgsqlDataSource so that
+// UseVector() can load the vector type OID into the data source's type cache.
+{
+    await using var bootstrap = new NpgsqlConnection(crudConnectionString);
+    await bootstrap.OpenAsync();
+    await using var bootstrapCmd = bootstrap.CreateCommand();
+    bootstrapCmd.CommandText =
+        $"CREATE SCHEMA IF NOT EXISTS {ServiceSchema}; " +
+        "CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;";
+    await bootstrapCmd.ExecuteNonQueryAsync();
+}
+
+var crudDataSourceBuilder = new NpgsqlDataSourceBuilder(crudConnectionString);
+crudDataSourceBuilder.UseVector();
+var crudDataSource = crudDataSourceBuilder.Build();
+builder.Services.AddSingleton(crudDataSource);
 builder.Services.AddDbContext<CrudDbContext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("CrudDb"),
-        npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", ServiceSchema)
-    )
-);
+        crudDataSource,
+        npgsql =>
+        {
+            npgsql.MigrationsHistoryTable("__EFMigrationsHistory", ServiceSchema);
+            npgsql.UseVector();
+        }));
 
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<CrudDbContext>();
-    await db.Database.ExecuteSqlRawAsync($"CREATE SCHEMA IF NOT EXISTS {ServiceSchema};");
+    // Schema was already created in the bootstrap step above.
     await db.Database.MigrateAsync();
+    // Reload Npgsql's type cache so any types added by the migration (e.g. pgvector
+    // on a fresh database) are available to existing pooled connections.
+    await using var reloadConn = await crudDataSource.OpenConnectionAsync();
+    await reloadConn.ReloadTypesAsync();
 }
 
 if (app.Environment.IsDevelopment())

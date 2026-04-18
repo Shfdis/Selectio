@@ -53,12 +53,16 @@ class TestCrudComments:
         comment = r.json()
         comment_id = comment["id"]
         assert comment["postId"] == post_id
+        assert "authorUsername" in comment
+        assert comment["authorUsername"].startswith("user")
 
         # list
         r2 = requests.get(f"{crud_base_url}/api/posts/{post_id}/comments", timeout=5)
         assert r2.status_code == 200
         items = r2.json()
         assert any(c["id"] == comment_id for c in items)
+        listed = next(c for c in items if c["id"] == comment_id)
+        assert listed["authorUsername"] == comment["authorUsername"]
 
         # edit
         r3 = requests.put(f"{crud_base_url}/api/comments/{comment_id}", json={"content": "Edited"}, headers=headers, timeout=5)
@@ -104,6 +108,9 @@ class TestCrudComments:
         assert r2.status_code == 200
         items = r2.json()
         assert any(c["id"] == comment_id for c in items)
+        listed = next(c for c in items if c["id"] == comment_id)
+        assert "authorUsername" in listed
+        assert listed["authorUsername"].startswith("user")
 
     def test_my_book_comments_filters_and_paginates(self, crud_base_url):
         book_id = self._get_first_book_id(crud_base_url)
@@ -156,6 +163,27 @@ class TestCrudComments:
         assert isinstance(data2, list)
         assert len(data2) == 1
         assert all(c["authorUserId"] == user1_id for c in data2)
+
+    def test_my_book_comments_include_book_summary(self, crud_base_url):
+        user_id = 7101
+        h = {"X-User-Id": str(user_id)}
+        book_id = self._get_first_book_id(crud_base_url)
+        r = requests.post(
+            f"{crud_base_url}/api/books/{book_id}/comments",
+            json={"content": "with book", "rating": 4},
+            headers=h,
+            timeout=5,
+        )
+        assert r.status_code == 200
+        r_list = requests.get(f"{crud_base_url}/api/users/me/book-comments", headers=h, timeout=5)
+        assert r_list.status_code == 200
+        rows = r_list.json()
+        row = next(x for x in rows if x["content"] == "with book")
+        assert "book" in row
+        b = row["book"]
+        assert b["id"] == book_id
+        for k in ("title", "author", "genre", "coverUrl"):
+            assert k in b
 
     def test_my_book_comments_requires_user_header(self, crud_base_url):
         r = requests.get(f"{crud_base_url}/api/users/me/book-comments", timeout=5)

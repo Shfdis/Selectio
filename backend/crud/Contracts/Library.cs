@@ -25,3 +25,13 @@ public sealed record UserLibraryItemDto(
     int? Rating
 );
 
+/// <summary>State of a book in the current user's library after add/update/rate.</summary>
+public sealed record UserLibraryStateDto(
+    int UserId,
+    int BookId,
+    LibraryStatus Status,
+    int? Rating
+);
+
+public sealed record LibraryRemovedDto(string Message);
+
