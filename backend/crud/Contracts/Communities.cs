@@ -6,12 +6,17 @@ public sealed record CommunityDto(
     int Id,
     string Name,
     string Description,
-    int OwnerUserId
+    string CoverUrl,
+    string Genre,
+    int OwnerUserId,
+    int SubscriberCount
 );
 
 public sealed record CreateCommunityRequest(
     string Name,
-    string? Description
+    string? Description,
+    string? CoverUrl,
+    string? Genre
 );
 
 public sealed record CommunityMemberDto(
