@@ -39,7 +39,15 @@ public static class LikeFavoriteEndpoints
             }
 
             return Results.Ok(new { postId = id, userId, liked = true });
-        });
+        })
+        .WithSummary("Like a post")
+        .WithDescription(
+            "Idempotent: creates a PostLikes row for (postId, current user) if missing; if already liked, returns liked=true without error. " +
+            "Does not change post content or status."
+        )
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
         group.MapDelete("/{id:int}/like", async (HttpContext http, CrudDbContext db, int id) =>
         {
@@ -56,7 +64,14 @@ public static class LikeFavoriteEndpoints
             }
 
             return Results.Ok(new { postId = id, userId, liked = false });
-        });
+        })
+        .WithSummary("Unlike a post")
+        .WithDescription(
+            "Idempotent: removes the user's like for this post if it exists; if not liked, returns liked=false without error."
+        )
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:int}/favorite", async (HttpContext http, CrudDbContext db, int id) =>
         {
@@ -82,7 +97,15 @@ public static class LikeFavoriteEndpoints
             }
 
             return Results.Ok(new { postId = id, userId, favorited = true });
-        });
+        })
+        .WithSummary("Favorite a post")
+        .WithDescription(
+            "Idempotent: creates a FavoritePosts row for (postId, current user) if missing; if already favorited, returns favorited=true without error. " +
+            "Use GET /api/users/favorites to list favorited posts for the current user."
+        )
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
         group.MapDelete("/{id:int}/favorite", async (HttpContext http, CrudDbContext db, int id) =>
         {
@@ -99,7 +122,14 @@ public static class LikeFavoriteEndpoints
             }
 
             return Results.Ok(new { postId = id, userId, favorited = false });
-        });
+        })
+        .WithSummary("Unfavorite a post")
+        .WithDescription(
+            "Idempotent: removes the user's favorite for this post if it exists; if not favorited, returns favorited=false without error."
+        )
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
         app.MapGet("/api/users/favorites", async (HttpContext http, CrudDbContext db, int? page, int? pageSize) =>
         {
@@ -133,7 +163,15 @@ public static class LikeFavoriteEndpoints
                 .ToListAsync();
 
             return Results.Ok(items);
-        }).WithTags("LikesFavorites");
+        })
+        .WithTags("LikesFavorites")
+        .WithSummary("List my favorited posts")
+        .WithDescription(
+            "Returns posts the authenticated user has favorited, newest favorites first, with basic post fields and when it was favorited. " +
+            "Pagination: page defaults to 1, pageSize defaults to 20 (max 100)."
+        )
+        .Produces<List<FavoritePostDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized);
 
         return app;
     }

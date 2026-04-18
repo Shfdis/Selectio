@@ -43,7 +43,16 @@ public static class CommunityEndpoints
                 items.Add(new CommunityDto(c.Id, c.Name, c.Description, c.CoverUrl, c.Genre, c.OwnerUserId, count));
             }
             return Results.Ok(items);
-        });
+        })
+        .WithSummary("List communities")
+        .WithDescription(
+            "Public list ordered by community id. " +
+            "Optional query: case-insensitive substring match on community name (ILIKE). " +
+            "Optional genre: case-insensitive substring match on the community genre field. " +
+            "Pagination: page defaults to 1, pageSize defaults to 20 (max 100). " +
+            "Each item includes subscriberCount (CommunityMembers rows for that community)."
+        )
+        .Produces<List<CommunityDto>>(StatusCodes.Status200OK);
 
         group.MapPost("", async (HttpContext http, CrudDbContext db, CreateCommunityRequest body) =>
         {
@@ -90,7 +99,16 @@ public static class CommunityEndpoints
             await db.SaveChangesAsync();
 
             return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genre, community.OwnerUserId, 1));
-        });
+        })
+        .WithSummary("Create community")
+        .WithDescription(
+            "Creates a community owned by the authenticated user, then inserts an owner membership row so the creator is subscribed immediately. " +
+            "Name is required and must be unique (trimmed, exact match). " +
+            "Description, coverUrl, and genre are optional strings (trimmed; empty strings allowed)."
+        )
+        .Produces<CommunityDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized);
 
         group.MapGet("/{id:int}", async (CrudDbContext db, int id) =>
         {
@@ -98,7 +116,14 @@ public static class CommunityEndpoints
             if (community is null) return Results.NotFound();
             var subscriberCount = await db.CommunityMembers.CountAsync(m => m.CommunityId == id);
             return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genre, community.OwnerUserId, subscriberCount));
-        });
+        })
+        .WithSummary("Get community by ID")
+        .WithDescription(
+            "Returns one community by id with subscriberCount computed from CommunityMembers. " +
+            "Does not include whether the current user is a member; use join or list user communities for that."
+        )
+        .Produces<CommunityDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:int}/join", async (HttpContext http, CrudDbContext db, int id) =>
         {
@@ -127,7 +152,15 @@ public static class CommunityEndpoints
             }
 
             return Results.Ok(new CommunityMemberDto(member.CommunityId, member.UserId, member.Role));
-        });
+        })
+        .WithSummary("Join a community")
+        .WithDescription(
+            "Idempotent subscribe: if the user is not a member yet, creates a row with role Member. " +
+            "If already a member (including Owner from create), returns the existing membership without error."
+        )
+        .Produces<CommunityMemberDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:int}/leave", async (HttpContext http, CrudDbContext db, int id) =>
         {
@@ -145,7 +178,15 @@ public static class CommunityEndpoints
             db.CommunityMembers.Remove(member);
             await db.SaveChangesAsync();
             return Results.Ok(new { message = "left" });
-        });
+        })
+        .WithSummary("Leave a community")
+        .WithDescription(
+            "Removes the authenticated user's CommunityMembers row for this community. " +
+            "Returns 404 if they were not a member."
+        )
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
         app.MapGet("/api/users/{id:int}/communities", async (CrudDbContext db, int id, int? page, int? pageSize) =>
         {
@@ -169,7 +210,15 @@ public static class CommunityEndpoints
                 items.Add(new CommunityDto(x.c.Id, x.c.Name, x.c.Description, x.c.CoverUrl, x.c.Genre, x.c.OwnerUserId, count));
             }
             return Results.Ok(items);
-        }).WithTags("Communities");
+        })
+        .WithTags("Communities")
+        .WithSummary("List user communities")
+        .WithDescription(
+            "Public: returns communities the given user id has joined, ordered by community id. " +
+            "Pagination: page defaults to 1, pageSize defaults to 20 (max 100). " +
+            "Each item includes subscriberCount for that community."
+        )
+        .Produces<List<CommunityDto>>(StatusCodes.Status200OK);
 
         return app;
     }
