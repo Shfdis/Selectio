@@ -69,6 +69,11 @@ public static class UserEndpoints
                 }
             )
             .WithName("RegisterUser")
+            .WithSummary("Register a new account")
+            .WithDescription("Creates a pending account and sends a verification email.")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .WithOpenApi();
 
         app.MapPost(
@@ -76,6 +81,11 @@ public static class UserEndpoints
                 async (Guid uuid, UserDbContext userDb) => await ExecuteVerifyByUuidAsync(uuid, userDb)
             )
             .WithName("VerifyUser")
+            .WithSummary("Verify account by UUID (POST)")
+            .WithDescription("Verifies a pending account using the email verification UUID.")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound)
             .WithOpenApi();
 
         app.MapGet(
@@ -83,6 +93,11 @@ public static class UserEndpoints
                 async (Guid uuid, UserDbContext userDb) => await ExecuteVerifyByUuidAsync(uuid, userDb)
             )
             .WithName("VerifyUserGet")
+            .WithSummary("Verify account by UUID (GET)")
+            .WithDescription("Verifies a pending account using the email verification UUID from browser links.")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound)
             .WithOpenApi();
 
         app.MapPost(
@@ -169,6 +184,10 @@ public static class UserEndpoints
                 }
             )
             .WithName("LoginUser")
+            .WithSummary("Authenticate and issue JWT")
+            .WithDescription("Validates credentials and returns an access token with user info.")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
             .WithOpenApi();
 
         app.MapGet(
@@ -199,6 +218,11 @@ public static class UserEndpoints
                 }
             )
             .WithName("IdentifyUser")
+            .WithSummary("Get authenticated user")
+            .WithDescription("Returns account details for the authenticated user, resolved from gateway headers or JWT.")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound)
             .WithOpenApi();
 
         app.MapDelete(
@@ -224,6 +248,11 @@ public static class UserEndpoints
                 }
             )
             .WithName("DeleteUser")
+            .WithSummary("Delete authenticated user")
+            .WithDescription("Deletes the authenticated user's account.")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound)
             .WithOpenApi();
     }
 
