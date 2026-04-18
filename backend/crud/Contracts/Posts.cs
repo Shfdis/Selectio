@@ -25,3 +25,30 @@ public sealed record UpdatePostRequest(
     string? PhotoUrl
 );
 
+/// <summary>Nested book summary for feed cards.</summary>
+public sealed record PostFeedBookDto(
+    int Id,
+    string Title,
+    string Author,
+    string Genre,
+    string CoverUrl
+);
+
+/// <summary>Post with author display name, book summary, engagement counts, and current-user flags.</summary>
+public sealed record PostFeedItemDto(
+    int Id,
+    int CommunityId,
+    int AuthorUserId,
+    string AuthorUsername,
+    int BookId,
+    string Content,
+    string? PhotoUrl,
+    PostStatus Status,
+    DateTime CreatedAt,
+    PostFeedBookDto Book,
+    int LikeCount,
+    int CommentCount,
+    bool LikedByCurrentUser,
+    bool FavoritedByCurrentUser
+);
+

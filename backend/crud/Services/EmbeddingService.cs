@@ -1,12 +1,18 @@
 using crud.Data;
 using crud.Entities;
 using Microsoft.EntityFrameworkCore;
+using Pgvector;
 
 namespace crud.Services;
 
 public static class EmbeddingService
 {
     public const int Dimensions = 72;
+
+    public static bool IsFullEmbedding(Vector? v) => v is not null && v.ToArray().Length == Dimensions;
+
+    public static Vector? ToVector(float[]? a) =>
+        a is null || a.Length != Dimensions ? null : new Vector((float[])a.Clone());
 
     /// <summary>
     /// Average of multiple embedding vectors. Returns null if no non-null vectors or dimensions mismatch.
@@ -29,33 +35,45 @@ public static class EmbeddingService
     }
 
     /// <summary>
+    /// Average of pgvector embeddings as a new <see cref="Vector"/> (or null).
+    /// </summary>
+    public static Vector? AverageVectors(IReadOnlyList<Vector?> vectors)
+    {
+        var arrays = vectors.Select(v => v?.ToArray()).ToList();
+        var avg = AverageVectors(arrays);
+        return ToVector(avg);
+    }
+
+    /// <summary>
     /// Compute post embedding: avg(community, book) if community has other published posts; else book only.
     /// </summary>
-    public static async Task<float[]?> ComputePostEmbeddingAsync(
+    public static async Task<Vector?> ComputePostEmbeddingAsync(
         CrudDbContext db,
         int communityId,
         int bookId,
         int? excludePostId,
         CancellationToken ct = default)
     {
-        var book = await db.Books
+        var bookVec = await db.Books
             .Where(b => b.Id == bookId)
             .Select(b => b.Embedding)
             .FirstOrDefaultAsync(ct);
-        if (book == null || book.Length != Dimensions) return null;
+        if (!IsFullEmbedding(bookVec)) return null;
 
-        var otherPublishedCount = await db.Posts
-            .Where(p => p.CommunityId == communityId && p.Status == PostStatus.Published && p.Id != (excludePostId ?? -1))
-            .CountAsync(ct);
-        if (otherPublishedCount == 0) return (float[])book.Clone();
+        var otherPublishedQuery = db.Posts
+            .Where(p => p.CommunityId == communityId && p.Status == PostStatus.Published);
+        if (excludePostId.HasValue)
+            otherPublishedQuery = otherPublishedQuery.Where(p => p.Id != excludePostId.Value);
+        var otherPublishedCount = await otherPublishedQuery.CountAsync(ct);
+        if (otherPublishedCount == 0) return new Vector(bookVec!.ToArray());
 
-        var community = await db.Communities
+        var communityVec = await db.Communities
             .Where(c => c.Id == communityId)
             .Select(c => c.Embedding)
             .FirstOrDefaultAsync(ct);
-        if (community == null || community.Length != Dimensions) return (float[])book.Clone();
+        if (!IsFullEmbedding(communityVec)) return new Vector(bookVec!.ToArray());
 
-        return AverageVectors(new[] { community, book });
+        return AverageVectors(new List<Vector?> { communityVec, bookVec });
     }
 
     /// <summary>
@@ -70,9 +88,9 @@ public static class EmbeddingService
             .Where(p => p.CommunityId == communityId && p.Status == PostStatus.Published && p.Embedding != null)
             .Select(p => p.Embedding)
             .ToListAsync(ct);
-        var avg = AverageVectors(postEmbeddings);
+        var avg = AverageVectors(postEmbeddings!);
         var community = await db.Communities.FirstOrDefaultAsync(c => c.Id == communityId, ct);
-        if (community != null)
+        if (community is not null)
         {
             community.Embedding = avg;
             await db.SaveChangesAsync(ct);
@@ -91,7 +109,7 @@ public static class EmbeddingService
         CancellationToken ct = default)
     {
         var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == postId, ct);
-        if (post == null) return;
+        if (post is null) return;
 
         if (status == PostStatus.Published)
         {
@@ -124,9 +142,10 @@ public static class EmbeddingService
         var embeddings = await db.UserBooks
             .Where(ub => ub.UserId == userId)
             .Join(db.Books, ub => ub.BookId, b => b.Id, (ub, b) => b.Embedding)
-            .Where(emb => emb != null && emb.Length == Dimensions)
+            .Where(emb => emb != null)
             .ToListAsync(ct);
-        return AverageVectors(embeddings!);
+        var arrays = embeddings.Where(IsFullEmbedding).Select(v => v!.ToArray()).ToList();
+        return AverageVectors(arrays);
     }
 
     /// <summary>
@@ -145,4 +164,7 @@ public static class EmbeddingService
         if (normA == 0 || normB == 0) return 0;
         return dot / (MathF.Sqrt(normA) * MathF.Sqrt(normB));
     }
+
+    public static float CosineSimilarity(float[] user, Vector post) =>
+        CosineSimilarity(user, post.ToArray());
 }

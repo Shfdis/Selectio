@@ -1,0 +1,36 @@
+{
+  "paths": {
+    "/api/images": {
+      "post": {
+        "tags": ["Gateway", "Media"],
+        "summary": "Upload an image (multipart)",
+        "description": "Field name `file`. JPEG, PNG, or WebP up to 5MB. Returns `{ \"url\" }` on the gateway origin.",
+        "responses": {
+          "200": { "description": "Uploaded; body contains gateway URL" },
+          "400": { "description": "Invalid file" },
+          "401": { "description": "Missing or invalid JWT" }
+        }
+      }
+    },
+    "/media/{objectKey}": {
+      "get": {
+        "tags": ["Gateway", "Media"],
+        "summary": "Stream uploaded media",
+        "parameters": [
+          {
+            "name": "objectKey",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Object key returned in upload URL (may contain slashes)."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Image bytes" },
+          "401": { "description": "Internal proxy rejected" },
+          "404": { "description": "Object not found" }
+        }
+      }
+    }
+  }
+}

@@ -46,6 +46,11 @@ public sealed class CrudAuthzClient(IHttpClientFactory clients, IConfiguration c
         return await SendRequestAsync<PostCommentInfo>(http, $"/internal/post-comments/{commentId}");
     }
 
+    public async Task<CommunityOwnerInfo?> FetchCommunityOwnerInfo(HttpContext http, int communityId)
+    {
+        return await SendRequestAsync<CommunityOwnerInfo>(http, $"/internal/communities/{communityId}");
+    }
+
     public async Task<bool> IsModerator(HttpContext http, int userId, int communityId)
     {
         var req = CreateInternalRequest(http, $"/internal/communities/{communityId}/members/{userId}");
