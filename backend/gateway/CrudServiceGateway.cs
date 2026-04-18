@@ -6,7 +6,7 @@ public static class CrudServiceGateway
 {
     public static void Map(WebApplication app, IReadOnlyCollection<string> untrustedHeadersToStrip)
     {
-        app.Map("/{**path}", async (
+        app.Map("/api/{**path}", async (
             HttpContext http,
             IHttpForwarder forwarder,
             HttpMessageInvoker invoker,
@@ -15,12 +15,6 @@ public static class CrudServiceGateway
         ) =>
         {
             GatewayRequestUtils.PrepareRequest(http, untrustedHeadersToStrip);
-
-            if (!http.Request.Path.StartsWithSegments("/api"))
-            {
-                await Results.NotFound().ExecuteAsync(http);
-                return;
-            }
 
             var path = http.Request.Path.Value ?? string.Empty;
             var method = http.Request.Method ?? "GET";

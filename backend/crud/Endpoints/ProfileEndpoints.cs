@@ -23,7 +23,11 @@ public static class ProfileEndpoints
                 .FirstOrDefaultAsync();
 
             return profile is null ? Results.NotFound() : Results.Ok(profile);
-        });
+        })
+        .WithSummary("Get public profile by user ID")
+        .WithDescription("Returns the public profile for a user.")
+        .Produces<PublicProfileDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound);
 
         group.MapPut("/profile", async (HttpContext http, CrudDbContext db, UpdateProfileRequest body) =>
         {
@@ -64,7 +68,12 @@ public static class ProfileEndpoints
             await db.SaveChangesAsync();
 
             return Results.Ok(new PublicProfileDto(profile.UserId, profile.Username, profile.Description, profile.AvatarUrl));
-        });
+        })
+        .WithSummary("Create or update my profile")
+        .WithDescription("Creates a profile for the authenticated user if missing, otherwise updates the existing profile.")
+        .Produces<PublicProfileDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized);
 
         return app;
     }
