@@ -5,6 +5,7 @@ __pycache__/
 *.so
 .Python
 *.egg-info/
+.venv/
 dist/
 build/
 .pytest_cache/
@@ -57,6 +58,12 @@ artifacts/
 # Logs
 logs/
 *.log
+
+# Recsys local assets
+recsys/data/
+recsys/.venv/
+recsys/artifacts/
+recsys/__pycache__/
 
 # OS
 Thumbs.db

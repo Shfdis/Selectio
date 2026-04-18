@@ -1,3 +1,5 @@
+using crud.Entities;
+
 namespace crud.Contracts;
 
 public sealed record BookDto(
@@ -6,6 +8,10 @@ public sealed record BookDto(
     string Author,
     string Description,
     string Genre,
-    string CoverUrl
+    string CoverUrl,
+    DateOnly? ReleaseDate,
+    double? AverageRating,
+    LibraryStatus? UserStatus,
+    int? UserRating
 );
 

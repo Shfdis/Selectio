@@ -17,7 +17,10 @@ public static class GatewayAuthzClassifier
         {
             if (path.Equals("/api/users/favorites", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
             if (path.Equals("/api/users/me/book-comments", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
+            if (path.Equals("/api/users/me/feed", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
+            if (path.Equals("/api/books/recommended", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
             if (path.StartsWith("/api/books", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;
+            if (path.Equals("/api/posts/recommended", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
             if (path.StartsWith("/api/communities", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;
             if (path.StartsWith("/api/users/", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;
             if (path.StartsWith("/api/posts/", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.Public;

@@ -15,7 +15,7 @@ public static class CommunityEndpoints
     {
         var group = app.MapGroup("/api/communities").WithTags("Communities");
 
-        group.MapGet("", async (CrudDbContext db, string? query, int? page, int? pageSize) =>
+        group.MapGet("", async (CrudDbContext db, string? query, string? genre, int? page, int? pageSize) =>
         {
             var p = page.GetValueOrDefault(1);
             var ps = pageSize.GetValueOrDefault(20);
@@ -29,14 +29,19 @@ public static class CommunityEndpoints
                 var pattern = $"%{query.Trim()}%";
                 q = q.Where(c => EF.Functions.ILike(c.Name, pattern));
             }
+            if (!string.IsNullOrWhiteSpace(genre))
+            {
+                var g = genre.Trim();
+                q = q.Where(c => EF.Functions.ILike(c.Genre, $"%{g}%"));
+            }
 
-            var items = await q
-                .OrderBy(c => c.Id)
-                .Skip((p - 1) * ps)
-                .Take(ps)
-                .Select(c => new CommunityDto(c.Id, c.Name, c.Description, c.OwnerUserId))
-                .ToListAsync();
-
+            var list = await q.OrderBy(c => c.Id).Skip((p - 1) * ps).Take(ps).ToListAsync();
+            var items = new List<CommunityDto>();
+            foreach (var c in list)
+            {
+                var count = await db.CommunityMembers.CountAsync(m => m.CommunityId == c.Id);
+                items.Add(new CommunityDto(c.Id, c.Name, c.Description, c.CoverUrl, c.Genre, c.OwnerUserId, count));
+            }
             return Results.Ok(items);
         });
 
@@ -61,10 +66,14 @@ public static class CommunityEndpoints
                 return Results.BadRequest(new { message = "community name already exists" });
             }
 
+            var coverUrl = (body.CoverUrl ?? string.Empty).Trim();
+            var genre = (body.Genre ?? string.Empty).Trim();
             var community = new Community
             {
                 Name = name,
                 Description = description,
+                CoverUrl = coverUrl,
+                Genre = genre,
                 OwnerUserId = userId
             };
 
@@ -80,17 +89,15 @@ public static class CommunityEndpoints
             db.CommunityMembers.Add(ownerMember);
             await db.SaveChangesAsync();
 
-            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.OwnerUserId));
+            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genre, community.OwnerUserId, 1));
         });
 
         group.MapGet("/{id:int}", async (CrudDbContext db, int id) =>
         {
-            var community = await db.Communities
-                .Where(c => c.Id == id)
-                .Select(c => new CommunityDto(c.Id, c.Name, c.Description, c.OwnerUserId))
-                .FirstOrDefaultAsync();
-
-            return community is null ? Results.NotFound() : Results.Ok(community);
+            var community = await db.Communities.FirstOrDefaultAsync(c => c.Id == id);
+            if (community is null) return Results.NotFound();
+            var subscriberCount = await db.CommunityMembers.CountAsync(m => m.CommunityId == id);
+            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genre, community.OwnerUserId, subscriberCount));
         });
 
         group.MapPost("/{id:int}/join", async (HttpContext http, CrudDbContext db, int id) =>
@@ -148,15 +155,19 @@ public static class CommunityEndpoints
             if (ps < 1) ps = 1;
             if (ps > 100) ps = 100;
 
-            var items = await db.CommunityMembers
+            var joined = await db.CommunityMembers
                 .Where(m => m.UserId == id)
                 .Join(db.Communities, m => m.CommunityId, c => c.Id, (m, c) => new { m, c })
                 .OrderBy(x => x.c.Id)
                 .Skip((p - 1) * ps)
                 .Take(ps)
-                .Select(x => new CommunityDto(x.c.Id, x.c.Name, x.c.Description, x.c.OwnerUserId))
                 .ToListAsync();
-
+            var items = new List<CommunityDto>();
+            foreach (var x in joined)
+            {
+                var count = await db.CommunityMembers.CountAsync(m => m.CommunityId == x.c.Id);
+                items.Add(new CommunityDto(x.c.Id, x.c.Name, x.c.Description, x.c.CoverUrl, x.c.Genre, x.c.OwnerUserId, count));
+            }
             return Results.Ok(items);
         }).WithTags("Communities");
 

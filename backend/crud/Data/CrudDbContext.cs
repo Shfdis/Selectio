@@ -39,6 +39,8 @@ public class CrudDbContext : DbContext
             e.Property(x => x.Description).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.Genre).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.CoverUrl).IsRequired().HasDefaultValue(string.Empty);
+            e.Property(x => x.ReleaseDate);
+            e.Property(x => x.Embedding).HasColumnType("real[]");
             e.HasIndex(x => new { x.Title, x.Author });
         });
 
@@ -56,7 +58,10 @@ public class CrudDbContext : DbContext
             e.Property(x => x.Id).ValueGeneratedOnAdd();
             e.Property(x => x.Name).IsRequired();
             e.Property(x => x.Description).IsRequired().HasDefaultValue(string.Empty);
+            e.Property(x => x.CoverUrl).IsRequired().HasDefaultValue(string.Empty);
+            e.Property(x => x.Genre).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.OwnerUserId).IsRequired();
+            e.Property(x => x.Embedding).HasColumnType("real[]");
             e.HasIndex(x => x.Name).IsUnique();
         });
 
@@ -76,8 +81,10 @@ public class CrudDbContext : DbContext
             e.Property(x => x.AuthorUserId).IsRequired();
             e.Property(x => x.BookId).IsRequired();
             e.Property(x => x.Content).IsRequired();
+            e.Property(x => x.PhotoUrl);
             e.Property(x => x.Status).IsRequired();
             e.Property(x => x.CreatedAt).IsRequired();
+            e.Property(x => x.Embedding).HasColumnType("real[]");
             e.HasOne(x => x.Community).WithMany().HasForeignKey(x => x.CommunityId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Book).WithMany().HasForeignKey(x => x.BookId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => x.CommunityId);

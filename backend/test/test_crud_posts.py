@@ -33,7 +33,7 @@ class TestCrudPosts:
         # create published
         r = requests.post(
             f"{crud_base_url}/api/posts",
-            json={"communityId": community_id, "bookId": book_id, "content": "Hello world"},
+            json={"communityId": community_id, "bookId": book_id, "content": "Hello world", "photoUrl": "https://example.com/photo.jpg"},
             headers=author_headers,
             timeout=5,
         )
@@ -41,10 +41,12 @@ class TestCrudPosts:
         post = r.json()
         post_id = post["id"]
         assert post["status"] == "Published"
+        assert post.get("photoUrl") == "https://example.com/photo.jpg"
 
         # get
         r2 = requests.get(f"{crud_base_url}/api/posts/{post_id}", timeout=5)
         assert r2.status_code == 200
+        assert r2.json().get("photoUrl") == "https://example.com/photo.jpg"
 
         # feed includes post
         r3 = requests.get(f"{crud_base_url}/api/communities/{community_id}/posts", timeout=5)
@@ -95,6 +97,40 @@ class TestCrudPosts:
 
         feed = requests.get(f"{crud_base_url}/api/communities/{community_id}/posts", timeout=5).json()
         assert all(p["id"] != post_id for p in feed)
+
+    def test_recommended_posts_requires_user(self, crud_base_url):
+        r = requests.get(f"{crud_base_url}/api/posts/recommended", timeout=5)
+        assert r.status_code == 401
+
+    def test_recommended_posts_returns_list(self, crud_base_url):
+        headers = {"X-User-Id": "7001"}
+        r = requests.get(f"{crud_base_url}/api/posts/recommended", headers=headers, timeout=5)
+        assert r.status_code == 200
+        data = r.json()
+        assert isinstance(data, list)
+
+    def test_feed_requires_user(self, crud_base_url):
+        r = requests.get(f"{crud_base_url}/api/users/me/feed", timeout=5)
+        assert r.status_code == 401
+
+    def test_feed_returns_posts_from_user_communities_only(self, crud_base_url):
+        user_id = 8001
+        headers = {"X-User-Id": str(user_id)}
+        book_id = self._get_first_book_id(crud_base_url)
+        community_id = self._create_community(crud_base_url, owner_id=user_id)
+        r = requests.post(
+            f"{crud_base_url}/api/posts",
+            json={"communityId": community_id, "bookId": book_id, "content": "Feed test post"},
+            headers=headers,
+            timeout=5,
+        )
+        assert r.status_code == 200
+        post_id = r.json()["id"]
+        feed = requests.get(f"{crud_base_url}/api/users/me/feed", headers=headers, timeout=5)
+        assert feed.status_code == 200
+        items = feed.json()
+        assert isinstance(items, list)
+        assert any(p["id"] == post_id for p in items)
 
 
 if __name__ == "__main__":

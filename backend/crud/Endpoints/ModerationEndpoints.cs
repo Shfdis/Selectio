@@ -1,6 +1,7 @@
 using crud.Contracts;
 using crud.Data;
 using crud.Entities;
+using crud.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -56,6 +57,7 @@ public static class ModerationEndpoints
 
             post.Status = PostStatus.Published;
             await db.SaveChangesAsync();
+            await EmbeddingService.UpdatePostAndCommunityEmbeddingsAsync(db, post.Id, post.CommunityId, post.BookId, post.Status);
 
             return Results.Ok(new ModerationDecisionResponse(post.Id, post.Status.ToString()));
         }).WithTags("Moderation");
@@ -70,8 +72,10 @@ public static class ModerationEndpoints
                 return Results.Conflict(new { message = "post is not suggested" });
             }
 
+            var communityId = post.CommunityId;
             db.Posts.Remove(post);
             await db.SaveChangesAsync();
+            await EmbeddingService.OnPostDeletedAsync(db, communityId);
 
             return Results.Ok(new { postId = id, status = "Rejected" });
         }).WithTags("Moderation");
