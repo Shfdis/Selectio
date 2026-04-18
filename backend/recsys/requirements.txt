@@ -1,0 +1,7 @@
+numpy>=1.20
+pandas>=1.3
+scipy>=1.7
+tqdm>=4.60
+psycopg[binary]>=3
+# ALS backend (install numpy first if building from source fails)
+implicit>=0.7.0
