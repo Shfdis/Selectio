@@ -1,26 +1,27 @@
-import { View, Text, StyleSheet, Image, Pressable, ScrollView, Alert, Dimensions } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { removeToken } from '../utils/secureStore';
-import { userApi } from '../slices/userSlice';
-import { useGetCurrentUserQuery } from '../slices/userSlice';
+import { View, StyleSheet, Image, Pressable, ScrollView, Dimensions, Text } from 'react-native';
+import { useGetCurrentUserQuery, useGetUserProfileQuery } from '../slices/userSlice';
 import ProfileListCard from '../components/ProfileListCard';
 import ReviewCard from '../components/ReviewCard';
-import BottomNavBar from '../components/BottomNavBar';
 import { useMemo, useState } from 'react';
 import PostCard from '../components/PostCard';
-import { useNavigation } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import { inProgressBooks, readBooks, wantToReadBooks } from '../data/libraryBooks';
+import { examplePosts } from '../data/communityPage';
+import { profileReviews } from '../data/profilePage';
 
 const windowHeight = Dimensions.get('window').height;
 const paddedHeight = windowHeight * 0.24;
 
-export default function Profile() {
-  const dispatch = useDispatch();
+export function Profile() {
   const { data: currentUser } = useGetCurrentUserQuery();
+  const userId = currentUser?.id;
+  const { data: profile } = useGetUserProfileQuery(userId, { skip: !userId });
   const [activeTab, setActiveTab] = useState('books');
   const navigation = useNavigation();
 
-  const displayName = currentUser?.username || 'Новый пользователь';
+  const displayName = profile?.username || currentUser?.username || 'Новый пользователь';
   const description =
+    profile?.description ||
     currentUser?.description ||
     'Напишите что-нибудь о себе\n\nЗайдите в настройки, чтобы изменить описание';
 
@@ -34,18 +35,17 @@ export default function Profile() {
   );
 
   const onPressSettings = () => {
-    Alert.alert('Настройки', 'Хотите выйти из аккаунта?', [
-      { text: 'Отмена', style: 'cancel' },
-      {
-        text: 'Выйти',
-        style: 'destructive',
-        onPress: async () => {
-          await removeToken();
-          dispatch(userApi.util.resetApiState());
-          navigation.navigate('home');
-        },
-      },
-    ]);
+    navigation.navigate('editProfile');
+  };
+
+  const onPressWantToRead = () => {
+    navigation.navigate('wantToRead');
+  };
+  const onPressInProgress = () => {
+    navigation.navigate('inProgress');
+  };
+  const onPressReadBooks = () => {
+    navigation.navigate('readBooks');
   };
 
   return (
@@ -85,92 +85,66 @@ export default function Profile() {
             <View style={styles.cards}>
               <ProfileListCard
                 title="Хочу прочитать"
-                countText="0 книг"
+                titleIcon={require('../assets/icons/icon_want_read.png')}
+                countText={`${wantToReadBooks.length} книг`}
                 leftColor="#CCB985"
-                disabled
+                onPress={onPressWantToRead}
                 style={styles.cardSpacing}
               />
               <ProfileListCard
                 title="В процессе"
-                countText="0 книг"
+                titleIcon={require('../assets/icons/icon_open_book.png')}
+                countText={`${inProgressBooks.length} книг`}
                 leftColor="#CCB985"
-                disabled
+                onPress={onPressInProgress}
                 style={styles.cardSpacing}
               />
-              <ProfileListCard title="Прочитанное" countText="0 книг" leftColor="#D6C596" disabled />
+              <ProfileListCard
+                title="Прочитанное"
+                titleIcon={require('../assets/icons/icon_close_book.png')}
+                countText={`${readBooks.length} книг`}
+                leftColor="#D6C596"
+                onPress={onPressReadBooks}
+              />
             </View>
           ) : activeTab === 'reviews' ? (
             <View style={styles.reviews}>
-              <ReviewCard
-                title="Хаски и его учитель белый кот"
-                author="Митбан"
-                rating={5}
-                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные персонажи, постоянные эмоциональные качели, а главное - романтические линии"
-                disabled
-                style={styles.reviewSpacing}
-              />
-              <ReviewCard
-                title="Благие знамения"
-                author="Нил Гейман"
-                rating={4}
-                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные"
-                disabled
-              />
+              {profileReviews.map((review, idx) => (
+                <ReviewCard
+                  key={review.id}
+                  title={review.title}
+                  author={review.author}
+                  rating={review.rating}
+                  text={review.text}
+                  disabled={false}
+                  onPressEdit={() => navigation.navigate('editReview', { review })}
+                  style={idx < profileReviews.length - 1 ? styles.reviewSpacing : null}
+                />
+              ))}
             </View>
           ) : activeTab === 'favorites' ? (
             <View style={styles.favorites}>
-              <PostCard
-                username="ShadowMilkEveryDay"
-                dateText="07.01.26"
-                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные персонажи, постоянные эмоциональные качели, а главное - романтические линии, к которым хочется возвращаться вновь и вновь!!"
-                imageSource= {{"uri": 'https://i.pinimg.com/474x/56/e5/19/56e5193bb2b6234748387a105f4e37f4.jpg?nii=t'}}
-                initialLikes={69}
-                initialComments={52}
-                initiallyLiked={false}
-                initiallyBookmarked={true}
-                onPressComment={() => {}}
-                book={{
-                  imageUrl: 'https://static.kinoafisha.info/k/series_posters/1920x1080/upload/series/posters/8/5/0/2058/808438341595445105.jpg',
-                  title: 'Благие знамения',
-                  author: 'Нил Гейман',
-                  genreFirst: 'Приключения',
-                  genreSecond: 'Комедия',
-                }}
-              />
-              <PostCard
-                username="ShadowMilkEveryDay"
-                dateText="07.01.26"
-                text="Моя самая любимая книга из всех существующих на планете!! Неожиданные сюжетные повороты, неоднозначные персонажи, постоянные эмоциональные качели, а главное - романтические линии"
-                initialLikes={12}
-                initialComments={3}
-                initiallyLiked={true}
-                initiallyBookmarked={true}
-                onPressComment={() => {}}
-                book={{
-                  imageUrl: 'https://ir.ozone.ru/s3/multimedia-1-i/8427096306.jpg',
-                  title: 'Хаски и его учитель белый кот',
-                  author: 'Митбан',
-                  genreFirst: 'Фэнтези',
-                  genreSecond: 'Романтика',
-                }}
-              />
+              {examplePosts.map((p) => (
+                <PostCard
+                  key={p.id}
+                  postId={p.id}
+                  username={p.username}
+                  dateText={p.dateText}
+                  text={p.text}
+                  imageSource={p.imageSource}
+                  book={p.book}
+                  initialLikes={p.initialLikes}
+                  initialComments={p.initialComments}
+                  initiallyLiked={p.initiallyLiked}
+                  initiallyBookmarked={p.initiallyBookmarked}
+                />
+              ))}
             </View>
           ) : (
             <Text style={styles.emptyState}>Пока пусто</Text>
           )}
         </View>
       </ScrollView>
-
-      <BottomNavBar
-        activeKey="profile"
-        disabled
-        icons={{
-          home: require('../assets/icons/icon-book.png'),
-          groups: require('../assets/icons/icon-groups.png'),
-          search: require('../assets/icons/icon-search.png'),
-          profile: require('../assets/icons/icon-profile-filled.png'),
-        }}
-      />
     </View>
   );
 }
@@ -182,10 +156,13 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+    backgroundColor: '#ECE8DD',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingTop: '12%',
-    paddingBottom: '24%',
+    paddingBottom: 0,
+    backgroundColor: '#ECE8DD',
   },
   padded: {
     paddingHorizontal: '6%',
@@ -267,6 +244,7 @@ const styles = StyleSheet.create({
   contentAreaFullWidth: {
     paddingHorizontal: 0,
     paddingTop: 0,
+    paddingBottom: 0,
   },
   reviews: {
     width: '100%',

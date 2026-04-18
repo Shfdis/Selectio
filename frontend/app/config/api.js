@@ -1,5 +1,5 @@
-const API_CONFIG = {
+const apiConfig = {
   baseUrl: 'http://85.239.40.129:8080',
 };
 
-export default API_CONFIG;
+export default apiConfig;

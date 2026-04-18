@@ -1,20 +1,47 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
+
+function CountText({ countText }) {
+  const m = String(countText ?? '').match(/^(\d+)\s+(.+)$/);
+  if (!m) {
+    return <Text style={styles.count}>{countText}</Text>;
+  }
+  const [, num, suffix] = m;
+  return (
+    <Text style={styles.count}>
+      <Text style={styles.countNumber}>{num}</Text>
+      <Text style={styles.countSuffix}> {suffix}</Text>
+    </Text>
+  );
+}
 
 export default function ProfileListCard({
   title,
+  titleIcon,
   countText = '0 книг',
   leftColor = '#CCB985',
-  onPress = () => {},
+  disabled = false,
+  onPress,
   style,
 }) {
+  const Container = disabled ? View : Pressable;
+
   return (
-    <Pressable style={[styles.card, style]} onPress={onPress}>
+    <Container
+      style={[styles.card, style]}
+      {...(!disabled ? { onPress } : null)}
+      {...(!disabled ? null : { accessible: false })}
+    >
       <View style={[styles.leftBlock, { backgroundColor: leftColor }]} />
       <View style={styles.textBlock}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.count}>{countText}</Text>
+        <View style={styles.titleRow}>
+          {titleIcon ? (
+            <Image source={titleIcon} style={styles.titleIcon} resizeMode="contain" />
+          ) : null}
+          <Text style={styles.title}>{title}</Text>
+        </View>
+        <CountText countText={countText} />
       </View>
-    </Pressable>
+    </Container>
   );
 }
 
@@ -38,19 +65,44 @@ const styles = StyleSheet.create({
     paddingRight: '4%',
     justifyContent: 'center',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  titleIcon: {
+    width: 24,
+    height: 24,
+    flexShrink: 0,
+  },
   title: {
     fontSize: 20,
     color: '#2D2800',
     fontFamily: 'Mak',
     fontWeight: 300,
     lineHeight: 24,
+    flex: 1,
+    minWidth: 0,
   },
   count: {
     marginTop: 8,
     fontSize: 14,
     color: '#2D2800',
+    fontWeight: '500',
+    lineHeight: 17,
+  },
+  countNumber: {
+    fontFamily: 'CrimsonText',
+    fontSize: 14,
+    color: '#2D2800',
+    fontWeight: '500',
+    lineHeight: 17,
+  },
+  countSuffix: {
     fontFamily: 'Playfair',
-    fontWeight: 500,
+    fontSize: 14,
+    color: '#2D2800',
+    fontWeight: '500',
     lineHeight: 17,
   },
 });

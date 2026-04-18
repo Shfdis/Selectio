@@ -20,7 +20,13 @@
     "web": {},
     "plugins": [
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Приложение использует галерею, чтобы вы могли выбрать фото для профиля, поста или сообщества."
+        }
+      ]
     ]
   }
 }
