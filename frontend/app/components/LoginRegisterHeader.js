@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, Image } from 'react-native'
+import {View, Pressable, StyleSheet, Image, Text} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 export default function LoginRegisterHeader({title}) {
   const navigation = useNavigation();

@@ -1,9 +1,9 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import API_CONFIG from "../config/api";
+import apiConfig from "../config/api";
 import { getToken, saveToken, removeToken } from "../utils/secureStore";
 
 const basicQuery = fetchBaseQuery({
-  baseUrl: API_CONFIG.baseUrl,
+  baseUrl: apiConfig.baseUrl,
   prepareHeaders: async (headers) => {
     const token = await getToken();
     if (token) {
@@ -44,7 +44,6 @@ export const userApi = createApi({
           const { data } = await queryFulfilled;
           if (data?.token) {
             await saveToken(data.token);
-            // Now that the token is saved, refetch /me with auth header
             dispatch(userApi.util.invalidateTags(["User"]));
           }
         } catch (error) {
@@ -54,6 +53,10 @@ export const userApi = createApi({
     }),
     getCurrentUser: builder.query({
       query: () => "/api/auth/me",
+      providesTags: ["User"],
+    }),
+    getUserProfile: builder.query({
+      query: (userId) => `/api/users/${userId}`,
       providesTags: ["User"],
     }),
     updateProfile: builder.mutation({
@@ -71,5 +74,6 @@ export const {
   useRegisterUserMutation,
   useLoginUserMutation,
   useGetCurrentUserQuery,
+  useGetUserProfileQuery,
   useUpdateProfileMutation,
 } = userApi;

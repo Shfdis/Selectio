@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Alert } from 'react-native'
+import {View, StyleSheet, Alert} from 'react-native';
 import { useEffect, useRef, useState } from 'react';
 import LoginRegisterHeader from '../components/LoginRegisterHeader';
 import InputComponent from '../components/InputComponent';
@@ -17,7 +17,7 @@ export default function Login() {
   useEffect(() => {
     if (!currentUser || hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
-    navigation.navigate('profile');
+    navigation.navigate('main');
   }, [currentUser, navigation]);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function Login() {
     });
     if (lastAlertKeyRef.current === alertKey) return;
     lastAlertKeyRef.current = alertKey;
-    Alert.alert("Не удалось войти", "Неверный логин или пароль", [{ text: "OK" }]);
+    Alert.alert("Не удалось войти", "Неверный логин или пароль", [{ text: 'Ок' }]);
   }, [loginError]);
 
   return (
@@ -42,14 +42,12 @@ export default function Login() {
       <GreenRoundedButton text="Войти" onPress={() => {
         (async () => {
           if (!email || !password) {
-            Alert.alert("Заполните поля", "Введите email и пароль", [{ text: "OK" }]);
+            Alert.alert("Заполните поля", "Введите email и пароль", [{ text: 'Ок' }]);
             return;
           }
           try {
             await loginUser({ email, password }).unwrap();
-            // navigation happens when getCurrentUser refetches successfully
           } catch (e) {
-            // handled by loginError effect (and keeps this handler simple)
           }
         })();
         }} />
