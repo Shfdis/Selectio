@@ -22,7 +22,13 @@ public static class BookEndpoints
             var items = await db.Books.OrderBy(b => b.Id).Skip((p - 1) * ps).Take(ps).ToListAsync();
             var dtos = await ListBooksAsync(db, items, null);
             return Results.Ok(dtos);
-        });
+        })
+        .WithSummary("List books")
+        .WithDescription(
+            "Returns all books in stable order by id. Pagination: page defaults to 1, pageSize defaults to 20 (max 100). " +
+            "Each item includes aggregate averageRating from book comments and library ratings when available."
+        )
+        .Produces<List<BookDto>>(StatusCodes.Status200OK);
 
         group.MapGet("/recommended", async (HttpContext http, CrudDbContext db, int? page, int? pageSize) =>
         {
@@ -49,7 +55,16 @@ public static class BookEndpoints
             ordered = ordered.OrderBy(b => ids.IndexOf(b.Id)).ToList();
             var dtos = await ListBooksAsync(db, ordered, null);
             return Results.Ok(dtos);
-        });
+        })
+        .WithSummary("Recommended books for current user")
+        .WithDescription(
+            "Requires the authenticated user (gateway injects user id). " +
+            "Uses the user's embedding vs book embeddings (cosine similarity), ordered by score then paginated. " +
+            "Books already in the user's library are excluded. " +
+            "Returns an empty list if the user has no embedding yet or no eligible books exist."
+        )
+        .Produces<List<BookDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized);
 
         group.MapGet("/popular-by-genre", async (CrudDbContext db, string? genre, int? page, int? pageSize) =>
         {
@@ -70,7 +85,14 @@ public static class BookEndpoints
                 .ToListAsync();
             var dtos = await ListBooksAsync(db, items, null);
             return Results.Ok(dtos);
-        });
+        })
+        .WithSummary("Popular books, optionally filtered by genre")
+        .WithDescription(
+            "Ranks books by how many users have them in their library (UserBooks count), tie-broken by book id. " +
+            "When genre is provided, matches case-insensitively against the book's genre field (substring match). " +
+            "Pagination: page defaults to 1, pageSize defaults to 20 (max 100)."
+        )
+        .Produces<List<BookDto>>(StatusCodes.Status200OK);
 
         group.MapGet("/{id:int}", async (HttpContext http, CrudDbContext db, int id) =>
         {
@@ -87,7 +109,14 @@ public static class BookEndpoints
             }
             var dto = ToBookDto(book, avgRating, userStatus, userRating);
             return Results.Ok(dto);
-        });
+        })
+        .WithSummary("Get book by id")
+        .WithDescription(
+            "Returns one book with averageRating (from book comments + library ratings). " +
+            "If the request includes an authenticated user, also returns that user's library status and rating for this book when present."
+        )
+        .Produces<BookDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound);
 
         group.MapGet("/search", async (CrudDbContext db, string? query, int? page, int? pageSize) =>
         {
@@ -100,7 +129,14 @@ public static class BookEndpoints
             var items = await q.OrderBy(b => b.Id).Skip((p - 1) * ps).Take(ps).ToListAsync();
             var dtos = await ListBooksAsync(db, items, null);
             return Results.Ok(dtos);
-        });
+        })
+        .WithSummary("Search books by title or author")
+        .WithDescription(
+            "query is required. Case-insensitive match on title OR author (substring). " +
+            "Pagination: page defaults to 1, pageSize defaults to 20 (max 100)."
+        )
+        .Produces<List<BookDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest);
 
         group.MapGet("/popular", async (CrudDbContext db, int? page, int? pageSize) =>
         {
@@ -115,7 +151,13 @@ public static class BookEndpoints
                 .ToListAsync();
             var dtos = await ListBooksAsync(db, items, null);
             return Results.Ok(dtos);
-        });
+        })
+        .WithSummary("Popular books across all genres")
+        .WithDescription(
+            "Same ranking as popular-by-genre but without a genre filter: most-added-to-library first, then by book id. " +
+            "Pagination: page defaults to 1, pageSize defaults to 20 (max 100)."
+        )
+        .Produces<List<BookDto>>(StatusCodes.Status200OK);
 
         return app;
     }

@@ -43,7 +43,15 @@ public static class ModerationEndpoints
                 .ToListAsync();
 
             return Results.Ok(items);
-        }).WithTags("Moderation");
+        })
+        .WithTags("Moderation")
+        .WithSummary("List suggested posts for a community")
+        .WithDescription(
+            "Returns posts in Suggested status for the given community id, newest first. " +
+            "Public at the CRUD layer; when called through the API gateway, only community moderators can access this path."
+        )
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound);
 
         app.MapPost("/api/posts/{id:int}/approve", async (CrudDbContext db, int id) =>
         {
@@ -60,7 +68,17 @@ public static class ModerationEndpoints
             await EmbeddingService.UpdatePostAndCommunityEmbeddingsAsync(db, post.Id, post.CommunityId, post.BookId, post.Status);
 
             return Results.Ok(new ModerationDecisionResponse(post.Id, post.Status.ToString()));
-        }).WithTags("Moderation");
+        })
+        .WithTags("Moderation")
+        .WithSummary("Approve a suggested post")
+        .WithDescription(
+            "Only valid when the post status is Suggested; sets status to Published and refreshes embeddings for the post/community/book graph. " +
+            "Returns 409 if the post exists but is not in Suggested status. " +
+            "When called through the API gateway, only community moderators can access this path."
+        )
+        .Produces<ModerationDecisionResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status409Conflict);
 
         app.MapPost("/api/posts/{id:int}/reject", async (CrudDbContext db, int id) =>
         {
@@ -78,7 +96,17 @@ public static class ModerationEndpoints
             await EmbeddingService.OnPostDeletedAsync(db, communityId);
 
             return Results.Ok(new { postId = id, status = "Rejected" });
-        }).WithTags("Moderation");
+        })
+        .WithTags("Moderation")
+        .WithSummary("Reject a suggested post")
+        .WithDescription(
+            "Only valid when the post status is Suggested; deletes the post and runs the same embedding cleanup as a normal delete. " +
+            "Returns 409 if the post exists but is not in Suggested status. " +
+            "When called through the API gateway, only community moderators can access this path."
+        )
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status409Conflict);
 
         return app;
     }
