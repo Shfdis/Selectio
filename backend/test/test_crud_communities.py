@@ -64,6 +64,50 @@ class TestCrudCommunities:
             assert "genre" in c
             assert "subscriberCount" in c
 
+    def test_owner_can_put_update_community(self, crud_base_url):
+        owner_id = 2001
+        headers = {"X-User-Id": str(owner_id)}
+        name = f"put_comm_{uuid.uuid4().hex[:8]}"
+        r = requests.post(
+            f"{crud_base_url}/api/communities",
+            json={"name": name, "description": "d0", "genre": "A"},
+            headers=headers,
+            timeout=5,
+        )
+        assert r.status_code == 200
+        cid = r.json()["id"]
+        r2 = requests.put(
+            f"{crud_base_url}/api/communities/{cid}",
+            json={"description": "d1", "genre": "B,C"},
+            headers=headers,
+            timeout=5,
+        )
+        assert r2.status_code == 200
+        j = r2.json()
+        assert j["description"] == "d1"
+        assert j["genre"] == "B,C"
+        assert j["name"] == name
+
+    def test_non_owner_put_community_forbidden(self, crud_base_url):
+        owner_id = 2002
+        other_id = 2003
+        name = f"put_denied_{uuid.uuid4().hex[:8]}"
+        r = requests.post(
+            f"{crud_base_url}/api/communities",
+            json={"name": name},
+            headers={"X-User-Id": str(owner_id)},
+            timeout=5,
+        )
+        assert r.status_code == 200
+        cid = r.json()["id"]
+        r2 = requests.put(
+            f"{crud_base_url}/api/communities/{cid}",
+            json={"description": "hack"},
+            headers={"X-User-Id": str(other_id)},
+            timeout=5,
+        )
+        assert r2.status_code == 403
+
     def test_community_by_id_includes_subscriber_count(self, crud_base_url):
         r = requests.get(f"{crud_base_url}/api/communities", params={"pageSize": 1}, timeout=5)
         assert r.status_code == 200

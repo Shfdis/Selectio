@@ -37,14 +37,17 @@ public static class LibraryEndpoints
                 await db.SaveChangesAsync();
             }
 
-            return Results.Ok(new
-            {
-                userId = userBook.UserId,
-                bookId = userBook.BookId,
-                status = userBook.Status,
-                rating = userBook.Rating
-            });
-        }).WithTags("Library");
+            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status, userBook.Rating));
+        })
+        .WithTags("Library")
+        .WithSummary("Add book to my library")
+        .WithDescription(
+            "Idempotent: if the user does not yet have this book in UserBooks, inserts a row with status from the body or WantToRead. " +
+            "If already present, returns the existing row without changing status."
+        )
+        .Produces<UserLibraryStateDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
         app.MapPut("/api/books/{id:int}/library", async (HttpContext http, CrudDbContext db, int id, UpdateLibraryStatusRequest body) =>
         {
@@ -60,14 +63,14 @@ public static class LibraryEndpoints
             userBook.Status = body.Status;
             await db.SaveChangesAsync();
 
-            return Results.Ok(new
-            {
-                userId = userBook.UserId,
-                bookId = userBook.BookId,
-                status = userBook.Status,
-                rating = userBook.Rating
-            });
-        }).WithTags("Library");
+            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status, userBook.Rating));
+        })
+        .WithTags("Library")
+        .WithSummary("Update library status for a book")
+        .WithDescription("Sets UserBooks.Status for the authenticated user and book id. Returns 404 if the book is not in the user's library.")
+        .Produces<UserLibraryStateDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
         app.MapDelete("/api/books/{id:int}/library", async (HttpContext http, CrudDbContext db, int id) =>
         {
@@ -83,8 +86,14 @@ public static class LibraryEndpoints
             db.UserBooks.Remove(userBook);
             await db.SaveChangesAsync();
 
-            return Results.Ok(new { message = "removed" });
-        }).WithTags("Library");
+            return Results.Ok(new LibraryRemovedDto("removed"));
+        })
+        .WithTags("Library")
+        .WithSummary("Remove book from my library")
+        .WithDescription("Deletes the UserBooks row for the authenticated user and book id. Returns 404 if not in the library.")
+        .Produces<LibraryRemovedDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
         app.MapPut("/api/books/{id:int}/rate", async (HttpContext http, CrudDbContext db, int id, SetRatingRequest body) =>
         {
@@ -105,14 +114,15 @@ public static class LibraryEndpoints
             userBook.Rating = body.Rating;
             await db.SaveChangesAsync();
 
-            return Results.Ok(new
-            {
-                userId = userBook.UserId,
-                bookId = userBook.BookId,
-                status = userBook.Status,
-                rating = userBook.Rating
-            });
-        }).WithTags("Library");
+            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status, userBook.Rating));
+        })
+        .WithTags("Library")
+        .WithSummary("Set my star rating for a library book")
+        .WithDescription("Rating must be 1–5. Book must already be in the user's library (404 otherwise).")
+        .Produces<UserLibraryStateDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
         app.MapGet("/api/users/{id:int}/books", async (CrudDbContext db, int id, LibraryStatus? status, int? page, int? pageSize) =>
         {
@@ -144,7 +154,14 @@ public static class LibraryEndpoints
                 .ToListAsync();
 
             return Results.Ok(items);
-        }).WithTags("Library");
+        })
+        .WithTags("Library")
+        .WithSummary("List books in a user's library")
+        .WithDescription(
+            "Public: returns books the user has in UserBooks with pagination (page default 1, pageSize default 20, max 100). " +
+            "Optional status filter matches UserBooks.Status exactly."
+        )
+        .Produces<List<UserLibraryItemDto>>(StatusCodes.Status200OK);
 
         return app;
     }

@@ -86,7 +86,7 @@ builder.Services.AddCors(options =>
             policy.AllowAnyOrigin();
         }
         policy.AllowAnyMethod();
-        policy.WithHeaders("Content-Type", "Authorization");
+        policy.AllowAnyHeader();
     });
 });
 
@@ -210,6 +210,25 @@ if (app.Environment.IsDevelopment())
         var authJson = await authResponse.Content.ReadAsStringAsync(cancellationToken);
         var crudJson = await crudResponse.Content.ReadAsStringAsync(cancellationToken);
         var merged = MergeOpenApiDocs(authJson, crudJson);
+        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "openapi-gateway-fragment.json");
+        if (File.Exists(fragmentPath))
+        {
+            var fragmentJson = await File.ReadAllTextAsync(fragmentPath, cancellationToken);
+            var fragment = JsonNode.Parse(fragmentJson)?.AsObject();
+            var fragPaths = fragment?["paths"]?.AsObject();
+            if (fragPaths is not null)
+            {
+                var mergedPathsObj = merged["paths"]!.AsObject();
+                foreach (var kv in fragPaths)
+                {
+                    if (kv.Value is not null)
+                    {
+                        mergedPathsObj[kv.Key] = kv.Value.DeepClone();
+                    }
+                }
+            }
+        }
+
         return Results.Text(
             merged.ToJsonString(new JsonSerializerOptions { WriteIndented = false }),
             "application/json"
@@ -252,6 +271,7 @@ app.MapGet("/version", () =>
 });
 
 AuthServiceGateway.Map(app, untrustedHeadersToStrip);
+ImageServiceGateway.Map(app, untrustedHeadersToStrip);
 CrudServiceGateway.Map(app, untrustedHeadersToStrip);
 
 app.Run();

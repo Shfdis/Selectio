@@ -24,7 +24,7 @@ class DockerComposeTestFramework:
             self.compose_file = compose_file
         self.process: Optional[subprocess.Popen] = None
         # Services expected in the single-Postgres setup
-        self.services = ["gateway", "postgres", "auth", "crud"]
+        self.services = ["gateway", "postgres", "auth", "crud", "minio", "image-service"]
         
     def _run_compose_command(self, command: List[str], check: bool = True) -> subprocess.CompletedProcess:
         cmd = ["docker", "compose", "-f", self.compose_file] + command
@@ -165,8 +165,25 @@ class DockerComposeTestFramework:
                 c.get('State') == 'running'
                 for c in containers
             )
+
+            minio_running = any(
+                c.get('Service') == 'minio' and c.get('State') == 'running'
+                for c in containers
+            )
+
+            image_service_running = any(
+                c.get('Service') == 'image-service' and c.get('State') == 'running'
+                for c in containers
+            )
             
-            return postgres_healthy and auth_running and crud_running and gateway_running
+            return (
+                postgres_healthy
+                and auth_running
+                and crud_running
+                and gateway_running
+                and minio_running
+                and image_service_running
+            )
         except Exception as e:
             print(f"Error checking service health: {e}")
             return False
