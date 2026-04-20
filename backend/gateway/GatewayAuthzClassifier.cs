@@ -59,6 +59,11 @@ public static class GatewayAuthzClassifier
             return AuthzRequirement.Owner;
         }
 
+        if (HttpMethods.IsPut(method) && TrySingleIdPath(path, "/api/communities/", out _))
+        {
+            return AuthzRequirement.Owner;
+        }
+
         return AuthzRequirement.User;
     }
 
@@ -84,6 +89,24 @@ public static class GatewayAuthzClassifier
         var rest = path[prefix.Length..];
         var idText = rest.Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
         return int.TryParse(idText, out id);
+    }
+
+    /// <summary>True when path is exactly /prefix{id} with no further path segments (e.g. /api/communities/12).</summary>
+    private static bool TrySingleIdPath(string path, string prefix, out int id)
+    {
+        id = default;
+        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var rest = path[prefix.Length..];
+        if (rest.Contains('/'))
+        {
+            return false;
+        }
+
+        return int.TryParse(rest, out id);
     }
 }
 

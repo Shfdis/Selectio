@@ -1,3 +1,5 @@
+using Pgvector;
+
 namespace crud.Entities;
 
 public enum PostStatus
@@ -20,9 +22,8 @@ public class Post
     public string? PhotoUrl { get; set; }
     public PostStatus Status { get; set; } = PostStatus.Published;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public float[]? Embedding { get; set; }
+    public Vector? Embedding { get; set; }
 
     public Community? Community { get; set; }
     public Book? Book { get; set; }
 }
-

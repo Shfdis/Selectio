@@ -1,3 +1,5 @@
+using Pgvector;
+
 namespace crud.Entities;
 
 public class Book
@@ -12,6 +14,5 @@ public class Book
     public string Genre { get; set; } = string.Empty;
     public string CoverUrl { get; set; } = string.Empty;
     public DateOnly? ReleaseDate { get; set; }
-    public float[]? Embedding { get; set; }
+    public Vector? Embedding { get; set; }
 }
-

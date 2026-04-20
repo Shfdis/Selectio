@@ -33,6 +33,9 @@ def setup_services():
 
         if not framework.wait_for_crud_service(url="http://localhost:8090", timeout=60):
             pytest.fail("Crud service did not become ready in time")
+
+        if not framework.wait_for_gateway(url="http://localhost:8000", timeout=60):
+            pytest.fail("Gateway (public port 8000) did not become ready in time")
     
     yield framework
     
@@ -77,3 +80,9 @@ def crud_base_url():
 @pytest.fixture
 def gateway_base_url():
     return "http://localhost:8080"
+
+
+@pytest.fixture
+def gateway_public_url():
+    """Gateway port exposed for clients (image upload + /media)."""
+    return os.environ.get("SELECTIO_GATEWAY_PUBLIC_URL", "http://localhost:8000")

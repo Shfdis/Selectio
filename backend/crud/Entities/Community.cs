@@ -1,3 +1,5 @@
+using Pgvector;
+
 namespace crud.Entities;
 
 public class Community
@@ -11,6 +13,5 @@ public class Community
     public string CoverUrl { get; set; } = string.Empty;
     public string Genre { get; set; } = string.Empty;
     public int OwnerUserId { get; set; }
-    public float[]? Embedding { get; set; }
+    public Vector? Embedding { get; set; }
 }
-

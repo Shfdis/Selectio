@@ -1,5 +1,6 @@
 using crud.Entities;
 using Microsoft.EntityFrameworkCore;
+using Pgvector.EntityFrameworkCore;
 
 namespace crud.Data;
 
@@ -40,7 +41,7 @@ public class CrudDbContext : DbContext
             e.Property(x => x.Genre).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.CoverUrl).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.ReleaseDate);
-            e.Property(x => x.Embedding).HasColumnType("real[]");
+            e.Property(x => x.Embedding).HasColumnType("vector(72)");
             e.HasIndex(x => new { x.Title, x.Author });
         });
 
@@ -61,7 +62,7 @@ public class CrudDbContext : DbContext
             e.Property(x => x.CoverUrl).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.Genre).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.OwnerUserId).IsRequired();
-            e.Property(x => x.Embedding).HasColumnType("real[]");
+            e.Property(x => x.Embedding).HasColumnType("vector(72)");
             e.HasIndex(x => x.Name).IsUnique();
         });
 
@@ -84,7 +85,7 @@ public class CrudDbContext : DbContext
             e.Property(x => x.PhotoUrl);
             e.Property(x => x.Status).IsRequired();
             e.Property(x => x.CreatedAt).IsRequired();
-            e.Property(x => x.Embedding).HasColumnType("real[]");
+            e.Property(x => x.Embedding).HasColumnType("vector(72)");
             e.HasOne(x => x.Community).WithMany().HasForeignKey(x => x.CommunityId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Book).WithMany().HasForeignKey(x => x.BookId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => x.CommunityId);

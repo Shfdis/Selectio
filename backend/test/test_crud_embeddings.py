@@ -23,9 +23,12 @@ def _get_post_embedding_from_db(post_id: int, container_name: str = "selectio_po
     s = (result.stdout or "").strip()
     if not s or s == "":
         return None
-    # Parse {0.1,0.2,...} or NULL
     if s.upper() == "NULL":
         return None
+    # pgvector text is [0.1,0.2,...]; legacy real[] was {0.1,0.2,...}
+    if s.startswith("["):
+        s = s.strip("[]")
+        return [float(x) for x in s.split(",")] if s else None
     s = s.strip("{}")
     return [float(x) for x in s.split(",")] if s else None
 
@@ -42,6 +45,9 @@ def _get_community_embedding_from_db(community_id: int, container_name: str = "s
         return None
     if s.upper() == "NULL":
         return None
+    if s.startswith("["):
+        s = s.strip("[]")
+        return [float(x) for x in s.split(",")] if s else None
     s = s.strip("{}")
     return [float(x) for x in s.split(",")] if s else None
 

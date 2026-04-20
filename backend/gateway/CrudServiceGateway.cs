@@ -69,7 +69,7 @@ public static class CrudServiceGateway
 
             if (requirement == AuthzRequirement.Owner && identity is not null)
             {
-                var error = await RequireOwnerOr403(authzClient, http, identity.UserId, path);
+                var error = await RequireOwnerOr403(authzClient, http, identity.UserId, path, method);
                 if (error is not null)
                 {
                     await error.ExecuteAsync(http);
@@ -98,7 +98,7 @@ public static class CrudServiceGateway
         });
     }
 
-    private static async Task<IResult?> RequireOwnerOr403(CrudAuthzClient authzClient, HttpContext http, int userId, string path)
+    private static async Task<IResult?> RequireOwnerOr403(CrudAuthzClient authzClient, HttpContext http, int userId, string path, string method)
     {
         if (TryGetSingleSegmentId(path, "/api/posts/", out var postId))
         {
@@ -113,6 +113,14 @@ public static class CrudServiceGateway
             var info = await authzClient.FetchPostCommentInfo(http, commentId);
             if (info is null) return Results.NotFound();
             if (info.AuthorUserId != userId) return GatewayRequestUtils.Forbidden("not_owner");
+            return null;
+        }
+
+        if (HttpMethods.IsPut(method) && TryGetSingleSegmentId(path, "/api/communities/", out var communityId))
+        {
+            var info = await authzClient.FetchCommunityOwnerInfo(http, communityId);
+            if (info is null) return Results.NotFound();
+            if (info.OwnerUserId != userId) return GatewayRequestUtils.Forbidden("not_owner");
             return null;
         }
 
