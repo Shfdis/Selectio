@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { removeToken } from '../utils/secureStore';
 import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
-import { userApi, useGetCurrentUserQuery, useGetUserProfileQuery, useUpdateProfileMutation } from '../slices/userSlice';
+import { userApi, useGetCurrentUserQuery } from '../slices/userSlice';
+import { useGetUserProfileQuery, useUpdateProfileMutation } from '../slices/profileSlice';
 import ScreenHeader from '../components/ScreenHeader';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 

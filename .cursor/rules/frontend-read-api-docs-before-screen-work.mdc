@@ -1,0 +1,20 @@
+---
+description: Require API docs review before screen implementation
+globs: frontend/app/pages/**
+alwaysApply: false
+---
+
+# Read API Docs Before Implementing Screens
+
+Before implementing or modifying backend integration for any screen in `frontend/app/pages/**`:
+
+1. Ensure `frontend/api/openapi.json` exists and is current.
+2. Read `frontend/api/openapi.json` first.
+3. Confirm endpoint paths, request payloads, response fields, and auth requirements from that file.
+4. Implement screen data/mutations only against documented API contracts.
+5. If contract mismatch is found, update the task notes and do not guess request/response shapes.
+6. If the file is missing or outdated, refresh it from backend Swagger before coding.
+
+When finishing screen work:
+
+- Update `frontend/screens.md` for affected screens (status, implemented, remaining work, and integration tests).

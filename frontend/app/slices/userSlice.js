@@ -55,18 +55,6 @@ export const userApi = createApi({
       query: () => "/api/auth/me",
       providesTags: ["User"],
     }),
-    getUserProfile: builder.query({
-      query: (userId) => `/api/users/${userId}`,
-      providesTags: ["User"],
-    }),
-    updateProfile: builder.mutation({
-      query: (body) => ({
-        url: "/api/users/profile",
-        method: "PUT",
-        body,
-      }),
-      invalidatesTags: ["User"],
-    }),
   }),
 });
 
@@ -74,6 +62,4 @@ export const {
   useRegisterUserMutation,
   useLoginUserMutation,
   useGetCurrentUserQuery,
-  useGetUserProfileQuery,
-  useUpdateProfileMutation,
 } = userApi;

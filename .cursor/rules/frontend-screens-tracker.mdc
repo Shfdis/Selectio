@@ -1,0 +1,22 @@
+---
+description: Keep frontend screen integration tracker up to date
+globs: frontend/**
+alwaysApply: false
+---
+
+# Update `frontend/screens.md` After Screen Implementation
+
+When implementing or completing backend integration for any frontend screen/route:
+
+- Update `frontend/screens.md` in the same task.
+- For the affected screen, adjust:
+  - status (`Implemented`, `Partially implemented`, `Mocked`, or `Stubbed`)
+  - "Already implemented"
+  - "To implement"
+- If behavior changed, update the "Required integration tests" section with any new or modified cases.
+- Do not mark a screen fully implemented unless its backend data/mutations are wired and used in UI flow.
+
+Before finalizing:
+
+1. Confirm every edited screen has a corresponding `frontend/screens.md` update.
+2. Keep ordering and route names consistent with `app/App.js`.
