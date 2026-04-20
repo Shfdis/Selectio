@@ -1,21 +1,57 @@
 import { View, StyleSheet, Image, Pressable, ScrollView, Dimensions, Text } from 'react-native';
-import { useGetCurrentUserQuery, useGetUserProfileQuery } from '../slices/userSlice';
+import { useGetCurrentUserQuery } from '../slices/userSlice';
+import {
+  useGetMyBookCommentsQuery,
+  useGetMyFavoritePostsQuery,
+  useGetUserLibraryBooksQuery,
+  useGetUserProfileQuery,
+} from '../slices/profileSlice';
 import ProfileListCard from '../components/ProfileListCard';
 import ReviewCard from '../components/ReviewCard';
 import { useMemo, useState } from 'react';
 import PostCard from '../components/PostCard';
 import { useNavigation } from '@react-navigation/native';
-import { inProgressBooks, readBooks, wantToReadBooks } from '../data/libraryBooks';
-import { examplePosts } from '../data/communityPage';
-import { profileReviews } from '../data/profilePage';
 
 const windowHeight = Dimensions.get('window').height;
 const paddedHeight = windowHeight * 0.24;
+const LIBRARY_STATUS = {
+  wantToRead: 0,
+  inProgress: 1,
+  read: 2,
+};
+
+const formatDate = (isoString) => {
+  if (!isoString) {
+    return '';
+  }
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yy = String(date.getFullYear()).slice(-2);
+  return `${dd}.${mm}.${yy}`;
+};
 
 export function Profile() {
   const { data: currentUser } = useGetCurrentUserQuery();
   const userId = currentUser?.id;
   const { data: profile } = useGetUserProfileQuery(userId, { skip: !userId });
+  const { data: wantToReadData = [] } = useGetUserLibraryBooksQuery(
+    { userId, status: LIBRARY_STATUS.wantToRead },
+    { skip: !userId },
+  );
+  const { data: inProgressData = [] } = useGetUserLibraryBooksQuery(
+    { userId, status: LIBRARY_STATUS.inProgress },
+    { skip: !userId },
+  );
+  const { data: readData = [] } = useGetUserLibraryBooksQuery(
+    { userId, status: LIBRARY_STATUS.read },
+    { skip: !userId },
+  );
+  const { data: reviewData = [] } = useGetMyBookCommentsQuery(undefined, { skip: !userId });
+  const { data: favoritePostsData = [] } = useGetMyFavoritePostsQuery(undefined, { skip: !userId });
   const [activeTab, setActiveTab] = useState('books');
   const navigation = useNavigation();
 
@@ -32,6 +68,45 @@ export function Profile() {
       { key: 'favorites', label: 'Избранное' },
     ],
     [],
+  );
+  const reviews = useMemo(
+    () =>
+      reviewData.map((review) => ({
+        id: review.id,
+        title: review.book?.title || 'Без названия',
+        author: review.book?.author || 'Неизвестный автор',
+        rating: review.rating ?? 0,
+        text: review.content || '',
+        book: {
+          imageUrl: review.book?.coverUrl,
+          title: review.book?.title || 'Без названия',
+          author: review.book?.author || 'Неизвестный автор',
+          genreFirst: review.book?.genre || '',
+          genreSecond: '',
+        },
+      })),
+    [reviewData],
+  );
+  const favoritePosts = useMemo(
+    () =>
+      favoritePostsData.map((post) => ({
+        id: post.postId,
+        username: displayName,
+        dateText: formatDate(post.favoritedAt || post.createdAt),
+        text: post.content || '',
+        book: {
+          imageUrl: '',
+          title: `Пост #${post.postId}`,
+          author: '',
+          genreFirst: '',
+          genreSecond: '',
+        },
+        initialLikes: 0,
+        initialComments: 0,
+        initiallyLiked: false,
+        initiallyBookmarked: true,
+      })),
+    [favoritePostsData, displayName],
   );
 
   const onPressSettings = () => {
@@ -86,7 +161,7 @@ export function Profile() {
               <ProfileListCard
                 title="Хочу прочитать"
                 titleIcon={require('../assets/icons/icon_want_read.png')}
-                countText={`${wantToReadBooks.length} книг`}
+                countText={`${wantToReadData.length} книг`}
                 leftColor="#CCB985"
                 onPress={onPressWantToRead}
                 style={styles.cardSpacing}
@@ -94,7 +169,7 @@ export function Profile() {
               <ProfileListCard
                 title="В процессе"
                 titleIcon={require('../assets/icons/icon_open_book.png')}
-                countText={`${inProgressBooks.length} книг`}
+                countText={`${inProgressData.length} книг`}
                 leftColor="#CCB985"
                 onPress={onPressInProgress}
                 style={styles.cardSpacing}
@@ -102,14 +177,14 @@ export function Profile() {
               <ProfileListCard
                 title="Прочитанное"
                 titleIcon={require('../assets/icons/icon_close_book.png')}
-                countText={`${readBooks.length} книг`}
+                countText={`${readData.length} книг`}
                 leftColor="#D6C596"
                 onPress={onPressReadBooks}
               />
             </View>
           ) : activeTab === 'reviews' ? (
             <View style={styles.reviews}>
-              {profileReviews.map((review, idx) => (
+              {reviews.map((review, idx) => (
                 <ReviewCard
                   key={review.id}
                   title={review.title}
@@ -118,20 +193,20 @@ export function Profile() {
                   text={review.text}
                   disabled={false}
                   onPressEdit={() => navigation.navigate('editReview', { review })}
-                  style={idx < profileReviews.length - 1 ? styles.reviewSpacing : null}
+                  style={idx < reviews.length - 1 ? styles.reviewSpacing : null}
                 />
               ))}
+              {reviews.length === 0 ? <Text style={styles.emptyState}>Пока нет отзывов</Text> : null}
             </View>
           ) : activeTab === 'favorites' ? (
             <View style={styles.favorites}>
-              {examplePosts.map((p) => (
+              {favoritePosts.map((p) => (
                 <PostCard
                   key={p.id}
                   postId={p.id}
                   username={p.username}
                   dateText={p.dateText}
                   text={p.text}
-                  imageSource={p.imageSource}
                   book={p.book}
                   initialLikes={p.initialLikes}
                   initialComments={p.initialComments}
@@ -139,6 +214,7 @@ export function Profile() {
                   initiallyBookmarked={p.initiallyBookmarked}
                 />
               ))}
+              {favoritePosts.length === 0 ? <Text style={styles.emptyState}>Пока нет избранного</Text> : null}
             </View>
           ) : (
             <Text style={styles.emptyState}>Пока пусто</Text>
