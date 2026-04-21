@@ -40,8 +40,12 @@ public class CrudDbContext : DbContext
             e.Property(x => x.Description).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.Genre).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.CoverUrl).IsRequired().HasDefaultValue(string.Empty);
+            e.Property(x => x.Popularity).HasDefaultValue(0);
             e.Property(x => x.ReleaseDate);
             e.Property(x => x.Embedding).HasColumnType("vector(72)");
+            e.HasIndex(x => new { x.Popularity, x.Id })
+                .HasDatabaseName("IX_Books_Popularity_Id")
+                .IsDescending(true, false);
             e.HasIndex(x => new { x.Title, x.Author });
         });
 
