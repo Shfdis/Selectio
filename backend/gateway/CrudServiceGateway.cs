@@ -27,15 +27,13 @@ public static class CrudServiceGateway
 
             var requirement = GatewayAuthzClassifier.Classify(method, path);
 
-            GatewayIdentity? identity = null;
-            if (requirement != AuthzRequirement.Public)
+            // Public endpoints can still enrich responses for authenticated users,
+            // so resolve identity opportunistically and enforce only when required.
+            var identity = await GatewayRequestUtils.RequireUser(http);
+            if (requirement != AuthzRequirement.Public && identity is null)
             {
-                identity = await GatewayRequestUtils.RequireUser(http);
-                if (identity is null)
-                {
-                    await GatewayRequestUtils.Unauthorized("missing_or_invalid_token").ExecuteAsync(http);
-                    return;
-                }
+                await GatewayRequestUtils.Unauthorized("missing_or_invalid_token").ExecuteAsync(http);
+                return;
             }
 
             if (GatewayAuthzClassifier.IsGetPostById(method, path, out var postIdForVisibility))
