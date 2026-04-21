@@ -39,6 +39,7 @@ public class CrudDbContext : DbContext
             e.Property(x => x.Author).IsRequired();
             e.Property(x => x.Description).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.Genre).IsRequired().HasDefaultValue(string.Empty);
+            e.Property(x => x.SecondGenre).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.CoverUrl).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.Popularity).HasDefaultValue(0);
             e.Property(x => x.ReleaseDate);
@@ -94,6 +95,9 @@ public class CrudDbContext : DbContext
             e.HasOne(x => x.Book).WithMany().HasForeignKey(x => x.BookId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => x.CommunityId);
             e.HasIndex(x => x.AuthorUserId);
+            e.HasIndex(x => new { x.CommunityId, x.Status, x.CreatedAt, x.Id })
+                .HasDatabaseName("IX_Posts_CommunityId_Status_CreatedAt_Id")
+                .IsDescending(false, false, true, true);
         });
 
         modelBuilder.Entity<BookComment>(e =>
@@ -107,6 +111,7 @@ public class CrudDbContext : DbContext
             e.Property(x => x.CreatedAt).IsRequired();
             e.HasOne(x => x.Book).WithMany().HasForeignKey(x => x.BookId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.BookId);
+            e.HasIndex(x => new { x.AuthorUserId, x.BookId });
         });
 
         modelBuilder.Entity<PostComment>(e =>
@@ -119,6 +124,7 @@ public class CrudDbContext : DbContext
             e.Property(x => x.CreatedAt).IsRequired();
             e.HasOne(x => x.Post).WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.PostId);
+            e.HasIndex(x => new { x.AuthorUserId, x.PostId });
         });
 
         modelBuilder.Entity<PostLike>(e =>
@@ -127,6 +133,7 @@ public class CrudDbContext : DbContext
             e.Property(x => x.CreatedAt).IsRequired();
             e.HasOne(x => x.Post).WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.UserId);
+            e.HasIndex(x => new { x.UserId, x.PostId });
         });
 
         modelBuilder.Entity<FavoritePost>(e =>
