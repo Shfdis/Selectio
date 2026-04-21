@@ -20,13 +20,19 @@ public static class BookEndpoints
         group.MapGet("", async (CrudDbContext db, int? page, int? pageSize) =>
         {
             var (p, ps) = NormalizePagination(page, pageSize);
-            var items = await db.Books.OrderBy(b => b.Id).Skip((p - 1) * ps).Take(ps).ToListAsync();
+            var items = await db.Books
+                .OrderByDescending(b => b.Popularity)
+                .ThenBy(b => b.Id)
+                .Skip((p - 1) * ps)
+                .Take(ps)
+                .ToListAsync();
             var dtos = await ListBooksAsync(db, items, null);
             return Results.Ok(dtos);
         })
         .WithSummary("List books")
         .WithDescription(
-            "Returns all books in stable order by id. Pagination: page defaults to 1, pageSize defaults to 20 (max 100). " +
+            "Returns all books ordered by popularity descending, then id ascending. " +
+            "Pagination: page defaults to 1, pageSize defaults to 20 (max 100). " +
             "Each item includes aggregate averageRating from book comments and library ratings when available."
         )
         .Produces<List<BookDto>>(StatusCodes.Status200OK);
@@ -80,19 +86,17 @@ public static class BookEndpoints
                 q = q.Where(b => EF.Functions.ILike(b.Genre, $"%{g}%"));
             }
             var items = await q
-                .Select(b => new { Book = b, LibraryCount = db.UserBooks.Count(ub => ub.BookId == b.Id) })
-                .OrderByDescending(x => x.LibraryCount)
-                .ThenBy(x => x.Book.Id)
+                .OrderByDescending(b => b.Popularity)
+                .ThenBy(b => b.Id)
                 .Skip((p - 1) * ps)
                 .Take(ps)
-                .Select(x => x.Book)
                 .ToListAsync();
             var dtos = await ListBooksAsync(db, items, null);
             return Results.Ok(dtos);
         })
         .WithSummary("Popular books, optionally filtered by genre")
         .WithDescription(
-            "Ranks books by how many users have them in their library (UserBooks count), tie-broken by book id. " +
+            "Ranks books by persisted popularity descending, tie-broken by book id ascending. " +
             "When genre is provided, matches case-insensitively against the book's genre field (substring match). " +
             "Pagination: page defaults to 1, pageSize defaults to 20 (max 100)."
         )
@@ -130,13 +134,19 @@ public static class BookEndpoints
             var pattern = $"%{query.Trim()}%";
             var q = db.Books.Where(b =>
                 EF.Functions.ILike(b.Title, pattern) || EF.Functions.ILike(b.Author, pattern));
-            var items = await q.OrderBy(b => b.Id).Skip((p - 1) * ps).Take(ps).ToListAsync();
+            var items = await q
+                .OrderByDescending(b => b.Popularity)
+                .ThenBy(b => b.Id)
+                .Skip((p - 1) * ps)
+                .Take(ps)
+                .ToListAsync();
             var dtos = await ListBooksAsync(db, items, null);
             return Results.Ok(dtos);
         })
         .WithSummary("Search books by title or author")
         .WithDescription(
             "query is required. Case-insensitive match on title OR author (substring). " +
+            "Results are ordered by popularity descending, then id ascending. " +
             "Pagination: page defaults to 1, pageSize defaults to 20 (max 100)."
         )
         .Produces<List<BookDto>>(StatusCodes.Status200OK)
@@ -146,19 +156,17 @@ public static class BookEndpoints
         {
             var (p, ps) = NormalizePagination(page, pageSize);
             var items = await db.Books
-                .Select(b => new { Book = b, LibraryCount = db.UserBooks.Count(ub => ub.BookId == b.Id) })
-                .OrderByDescending(x => x.LibraryCount)
-                .ThenBy(x => x.Book.Id)
+                .OrderByDescending(b => b.Popularity)
+                .ThenBy(b => b.Id)
                 .Skip((p - 1) * ps)
                 .Take(ps)
-                .Select(x => x.Book)
                 .ToListAsync();
             var dtos = await ListBooksAsync(db, items, null);
             return Results.Ok(dtos);
         })
         .WithSummary("Popular books across all genres")
         .WithDescription(
-            "Same ranking as popular-by-genre but without a genre filter: most-added-to-library first, then by book id. " +
+            "Same ranking as popular-by-genre but without a genre filter: popularity descending, then by book id ascending. " +
             "Pagination: page defaults to 1, pageSize defaults to 20 (max 100)."
         )
         .Produces<List<BookDto>>(StatusCodes.Status200OK);
