@@ -6,16 +6,65 @@ import SearchHeader, { defaultCommunitiesSearchPlaceholder, searchHeaderHeight }
 import CommunitySearchRowCard from '../components/CommunitySearchRowCard';
 import SearchResultsSheet from '../components/SearchResults';
 import PostCard from '../components/PostCard';
-import { communitySearchCatalog, examplePosts, myCreatedCommunityCovers, myCommunitiesStripCount, mySubscribedCommunityCovers } from '../data/communityPage';
+import { useGetCurrentUserQuery } from '../slices/userSlice';
+import {
+  useGetCommunitiesCatalogQuery,
+  useGetCommunitiesFeedQuery,
+  useGetUserCommunitiesQuery,
+  useSearchCommunitiesQuery,
+} from '../slices/communitiesSlice';
 
-const mySubscribedCommunityCoversStrip = mySubscribedCommunityCovers.slice(0, myCommunitiesStripCount);
-const myCreatedCommunityCoversStrip = myCreatedCommunityCovers.slice(0, myCommunitiesStripCount);
+const MY_COMMUNITIES_STRIP_COUNT = 6;
+const DEFAULT_COVER_URI = 'https://via.placeholder.com/136x136?text=Community';
 
-const feedPosts = [...(examplePosts ?? []), ...(examplePosts ?? [])].map((p, i) => ({
-  ...p,
-  id: `${p.id}-dup-${i}`,
-  threadPostId: p.id,
-}));
+const formatDate = (isoString) => {
+  if (!isoString) {
+    return '';
+  }
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yy = String(date.getFullYear()).slice(-2);
+  return `${dd}.${mm}.${yy}`;
+};
+
+const mapCommunitySearchItem = (community, navigateTo = 'community') => ({
+  id: community?.id,
+  name: community?.name || 'Сообщество',
+  subscribersCount:
+    typeof community?.subscriberCount === 'number' ? `${community.subscriberCount}` : '0',
+  genres: community?.genre ? [community.genre] : [],
+  description: community?.description || '',
+  coverImageUrl: community?.coverUrl || DEFAULT_COVER_URI,
+  navigateTo,
+});
+
+const mapFeedPost = (post) => {
+  const genre = (post?.book?.genre || '').trim();
+  const [genreFirst = '', ...restGenres] = genre.split(/\s+/);
+  return {
+    id: post?.id,
+    postId: post?.id,
+    username: post?.authorUsername || 'Пользователь',
+    dateText: formatDate(post?.createdAt),
+    text: post?.content || '',
+    imageUri: post?.photoUrl || undefined,
+    book: {
+      imageUrl: post?.book?.coverUrl || DEFAULT_COVER_URI,
+      title: post?.book?.title || 'Без названия',
+      author: post?.book?.author || 'Неизвестный автор',
+      genreFirst,
+      genreSecond: restGenres.join(' '),
+    },
+    initialLikes: post?.likeCount ?? 0,
+    initialComments: post?.commentCount ?? 0,
+    initiallyLiked: Boolean(post?.likedByCurrentUser),
+    initiallyBookmarked: Boolean(post?.favoritedByCurrentUser),
+  };
+};
 
 export function Communities() {
   const navigation = useNavigation();
@@ -24,27 +73,43 @@ export function Communities() {
   const [query, setQuery] = useState('');
   const [resultsSheetDismissed, setResultsSheetDismissed] = useState(false);
   const suppressResultsSheetAutoOpenUntilRef = useRef(0);
+  const { data: currentUser } = useGetCurrentUserQuery();
+  const userId = currentUser?.id;
+  const trimmedQuery = query.trim();
+  const { data: searchResults = [] } = useSearchCommunitiesQuery(
+    { query: trimmedQuery, page: 1, pageSize: 25 },
+    { skip: trimmedQuery.length === 0 },
+  );
+  const { data: subscribedCommunities = [] } = useGetUserCommunitiesQuery(
+    { userId, page: 1, pageSize: 20 },
+    { skip: !userId },
+  );
+  const { data: communitiesCatalog = [] } = useGetCommunitiesCatalogQuery({ page: 1, pageSize: 100 });
+  const { data: communitiesFeed = [] } = useGetCommunitiesFeedQuery({ page: 1, pageSize: 20 });
 
-  const filteredCommunities = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    const catalog = Array.isArray(communitySearchCatalog) ? communitySearchCatalog : [];
-    return catalog.filter((c) => {
-      if (!c || typeof c !== 'object') return false;
-      const nameMatch = typeof c.name === 'string' && c.name.toLowerCase().includes(q);
-      const genreMatch =
-        Array.isArray(c.genres) &&
-        c.genres.some((g) => typeof g === 'string' && g.toLowerCase().includes(q));
-      const descMatch =
-        typeof c.description === 'string' && c.description.toLowerCase().includes(q);
-      const keywords = Array.isArray(c.searchKeywords) ? c.searchKeywords : [];
-      const keywordMatch = keywords.some((k) => {
-        const t = String(k).toLowerCase();
-        return t.includes(q) || q.includes(t);
-      });
-      return nameMatch || genreMatch || descMatch || keywordMatch;
-    });
-  }, [query]);
+  const filteredCommunities = useMemo(
+    () => searchResults.map((community) => mapCommunitySearchItem(community)),
+    [searchResults],
+  );
+  const mySubscribedCommunityCoversStrip = useMemo(
+    () =>
+      subscribedCommunities
+        .slice(0, MY_COMMUNITIES_STRIP_COUNT)
+        .map((community) => community?.coverUrl || DEFAULT_COVER_URI),
+    [subscribedCommunities],
+  );
+  const myCreatedCommunities = useMemo(
+    () => communitiesCatalog.filter((community) => community?.ownerUserId === userId),
+    [communitiesCatalog, userId],
+  );
+  const myCreatedCommunityCoversStrip = useMemo(
+    () =>
+      myCreatedCommunities
+        .slice(0, MY_COMMUNITIES_STRIP_COUNT)
+        .map((community) => community?.coverUrl || DEFAULT_COVER_URI),
+    [myCreatedCommunities],
+  );
+  const feedPosts = useMemo(() => communitiesFeed.map((post) => mapFeedPost(post)), [communitiesFeed]);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -75,7 +140,7 @@ export function Communities() {
   const onPressCommunityFromResults = useCallback(
     (c) => {
       const route = c.navigateTo ?? 'community';
-      navigation.navigate(route);
+      navigation.navigate(route, c.id ? { communityId: c.id } : undefined);
     },
     [navigation],
   );
@@ -116,7 +181,9 @@ export function Communities() {
           title="Мои подписки"
           subtitle="Сообщества, на которые вы подписались"
           covers={mySubscribedCommunityCoversStrip}
-          onPressCover={onPressCommunityCover}
+          onPressCover={(_, index) =>
+            navigation.navigate('community', { communityId: subscribedCommunities[index]?.id })
+          }
           style={styles.subscribedCommunitiesSection}
           squareCovers
           titleStyle={styles.myCommunitiesTitle}
@@ -130,7 +197,9 @@ export function Communities() {
           title="Созданные сообщества"
           subtitle="Сообщества, которые вы создали"
           covers={myCreatedCommunityCoversStrip}
-          onPressCover={onPressCreatedCommunityCover}
+          onPressCover={(_, index) =>
+            navigation.navigate('myCommunity', { communityId: myCreatedCommunities[index]?.id })
+          }
           style={styles.myCommunitiesSection}
           squareCovers
           titleStyle={styles.myCommunitiesTitle}
@@ -148,11 +217,11 @@ export function Communities() {
           {feedPosts.map((p) => (
             <PostCard
               key={p.id}
-              postId={p.threadPostId}
+              postId={p.postId}
               username={p.username}
               dateText={p.dateText}
               text={p.text}
-              imageSource={p.imageSource}
+              imageUri={p.imageUri}
               book={p.book}
               initialLikes={p.initialLikes}
               initialComments={p.initialComments}
@@ -169,7 +238,7 @@ export function Communities() {
         onDismiss={dismissResultsSheet}
         emptyMessage="Сообщества не найдены"
         data={filteredCommunities}
-        keyExtractor={(c, idx) => c.searchCatalogKey ?? `${c.name}-${idx}`}
+        keyExtractor={(c, idx) => `${c.id ?? c.name}-${idx}`}
         renderItem={({ item: c }) => (
           <CommunitySearchRowCard community={c} onPress={() => onPressCommunityFromResults(c)} />
         )}
