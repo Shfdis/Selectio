@@ -1,9 +1,33 @@
 #!/usr/bin/env python3
 
 import requests
+import subprocess
+import uuid as uuid_lib
 
 
 class TestCrudBooks:
+    @staticmethod
+    def _seed_book_with_popularity(title: str, popularity: int, genre: str = "Fantasy") -> None:
+        esc_title = title.replace("'", "''")
+        esc_genre = genre.replace("'", "''")
+        cmd = [
+            "docker", "exec", "selectio_postgres",
+            "psql", "-U", "postgres", "-d", "selectio_main", "-c",
+            f"INSERT INTO crud.\"Books\" (\"Title\", \"Author\", \"Description\", \"Genre\", \"CoverUrl\", \"Popularity\") "
+            f"VALUES ('{esc_title}', 'Popularity Test', '', '{esc_genre}', '', {popularity});"
+        ]
+        subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
+
+    @staticmethod
+    def _cleanup_seeded_titles(titles: list[str]) -> None:
+        escaped = ", ".join("'" + t.replace("'", "''") + "'" for t in titles)
+        cmd = [
+            "docker", "exec", "selectio_postgres",
+            "psql", "-U", "postgres", "-d", "selectio_main", "-c",
+            f"DELETE FROM crud.\"Books\" WHERE \"Title\" IN ({escaped});"
+        ]
+        subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
+
     def test_list_books(self, crud_base_url):
         response = requests.get(f"{crud_base_url}/api/books", timeout=5)
         assert response.status_code == 200
@@ -49,6 +73,74 @@ class TestCrudBooks:
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
+
+    def test_search_orders_by_popularity_desc_then_id(self, crud_base_url):
+        token = uuid_lib.uuid4().hex[:8]
+        low = f"PopularitySearch_{token}_Low"
+        high = f"PopularitySearch_{token}_High"
+        titles = [low, high]
+        self._seed_book_with_popularity(low, 100)
+        self._seed_book_with_popularity(high, 200)
+        try:
+            response = requests.get(
+                f"{crud_base_url}/api/books/search",
+                params={"query": f"PopularitySearch_{token}", "page": 1, "pageSize": 10},
+                timeout=5,
+            )
+            assert response.status_code == 200
+            data = response.json()
+            found = [b for b in data if b["title"] in titles]
+            assert [b["title"] for b in found][:2] == [high, low]
+        finally:
+            self._cleanup_seeded_titles(titles)
+
+    def test_list_books_orders_by_popularity_desc_then_id(self, crud_base_url):
+        token = uuid_lib.uuid4().hex[:8]
+        lower = f"PopularityList_{token}_Lower"
+        higher = f"PopularityList_{token}_Higher"
+        titles = [lower, higher]
+        self._seed_book_with_popularity(lower, 1200)
+        self._seed_book_with_popularity(higher, 2200)
+        try:
+            response = requests.get(
+                f"{crud_base_url}/api/books",
+                params={"page": 1, "pageSize": 20},
+                timeout=5,
+            )
+            assert response.status_code == 200
+            data = response.json()
+            found = [b for b in data if b["title"] in titles]
+            assert [b["title"] for b in found][:2] == [higher, lower]
+        finally:
+            self._cleanup_seeded_titles(titles)
+
+    def test_popular_and_popular_by_genre_use_persisted_popularity(self, crud_base_url):
+        token = uuid_lib.uuid4().hex[:8]
+        top = f"PopularityRank_{token}_Top"
+        mid = f"PopularityRank_{token}_Mid"
+        titles = [top, mid]
+        self._seed_book_with_popularity(mid, 500, genre="Fantasy")
+        self._seed_book_with_popularity(top, 1500, genre="Fantasy")
+        try:
+            popular = requests.get(
+                f"{crud_base_url}/api/books/popular",
+                params={"page": 1, "pageSize": 10},
+                timeout=5,
+            )
+            assert popular.status_code == 200
+            popular_data = [b for b in popular.json() if b["title"] in titles]
+            assert [b["title"] for b in popular_data][:2] == [top, mid]
+
+            by_genre = requests.get(
+                f"{crud_base_url}/api/books/popular-by-genre",
+                params={"genre": "Fantasy", "page": 1, "pageSize": 10},
+                timeout=5,
+            )
+            assert by_genre.status_code == 200
+            by_genre_data = [b for b in by_genre.json() if b["title"] in titles]
+            assert [b["title"] for b in by_genre_data][:2] == [top, mid]
+        finally:
+            self._cleanup_seeded_titles(titles)
 
     def test_recommended_books_requires_user(self, crud_base_url):
         response = requests.get(f"{crud_base_url}/api/books/recommended", timeout=5)
