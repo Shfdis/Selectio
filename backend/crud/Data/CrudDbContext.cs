@@ -1,6 +1,5 @@
 using crud.Entities;
 using Microsoft.EntityFrameworkCore;
-using Pgvector.EntityFrameworkCore;
 
 namespace crud.Data;
 
@@ -41,12 +40,10 @@ public class CrudDbContext : DbContext
             e.Property(x => x.Genre).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.SecondGenre).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.CoverUrl).IsRequired().HasDefaultValue(string.Empty);
-            e.Property(x => x.Popularity).HasDefaultValue(0);
             e.Property(x => x.ReleaseDate);
+            e.Property(x => x.Popularity).IsRequired().HasDefaultValue(0);
             e.Property(x => x.Embedding).HasColumnType("vector(72)");
-            e.HasIndex(x => new { x.Popularity, x.Id })
-                .HasDatabaseName("IX_Books_Popularity_Id")
-                .IsDescending(true, false);
+            e.HasIndex(x => new { x.Popularity, x.Id }).HasDatabaseName("IX_Books_Popularity_Id").IsDescending(true, false);
             e.HasIndex(x => new { x.Title, x.Author });
         });
 
@@ -66,8 +63,8 @@ public class CrudDbContext : DbContext
             e.Property(x => x.Description).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.CoverUrl).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.Genre).IsRequired().HasDefaultValue(string.Empty);
-            e.Property(x => x.OwnerUserId).IsRequired();
             e.Property(x => x.Embedding).HasColumnType("vector(72)");
+            e.Property(x => x.OwnerUserId).IsRequired();
             e.HasIndex(x => x.Name).IsUnique();
         });
 
@@ -95,6 +92,7 @@ public class CrudDbContext : DbContext
             e.HasOne(x => x.Book).WithMany().HasForeignKey(x => x.BookId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => x.CommunityId);
             e.HasIndex(x => x.AuthorUserId);
+            e.HasIndex(x => x.BookId);
             e.HasIndex(x => new { x.CommunityId, x.Status, x.CreatedAt, x.Id })
                 .HasDatabaseName("IX_Posts_CommunityId_Status_CreatedAt_Id")
                 .IsDescending(false, false, true, true);

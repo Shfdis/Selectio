@@ -127,7 +127,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8090
-      ConnectionStrings__CrudDb: Host=postgres;Database=selectio_main;Username=postgres;Password=postgres;Search Path=crud,public
+      ConnectionStrings__CrudDb: Host=postgres;Database=selectio_main;Username=postgres;Password=postgres;Search Path=crud
       Gateway__InternalToken: ${GATEWAY_INTERNAL_TOKEN}
     depends_on:
       postgres:

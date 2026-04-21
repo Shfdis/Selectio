@@ -4,6 +4,8 @@ import subprocess
 import pytest
 import uuid as uuid_lib
 import os
+import time
+import requests
 from test_framework import DockerComposeTestFramework
 from helpers import seed_crud_books, cleanup_seeded_books
 
@@ -27,6 +29,19 @@ def setup_services():
     if is_gateway_only:
         if not framework.wait_for_gateway(url="http://localhost:8080", timeout=60):
             pytest.fail("Gateway did not become ready in time")
+        # In gateway-only mode, CRUD/auth are internal-only services.
+        # Wait until gateway can successfully proxy books requests.
+        deadline = time.time() + 90
+        while time.time() < deadline:
+            try:
+                resp = requests.get("http://localhost:8080/api/books", timeout=2)
+                if resp.status_code != 502:
+                    break
+            except requests.RequestException:
+                pass
+            time.sleep(2)
+        else:
+            pytest.fail("Gateway could not route to CRUD in time")
     else:
         if not framework.wait_for_auth_service(url="http://localhost:8080", timeout=60):
             pytest.fail("Auth service did not become ready in time")

@@ -42,7 +42,7 @@ class DockerComposeTestFramework:
                 cmd, 1, "", "docker: command not found. Is Docker installed and in PATH?"
             )
         return result
-    
+
     def start(self, detach: bool = True, build: bool = False) -> bool:
         try:
             cmd = ["up"]
