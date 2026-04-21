@@ -153,6 +153,49 @@ class TestCrudBooks:
         data = response.json()
         assert isinstance(data, list)
 
+    def test_recommended_books_excludes_library_items_for_all_statuses(self, crud_base_url):
+        user_id = 6002
+        headers = {"X-User-Id": str(user_id)}
+
+        books_resp = requests.get(
+            f"{crud_base_url}/api/books",
+            params={"page": 1, "pageSize": 10},
+            timeout=5,
+        )
+        assert books_resp.status_code == 200
+        books = books_resp.json()
+        assert len(books) >= 1
+        selected_ids = [int(b["id"]) for b in books[:3]]
+
+        r1 = requests.post(
+            f"{crud_base_url}/api/books/{selected_ids[0]}/library",
+            headers=headers,
+            json={"status": "WantToRead"},
+            timeout=5,
+        )
+        assert r1.status_code == 200
+        if len(selected_ids) > 1:
+            r2 = requests.post(
+                f"{crud_base_url}/api/books/{selected_ids[1]}/library",
+                headers=headers,
+                json={"status": "Reading"},
+                timeout=5,
+            )
+            assert r2.status_code == 200
+        if len(selected_ids) > 2:
+            r3 = requests.post(
+                f"{crud_base_url}/api/books/{selected_ids[2]}/library",
+                headers=headers,
+                json={"status": "Read"},
+                timeout=5,
+            )
+            assert r3.status_code == 200
+
+        rec_resp = requests.get(f"{crud_base_url}/api/books/recommended", headers=headers, timeout=5)
+        assert rec_resp.status_code == 200
+        rec_ids = {b["id"] for b in rec_resp.json()}
+        assert rec_ids.isdisjoint(set(selected_ids))
+
 
 if __name__ == "__main__":
     import pytest

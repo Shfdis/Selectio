@@ -45,10 +45,12 @@ public static class PostEndpoints
             {
                 return Results.Ok(new List<PostFeedItemDto>());
             }
+            var excludePostIds = await BuildSeenPostIdsAsync(db, userId, cancellationToken);
 
             var ids = await EmbeddingAnnSearch.GetRecommendedPostIdsAsync(
                 dataSource,
                 userEmb,
+                excludePostIds,
                 (p - 1) * ps,
                 ps,
                 cancellationToken);
@@ -189,11 +191,16 @@ public static class PostEndpoints
                 .Where(m => m.UserId == userId)
                 .Select(m => m.CommunityId)
                 .ToListAsync(cancellationToken);
-            var allPosts = await db.Posts
+            var seenPostIds = await BuildSeenPostIdsAsync(db, userId, cancellationToken);
+            var postsQuery = db.Posts
                 .AsNoTracking()
                 .Include(x => x.Book)
-                .Where(post => post.Status == PostStatus.Published && communityIds.Contains(post.CommunityId))
-                .ToListAsync(cancellationToken);
+                .Where(post => post.Status == PostStatus.Published && communityIds.Contains(post.CommunityId));
+            if (seenPostIds.Count > 0)
+            {
+                postsQuery = postsQuery.Where(post => !seenPostIds.Contains(post.Id));
+            }
+            var allPosts = await postsQuery.ToListAsync(cancellationToken);
 
             var userEmb = await EmbeddingService.GetUserEmbeddingAsync(db, userId);
             var slice = OrderPersonalizedFeed(allPosts, userEmb, p, ps);
@@ -287,5 +294,35 @@ public static class PostEndpoints
 
     private static PostDto ToDto(Post post) =>
         new(post.Id, post.CommunityId, post.AuthorUserId, post.BookId, post.Content, post.PhotoUrl, post.Status, post.CreatedAt);
+
+    private static async Task<List<int>> BuildSeenPostIdsAsync(
+        CrudDbContext db,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        var authored = db.Posts
+            .AsNoTracking()
+            .Where(post => post.AuthorUserId == userId)
+            .Select(post => post.Id);
+        var liked = db.PostLikes
+            .AsNoTracking()
+            .Where(like => like.UserId == userId)
+            .Select(like => like.PostId);
+        var favorited = db.FavoritePosts
+            .AsNoTracking()
+            .Where(favorite => favorite.UserId == userId)
+            .Select(favorite => favorite.PostId);
+        var commented = db.PostComments
+            .AsNoTracking()
+            .Where(comment => comment.AuthorUserId == userId)
+            .Select(comment => comment.PostId);
+
+        return await authored
+            .Concat(liked)
+            .Concat(favorited)
+            .Concat(commented)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
 }
 
