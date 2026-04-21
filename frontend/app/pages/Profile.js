@@ -1,5 +1,6 @@
 import { View, StyleSheet, Image, Pressable, ScrollView, Dimensions, Text } from 'react-native';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
+import { mapApiBookGenres } from '../slices/booksSlice';
 import {
   useGetMyBookCommentsQuery,
   useGetMyFavoritePostsQuery,
@@ -81,8 +82,7 @@ export function Profile() {
           imageUrl: review.book?.coverUrl,
           title: review.book?.title || 'Без названия',
           author: review.book?.author || 'Неизвестный автор',
-          genreFirst: review.book?.genre || '',
-          genreSecond: '',
+          ...mapApiBookGenres(review.book),
         },
       })),
     [reviewData],

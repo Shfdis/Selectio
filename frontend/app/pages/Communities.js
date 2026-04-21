@@ -7,6 +7,7 @@ import CommunitySearchRowCard from '../components/CommunitySearchRowCard';
 import SearchResultsSheet from '../components/SearchResults';
 import PostCard from '../components/PostCard';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
+import { mapApiBookGenres } from '../slices/booksSlice';
 import {
   useGetCommunitiesCatalogQuery,
   useGetCommunitiesFeedQuery,
@@ -43,8 +44,7 @@ const mapCommunitySearchItem = (community, navigateTo = 'community') => ({
 });
 
 const mapFeedPost = (post) => {
-  const genre = (post?.book?.genre || '').trim();
-  const [genreFirst = '', ...restGenres] = genre.split(/\s+/);
+  const { genreFirst, genreSecond } = mapApiBookGenres(post?.book);
   return {
     id: post?.id,
     postId: post?.id,
@@ -57,7 +57,7 @@ const mapFeedPost = (post) => {
       title: post?.book?.title || 'Без названия',
       author: post?.book?.author || 'Неизвестный автор',
       genreFirst,
-      genreSecond: restGenres.join(' '),
+      genreSecond,
     },
     initialLikes: post?.likeCount ?? 0,
     initialComments: post?.commentCount ?? 0,

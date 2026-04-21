@@ -1,6 +1,8 @@
 import { View, Text, StyleSheet } from 'react-native';
 
 export default function BookInfoBlock({ title, author, genreFirst, genreSecond }) {
+  const genres = [genreFirst, genreSecond].map((g) => String(g ?? '').trim()).filter(Boolean);
+
   return (
     <View style={styles.block}>
       <Text style={styles.title} numberOfLines={2}>
@@ -9,14 +11,15 @@ export default function BookInfoBlock({ title, author, genreFirst, genreSecond }
       <Text style={styles.author} numberOfLines={1}>
         {author}
       </Text>
-      <View style={styles.genreBox}>
-        <View style={styles.genre}>
-          <Text style={styles.genreText}>{genreFirst}</Text>
+      {genres.length > 0 ? (
+        <View style={styles.genreBox}>
+          {genres.map((genre) => (
+            <View key={genre} style={styles.genre}>
+              <Text style={styles.genreText}>{genre}</Text>
+            </View>
+          ))}
         </View>
-        <View style={styles.genre}>
-          <Text style={styles.genreText}>{genreSecond}</Text>
-        </View>
-      </View>
+      ) : null}
     </View>
   );
 }

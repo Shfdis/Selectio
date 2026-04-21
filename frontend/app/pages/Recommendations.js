@@ -4,8 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import StickyTitleBar from '../components/StickyTitleBar';
 import HorizontalCoverSection from '../components/HorizontalCoverSection';
 import PostCard from '../components/PostCard';
-import BookRowCard from '../components/BookRowCard';
-import { useGetPopularBooksQuery, useGetRecommendedBooksQuery } from '../slices/booksSlice';
+import { mapApiBookGenres, useGetPopularBooksQuery, useGetRecommendedBooksQuery } from '../slices/booksSlice';
 import { useGetRecommendedPostsQuery } from '../slices/postsSlice';
 
 const DEFAULT_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
@@ -24,22 +23,8 @@ const formatDate = (isoString) => {
   return `${dd}.${mm}.${yy}`;
 };
 
-const toBookCardModel = (book) => {
-  const genre = (book?.genre || '').trim();
-  const [genreFirst = '', ...restGenres] = genre.split(/\s+/);
-  return {
-    id: book?.id,
-    imageUrl: book?.coverUrl || DEFAULT_COVER_URI,
-    title: book?.title || 'Без названия',
-    author: book?.author || 'Неизвестный автор',
-    genreFirst,
-    genreSecond: restGenres.join(' '),
-  };
-};
-
 const toPostCardModel = (post) => {
-  const genre = (post?.book?.genre || '').trim();
-  const [genreFirst = '', ...restGenres] = genre.split(/\s+/);
+  const { genreFirst, genreSecond } = mapApiBookGenres(post?.book);
   return {
     id: post?.id,
     postId: post?.id,
@@ -52,7 +37,7 @@ const toPostCardModel = (post) => {
       title: post?.book?.title || 'Без названия',
       author: post?.book?.author || 'Неизвестный автор',
       genreFirst,
-      genreSecond: restGenres.join(' '),
+      genreSecond,
     },
     initialLikes: post?.likeCount ?? 0,
     initialComments: post?.commentCount ?? 0,
@@ -144,33 +129,10 @@ export function RecommendationsMainContent() {
     [hasMoreBooks, isRecommendedPageFetching, isPopularPageFetching],
   );
 
-  const mixedFeedItems = useMemo(() => {
-    const books = booksForRecommendations.map((book) => ({ type: 'book', value: toBookCardModel(book) }));
-    const posts = recommendedPosts.map((post) => ({ type: 'post', value: toPostCardModel(post) }));
-    const result = [];
-    let b = 0;
-    let p = 0;
-
-    while (b < books.length || p < posts.length) {
-      if (b >= books.length) {
-        result.push(posts[p++]);
-        continue;
-      }
-      if (p >= posts.length) {
-        result.push(books[b++]);
-        continue;
-      }
-
-      // 50/50 choice between a book recommendation and a feed post.
-      if (Math.random() < 0.5) {
-        result.push(books[b++]);
-      } else {
-        result.push(posts[p++]);
-      }
-    }
-
-    return result;
-  }, [booksForRecommendations, recommendedPosts]);
+  const feedPosts = useMemo(
+    () => recommendedPosts.map((post) => toPostCardModel(post)),
+    [recommendedPosts],
+  );
 
   return (
     <View style={styles.screen}>
@@ -193,32 +155,21 @@ export function RecommendationsMainContent() {
         </View>
 
         <View style={styles.postsFeed}>
-          {mixedFeedItems.map((item) =>
-            item.type === 'post' ? (
-              <PostCard
-                key={`post-${item.value.id}`}
-                postId={item.value.postId}
-                username={item.value.username}
-                dateText={item.value.dateText}
-                text={item.value.text}
-                imageUri={item.value.imageUri}
-                book={item.value.book}
-                initialLikes={item.value.initialLikes}
-                initialComments={item.value.initialComments}
-                initiallyLiked={item.value.initiallyLiked}
-                initiallyBookmarked={item.value.initiallyBookmarked}
-              />
-            ) : (
-              <View key={`book-${item.value.id}`} style={styles.bookRowWrap}>
-                <BookRowCard
-                  book={item.value}
-                  showMoreButton={false}
-                  showDivider={false}
-                  onPressBook={() => onPressBook(item.value.id)}
-                />
-              </View>
-            ),
-          )}
+          {feedPosts.map((post) => (
+            <PostCard
+              key={`post-${post.id}`}
+              postId={post.postId}
+              username={post.username}
+              dateText={post.dateText}
+              text={post.text}
+              imageUri={post.imageUri}
+              book={post.book}
+              initialLikes={post.initialLikes}
+              initialComments={post.initialComments}
+              initiallyLiked={post.initiallyLiked}
+              initiallyBookmarked={post.initiallyBookmarked}
+            />
+          ))}
           {(isRecommendedPageFetching || isPopularPageFetching) && hasMoreBooks ? (
             <View style={styles.paginationLoader}>
               <ActivityIndicator size="small" color="#555C40" />
@@ -252,10 +203,6 @@ const styles = StyleSheet.create({
   postsFeed: {
     width: '100%',
     backgroundColor: '#ECE8DD',
-  },
-  bookRowWrap: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#CAC7B9',
   },
   paginationLoader: {
     paddingVertical: 18,

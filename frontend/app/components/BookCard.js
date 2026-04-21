@@ -11,6 +11,7 @@ export default function BookCard({
     showAddReview = false,
     onPressAddReview = () => {},
   }) {
+    const genres = [genreFirst, genreSecond].map((g) => String(g ?? '').trim()).filter(Boolean);
   
     return (
       <Pressable style={styles.card} onPress={onClick}>
@@ -24,10 +25,13 @@ export default function BookCard({
               {author}
             </Text>
             <View style={styles.genreSection}>
-              <View style={styles.genreBox}>
-                <GenrePill label={genreFirst} />
-                <GenrePill label={genreSecond} />
-              </View>
+              {genres.length > 0 ? (
+                <View style={styles.genreBox}>
+                  {genres.map((genre) => (
+                    <GenrePill key={genre} label={genre} />
+                  ))}
+                </View>
+              ) : null}
               {showAddReview ? (
                 <Pressable style={styles.addReviewButton} onPress={onPressAddReview} hitSlop={8}>
                   <Image

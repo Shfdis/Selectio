@@ -1,5 +1,21 @@
 import { userApi } from "./userSlice";
 
+const normalizeGenre = (value) => String(value ?? "").trim();
+
+export const mapApiBookGenres = (book) => ({
+  genreFirst: normalizeGenre(book?.genre),
+  genreSecond: normalizeGenre(book?.secondGenre),
+});
+
+export const mapApiBookToUi = (book) => {
+  const { genreFirst, genreSecond } = mapApiBookGenres(book);
+  return {
+    ...book,
+    genreFirst,
+    genreSecond,
+  };
+};
+
 export const booksApi = userApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
@@ -29,7 +45,7 @@ export const booksApi = userApi.injectEndpoints({
         url: "/api/books/recommended",
         params: { page, pageSize },
       }),
-      providesTags: ["Books"],
+      providesTags: ["Books", "RecommendedBooks"],
     }),
     getBookById: builder.query({
       query: (bookId) => `/api/books/${bookId}`,
@@ -48,7 +64,7 @@ export const booksApi = userApi.injectEndpoints({
         method: "POST",
         body: { status },
       }),
-      invalidatesTags: ["User", "Books"],
+      invalidatesTags: ["User", "Books", "RecommendedBooks"],
     }),
     moveBookInLibrary: builder.mutation({
       query: ({ bookId, status }) => ({
@@ -56,14 +72,14 @@ export const booksApi = userApi.injectEndpoints({
         method: "PUT",
         body: { status },
       }),
-      invalidatesTags: ["User", "Books"],
+      invalidatesTags: ["User", "Books", "RecommendedBooks"],
     }),
     removeBookFromLibrary: builder.mutation({
       query: ({ bookId }) => ({
         url: `/api/books/${bookId}/library`,
         method: "DELETE",
       }),
-      invalidatesTags: ["User", "Books"],
+      invalidatesTags: ["User", "Books", "RecommendedBooks"],
     }),
   }),
 });
@@ -72,6 +88,7 @@ export const {
   useSearchBooksQuery,
   useGetPopularBooksQuery,
   useGetPopularBooksByGenreQuery,
+  useLazyGetPopularBooksByGenreQuery,
   useGetRecommendedBooksQuery,
   useGetBookByIdQuery,
   useGetBookCommentsQuery,
