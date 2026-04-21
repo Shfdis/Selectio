@@ -1,6 +1,7 @@
 import { userApi } from "./userSlice";
 
 export const profileApi = userApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getUserProfile: builder.query({
       query: (userId) => `/api/users/${userId}`,

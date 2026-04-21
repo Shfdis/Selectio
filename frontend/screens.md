@@ -36,9 +36,9 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - Already implemented: subscriptions strip, created-communities strip, communities search, and feed are wired to backend endpoints.
    - To implement: optional server endpoints for direct "my created communities" list (currently derived from `/api/communities` by `ownerUserId`).
 
-9. `Book` (`book`) - **Status: Mocked**
-   - Already implemented: detail/reviews UI and library action controls.
-   - To implement: real book detail, reviews, and shelf-membership actions.
+9. `Book` (`book`) - **Status: Implemented**
+   - Already implemented: book detail (`/api/books/{id}`), reviews (`/api/books/{id}/comments`), and library add/move/remove actions (`/api/books/{id}/library`) are backend-backed.
+   - To implement: optional inline error toasts/loading states for mutation failures.
 
 10. `Genre` (`genre`) - **Status: Mocked**
     - Already implemented: genre listing UI and drill-down navigation.
@@ -120,6 +120,7 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - `Search` result -> `Book` opens correct book detail from API.
    - `Genre` -> book list pagination works and item opens `Book`.
    - Full manual checklist: `app/tests/search.integration.checklist.md`.
+   - Full manual checklist for `Book`: `app/tests/book.integration.checklist.md`.
 
 4. **Recommendations mixed feed**
    - `Recommendations` loads books from `/api/books/recommended` and posts from `/api/posts/recommended`.

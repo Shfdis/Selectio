@@ -1,6 +1,7 @@
 import { userApi } from "./userSlice";
 
 export const booksApi = userApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     searchBooks: builder.query({
       query: ({ query, page = 1, pageSize = 20 }) => ({
@@ -20,6 +21,38 @@ export const booksApi = userApi.injectEndpoints({
         params: { page, pageSize },
       }),
     }),
+    getBookById: builder.query({
+      query: (bookId) => `/api/books/${bookId}`,
+    }),
+    getBookComments: builder.query({
+      query: ({ bookId, page = 1, pageSize = 20 }) => ({
+        url: `/api/books/${bookId}/comments`,
+        params: { page, pageSize },
+      }),
+    }),
+    addBookToLibrary: builder.mutation({
+      query: ({ bookId, status }) => ({
+        url: `/api/books/${bookId}/library`,
+        method: "POST",
+        body: { status },
+      }),
+      invalidatesTags: ["User"],
+    }),
+    moveBookInLibrary: builder.mutation({
+      query: ({ bookId, status }) => ({
+        url: `/api/books/${bookId}/library`,
+        method: "PUT",
+        body: { status },
+      }),
+      invalidatesTags: ["User"],
+    }),
+    removeBookFromLibrary: builder.mutation({
+      query: ({ bookId }) => ({
+        url: `/api/books/${bookId}/library`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["User"],
+    }),
   }),
 });
 
@@ -27,4 +60,9 @@ export const {
   useSearchBooksQuery,
   useGetPopularBooksQuery,
   useGetRecommendedBooksQuery,
+  useGetBookByIdQuery,
+  useGetBookCommentsQuery,
+  useAddBookToLibraryMutation,
+  useMoveBookInLibraryMutation,
+  useRemoveBookFromLibraryMutation,
 } = booksApi;

@@ -1,21 +1,121 @@
 import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-native';
-import { useRef, useCallback, useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
+import { useRef, useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import GreenHeader from '../components/GreenHeader';
 import BookInfoBlock from '../components/BookInfoBlock';
 import ReviewCard from '../components/ReviewCard';
 import BookAddToLibrary from '../components/BookAddToLibrary';
 import LibraryMoveSheet, { LIBRARY_SHELF_ICONS, LIBRARY_SHELF_LABELS } from '../components/LibraryMoveSheet';
-import { exampleBook, exampleReviews } from '../data/bookPage';
+import {
+  useAddBookToLibraryMutation,
+  useGetBookByIdQuery,
+  useGetBookCommentsQuery,
+  useGetPopularBooksQuery,
+  useMoveBookInLibraryMutation,
+  useRemoveBookFromLibraryMutation,
+} from '../slices/booksSlice';
+
+const LIBRARY_STATUS = {
+  wantToRead: 0,
+  inProgress: 1,
+  read: 2,
+};
+const LIBRARY_STATUS_BY_NAME = {
+  wanttoread: 'wantToRead',
+  inprogress: 'inProgress',
+  read: 'read',
+};
+const LIBRARY_STATUS_REVERSE = {
+  0: 'wantToRead',
+  1: 'inProgress',
+  2: 'read',
+};
+const DEFAULT_BOOK_COVER = 'https://via.placeholder.com/220x330?text=Book';
+
+const formatDate = (isoString) => {
+  if (!isoString) {
+    return '';
+  }
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yy = String(date.getFullYear()).slice(-2);
+  return `${dd}.${mm}.${yy}`;
+};
+
+const resolveShelfFromUserStatus = (status) => {
+  if (typeof status === 'number') {
+    return LIBRARY_STATUS_REVERSE[status] ?? null;
+  }
+  if (typeof status === 'string') {
+    const normalized = status.replace(/[_\s-]/g, '').toLowerCase();
+    return LIBRARY_STATUS_BY_NAME[normalized] ?? null;
+  }
+  return null;
+};
 
 export default function Book() {
   const navigation = useNavigation();
+  const route = useRoute();
   const scrollRef = useRef(null);
-  const book = exampleBook;
+  const routeBookId = route?.params?.bookId;
+  const numericBookId = Number(routeBookId);
+  const hasRouteBookId = Number.isFinite(numericBookId) && numericBookId > 0;
+  const { data: fallbackBooks = [] } = useGetPopularBooksQuery({ page: 1, pageSize: 1 }, { skip: hasRouteBookId });
+  const resolvedBookId = hasRouteBookId ? numericBookId : fallbackBooks[0]?.id;
+  const { data: bookData, refetch: refetchBook } = useGetBookByIdQuery(resolvedBookId, { skip: !resolvedBookId });
+  const { data: bookComments = [] } = useGetBookCommentsQuery(
+    { bookId: resolvedBookId, page: 1, pageSize: 50 },
+    { skip: !resolvedBookId },
+  );
+  const [addBookToLibrary] = useAddBookToLibraryMutation();
+  const [moveBookInLibrary] = useMoveBookInLibraryMutation();
+  const [removeBookFromLibrary] = useRemoveBookFromLibraryMutation();
 
-  const [libraryShelf, setLibraryShelf] = useState(null);
   const [addSheetVisible, setAddSheetVisible] = useState(false);
   const [moveSheetVisible, setMoveSheetVisible] = useState(false);
+  const [libraryShelfLocal, setLibraryShelfLocal] = useState(null);
+
+  const libraryShelfFromApi = useMemo(
+    () => resolveShelfFromUserStatus(bookData?.userStatus),
+    [bookData?.userStatus],
+  );
+  const libraryShelf = libraryShelfLocal ?? libraryShelfFromApi;
+
+  useEffect(() => {
+    setLibraryShelfLocal(libraryShelfFromApi);
+  }, [libraryShelfFromApi, resolvedBookId]);
+  const book = useMemo(() => {
+    const genre = (bookData?.genre || '').trim();
+    const [genreFirst = '', ...restGenres] = genre.split(/\s+/);
+    return {
+      id: bookData?.id,
+      imageUrl: bookData?.coverUrl || DEFAULT_BOOK_COVER,
+      averageRating: typeof bookData?.averageRating === 'number' ? bookData.averageRating.toFixed(1) : '0.0',
+      title: bookData?.title || 'Без названия',
+      author: bookData?.author || 'Неизвестный автор',
+      genreFirst,
+      genreSecond: restGenres.join(' '),
+      description: bookData?.description || '',
+    };
+  }, [bookData]);
+  const reviews = useMemo(
+    () =>
+      bookComments.map((review) => ({
+        id: review.id,
+        userName: review.authorUsername || 'Пользователь',
+        dateText: formatDate(review.createdAt),
+        title: book.title,
+        author: book.author,
+        rating: review.rating ?? 0,
+        text: review.content || '',
+        showEdit: false,
+      })),
+    [bookComments, book.author, book.title],
+  );
 
   const onPressBack = () => {
     navigation.goBack();
@@ -33,13 +133,27 @@ export default function Book() {
     }
   };
 
-  const onSelectShelfFromAddSheet = (shelf) => {
-    setLibraryShelf(shelf);
+  const onSelectShelfFromAddSheet = async (shelf) => {
+    if (!resolvedBookId) {
+      return;
+    }
+    await addBookToLibrary({
+      bookId: resolvedBookId,
+      status: LIBRARY_STATUS[shelf],
+      statusName: shelf,
+    }).unwrap();
+    setLibraryShelfLocal(shelf);
+    await refetchBook();
     setAddSheetVisible(false);
   };
 
-  const onRemoveFromLibrary = () => {
-    setLibraryShelf(null);
+  const onRemoveFromLibrary = async () => {
+    if (!resolvedBookId) {
+      return;
+    }
+    await removeBookFromLibrary({ bookId: resolvedBookId }).unwrap();
+    setLibraryShelfLocal(null);
+    await refetchBook();
     setMoveSheetVisible(false);
   };
 
@@ -124,10 +238,10 @@ export default function Book() {
           <View style={styles.divider} />
 
           <View style={styles.reviewsSection}>
-            {exampleReviews.map((r) => (
+            {reviews.map((r) => (
               <View key={r.id} style={styles.reviewItem}>
                 <View style={styles.reviewHeader}>
-                  <Image source={r.avatarSource} style={styles.reviewAvatar} resizeMode="cover" />
+                  <Image source={require('../assets/icons/profile-avatar.png')} style={styles.reviewAvatar} resizeMode="cover" />
                   <View style={styles.reviewHeaderText}>
                     <Text style={styles.reviewUserName} numberOfLines={1}>
                       {r.userName}
@@ -163,8 +277,17 @@ export default function Book() {
         visible={moveSheetVisible && libraryShelf != null}
         bookTitle={book.title}
         list={libraryShelf}
-        onMoveToShelf={(target) => {
-          setLibraryShelf(target);
+        onMoveToShelf={async (target) => {
+          if (!resolvedBookId) {
+            return;
+          }
+          await moveBookInLibrary({
+            bookId: resolvedBookId,
+            status: LIBRARY_STATUS[target],
+            statusName: target,
+          }).unwrap();
+          setLibraryShelfLocal(target);
+          await refetchBook();
           setMoveSheetVisible(false);
         }}
         onDelete={onRemoveFromLibrary}
