@@ -40,9 +40,9 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - Already implemented: book detail (`/api/books/{id}`), reviews (`/api/books/{id}/comments`), and library add/move/remove actions (`/api/books/{id}/library`) are backend-backed.
    - To implement: optional inline error toasts/loading states for mutation failures.
 
-10. `Genre` (`genre`) - **Status: Mocked**
-    - Already implemented: genre listing UI and drill-down navigation.
-    - To implement: books-by-genre query with pagination.
+10. `Genre` (`genre`) - **Status: Implemented**
+    - Already implemented: books-by-genre grid uses `/api/books/popular-by-genre` with pagination and opens `Book` by `bookId`.
+    - To implement: optional empty-state copy and retry CTA for no-results/error cases.
 
 11. `WantToRead` (`wantToRead`) - **Status: Mocked**
     - Already implemented: shelf UI with local move/delete interactions.
@@ -121,6 +121,7 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - `Genre` -> book list pagination works and item opens `Book`.
    - Full manual checklist: `app/tests/search.integration.checklist.md`.
    - Full manual checklist for `Book`: `app/tests/book.integration.checklist.md`.
+   - Full manual checklist for `Genre`: `app/tests/genre.integration.checklist.md`.
 
 4. **Recommendations mixed feed**
    - `Recommendations` loads books from `/api/books/recommended` and posts from `/api/posts/recommended`.
