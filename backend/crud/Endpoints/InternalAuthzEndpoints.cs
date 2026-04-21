@@ -46,6 +46,21 @@ public static class InternalAuthzEndpoints
             return comment is null ? Results.NotFound() : Results.Ok(comment);
         });
 
+        group.MapGet("/book-comments/{id:int}", async (CrudDbContext db, int id) =>
+        {
+            var comment = await db.BookComments
+                .Where(c => c.Id == id)
+                .Select(c => new
+                {
+                    id = c.Id,
+                    bookId = c.BookId,
+                    authorUserId = c.AuthorUserId
+                })
+                .FirstOrDefaultAsync();
+
+            return comment is null ? Results.NotFound() : Results.Ok(comment);
+        });
+
         group.MapGet("/communities/{id:int}", async (CrudDbContext db, int id) =>
         {
             var row = await db.Communities

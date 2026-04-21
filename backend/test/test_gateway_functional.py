@@ -181,6 +181,43 @@ class TestGateway:
         data = edit_resp.json()
         assert data["error"]["code"] == "forbidden"
 
+    def test_owner_enforcement_book_comments(self, gateway_base_url, seeded_books):
+        token_a = _create_user_token(gateway_base_url)
+        token_b = _create_user_token(gateway_base_url)
+
+        headers_a = {"Authorization": f"Bearer {token_a}"}
+        headers_b = {"Authorization": f"Bearer {token_b}"}
+
+        books = requests.get(f"{gateway_base_url}/api/books", timeout=15).json()
+        assert books, "expected seeded books"
+        book_id = books[0]["id"]
+
+        create_resp = requests.post(
+            f"{gateway_base_url}/api/books/{book_id}/comments",
+            headers=headers_a,
+            json={"content": "owner comment", "rating": 4},
+            timeout=15,
+        )
+        assert create_resp.status_code == 200, create_resp.text
+        comment_id = create_resp.json()["id"]
+
+        edit_other = requests.put(
+            f"{gateway_base_url}/api/book-comments/{comment_id}",
+            headers=headers_b,
+            json={"content": "should fail", "rating": 5},
+            timeout=15,
+        )
+        assert edit_other.status_code == 403
+        assert edit_other.json()["error"]["code"] == "forbidden"
+
+        delete_other = requests.delete(
+            f"{gateway_base_url}/api/book-comments/{comment_id}",
+            headers=headers_b,
+            timeout=15,
+        )
+        assert delete_other.status_code == 403
+        assert delete_other.json()["error"]["code"] == "forbidden"
+
     def test_moderator_enforcement(self, gateway_base_url, seeded_books):
         token_owner = _create_user_token(gateway_base_url)
         token_member = _create_user_token(gateway_base_url)

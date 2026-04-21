@@ -29,14 +29,13 @@ class TestCrudBooks:
         subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
 
     @staticmethod
-    def _seed_user_book(user_id: int, book_id: int, status: int, rating: int | None = None) -> None:
-        rating_sql = "NULL" if rating is None else str(rating)
+    def _seed_user_book(user_id: int, book_id: int, status: int) -> None:
         cmd = [
             "docker", "exec", "selectio_postgres",
             "psql", "-U", "postgres", "-d", "selectio_main", "-c",
-            f'INSERT INTO crud."UserBooks" ("UserId","BookId","Status","Rating") '
-            f"VALUES ({user_id},{book_id},{status},{rating_sql}) "
-            f'ON CONFLICT ("UserId","BookId") DO UPDATE SET "Status"=EXCLUDED."Status", "Rating"=EXCLUDED."Rating";'
+            f'INSERT INTO crud."UserBooks" ("UserId","BookId","Status") '
+            f"VALUES ({user_id},{book_id},{status}) "
+            f'ON CONFLICT ("UserId","BookId") DO UPDATE SET "Status"=EXCLUDED."Status";'
         ]
         subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
 
@@ -86,7 +85,6 @@ class TestCrudBooks:
             assert resp.status_code == 200
             payload = resp.json()
             assert payload["userStatus"] == "WantToRead"
-            assert payload["userRating"] is None
         finally:
             self._cleanup_user_book(user_id, book_id)
 
@@ -95,7 +93,7 @@ class TestCrudBooks:
         books = requests.get(f"{crud_base_url}/api/books/search", params={"query": "hobbit"}, timeout=5).json()
         assert books
         book_id = books[0]["id"]
-        self._seed_user_book(user_id, book_id, status=1, rating=4)
+        self._seed_user_book(user_id, book_id, status=1)
         try:
             resp = requests.get(
                 f"{crud_base_url}/api/books/search",
@@ -108,7 +106,6 @@ class TestCrudBooks:
             target = next((b for b in data if b["id"] == book_id), None)
             assert target is not None
             assert target["userStatus"] == "Reading"
-            assert target["userRating"] == 4
         finally:
             self._cleanup_user_book(user_id, book_id)
 
@@ -117,7 +114,7 @@ class TestCrudBooks:
         books = requests.get(f"{crud_base_url}/api/books", timeout=5).json()
         assert books
         book_id = books[0]["id"]
-        self._seed_user_book(user_id, book_id, status=0, rating=3)
+        self._seed_user_book(user_id, book_id, status=0)
         try:
             resp = requests.get(
                 f"{crud_base_url}/api/books",
@@ -129,7 +126,6 @@ class TestCrudBooks:
             target = next((b for b in data if b["id"] == book_id), None)
             assert target is not None
             assert target["userStatus"] == "WantToRead"
-            assert target["userRating"] == 3
         finally:
             self._cleanup_user_book(user_id, book_id)
 
@@ -138,7 +134,7 @@ class TestCrudBooks:
         books = requests.get(f"{crud_base_url}/api/books/popular", timeout=5).json()
         assert books
         book_id = books[0]["id"]
-        self._seed_user_book(user_id, book_id, status=2, rating=5)
+        self._seed_user_book(user_id, book_id, status=2)
         try:
             resp = requests.get(
                 f"{crud_base_url}/api/books/popular",
@@ -150,7 +146,6 @@ class TestCrudBooks:
             target = next((b for b in data if b["id"] == book_id), None)
             assert target is not None
             assert target["userStatus"] == "Read"
-            assert target["userRating"] == 5
         finally:
             self._cleanup_user_book(user_id, book_id)
 

@@ -183,6 +183,57 @@ public static class CommentEndpoints
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status404NotFound);
 
+        app.MapPut("/api/book-comments/{id:int}", async (HttpContext http, CrudDbContext db, int id, CreateBookCommentRequest body, CancellationToken cancellationToken) =>
+        {
+            var (_, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
+
+            var contentError = EndpointHelpers.RequireContent(body.Content);
+            if (contentError is not null) return contentError;
+
+            if (body.Rating is < 1 or > 5)
+            {
+                return Results.BadRequest(new { message = "rating must be between 1 and 5" });
+            }
+
+            var comment = await db.BookComments.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+            if (comment is null) return Results.NotFound();
+
+            comment.Content = body.Content!.Trim();
+            comment.Rating = body.Rating;
+            await db.SaveChangesAsync(cancellationToken);
+
+            var names = await CommentAuthorNames.ResolveAsync(db, new[] { comment.AuthorUserId }, cancellationToken);
+            var dto = new BookCommentDto(comment.Id, comment.BookId, comment.AuthorUserId, names[comment.AuthorUserId], comment.Content, comment.Rating, comment.CreatedAt);
+            return Results.Ok(dto);
+        })
+        .WithTags("Comments")
+        .WithSummary("Update a book review")
+        .WithDescription("Updates review text and rating for a review owned by the authenticated user (enforced at gateway).")
+        .Produces<BookCommentDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
+
+        app.MapDelete("/api/book-comments/{id:int}", async (HttpContext http, CrudDbContext db, int id, CancellationToken cancellationToken) =>
+        {
+            var (_, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
+
+            var comment = await db.BookComments.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+            if (comment is null) return Results.NotFound();
+
+            db.BookComments.Remove(comment);
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.Ok(new { message = "deleted" });
+        })
+        .WithTags("Comments")
+        .WithSummary("Delete a book review")
+        .WithDescription("Deletes a book review row (owner enforced at gateway).")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
+
         app.MapGet("/api/users/me/book-comments", async (HttpContext http, CrudDbContext db, int? page, int? pageSize, CancellationToken cancellationToken) =>
         {
             var (userId, error) = EndpointHelpers.RequireUserId(http);

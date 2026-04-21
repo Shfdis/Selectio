@@ -112,6 +112,42 @@ class TestCrudComments:
         assert "authorUsername" in listed
         assert listed["authorUsername"].startswith("user")
 
+    def test_book_comments_edit_delete(self, crud_base_url):
+        user_id = 6010
+        headers = {"X-User-Id": str(user_id)}
+        book_id = self._get_first_book_id(crud_base_url)
+
+        r_create = requests.post(
+            f"{crud_base_url}/api/books/{book_id}/comments",
+            json={"content": "Original review", "rating": 4},
+            headers=headers,
+            timeout=5,
+        )
+        assert r_create.status_code == 200
+        comment_id = r_create.json()["id"]
+
+        r_edit = requests.put(
+            f"{crud_base_url}/api/book-comments/{comment_id}",
+            json={"content": "Edited review", "rating": 5},
+            headers=headers,
+            timeout=5,
+        )
+        assert r_edit.status_code == 200
+        edited = r_edit.json()
+        assert edited["content"] == "Edited review"
+        assert edited["rating"] == 5
+
+        r_del = requests.delete(
+            f"{crud_base_url}/api/book-comments/{comment_id}",
+            headers=headers,
+            timeout=5,
+        )
+        assert r_del.status_code == 200
+
+        r_list = requests.get(f"{crud_base_url}/api/books/{book_id}/comments", timeout=5)
+        assert r_list.status_code == 200
+        assert all(c["id"] != comment_id for c in r_list.json())
+
     def test_my_book_comments_filters_and_paginates(self, crud_base_url):
         book_id = self._get_first_book_id(crud_base_url)
 

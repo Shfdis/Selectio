@@ -12,7 +12,6 @@ public sealed record BookDto(
     string CoverUrl,
     DateOnly? ReleaseDate,
     double? AverageRating,
-    LibraryStatus? UserStatus,
-    int? UserRating
+    LibraryStatus? UserStatus
 );
 

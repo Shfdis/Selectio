@@ -38,7 +38,6 @@ public static class GatewayAuthzClassifier
         }
 
         if (path.Contains("/library", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
-        if (path.Contains("/rate", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
         if (path.EndsWith("/join", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
         if (path.EndsWith("/leave", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
         if (path.Equals("/api/posts", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPost(method)) return AuthzRequirement.User;
@@ -55,6 +54,11 @@ public static class GatewayAuthzClassifier
         }
 
         if (path.StartsWith("/api/comments/", StringComparison.OrdinalIgnoreCase) && (HttpMethods.IsPut(method) || HttpMethods.IsDelete(method)))
+        {
+            return AuthzRequirement.Owner;
+        }
+
+        if (path.StartsWith("/api/book-comments/", StringComparison.OrdinalIgnoreCase) && (HttpMethods.IsPut(method) || HttpMethods.IsDelete(method)))
         {
             return AuthzRequirement.Owner;
         }

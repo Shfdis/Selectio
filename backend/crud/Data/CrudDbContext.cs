@@ -51,7 +51,6 @@ public class CrudDbContext : DbContext
         {
             e.HasKey(x => new { x.UserId, x.BookId });
             e.Property(x => x.Status).IsRequired();
-            e.Property(x => x.Rating);
             e.HasOne(x => x.Book).WithMany().HasForeignKey(x => x.BookId).OnDelete(DeleteBehavior.Cascade);
         });
 

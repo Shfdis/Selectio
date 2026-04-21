@@ -37,7 +37,7 @@ public static class LibraryEndpoints
                 await db.SaveChangesAsync();
             }
 
-            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status, userBook.Rating));
+            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status));
         })
         .WithTags("Library")
         .WithSummary("Add book to my library")
@@ -63,7 +63,7 @@ public static class LibraryEndpoints
             userBook.Status = body.Status;
             await db.SaveChangesAsync();
 
-            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status, userBook.Rating));
+            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status));
         })
         .WithTags("Library")
         .WithSummary("Update library status for a book")
@@ -95,35 +95,6 @@ public static class LibraryEndpoints
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status404NotFound);
 
-        app.MapPut("/api/books/{id:int}/rate", async (HttpContext http, CrudDbContext db, int id, SetRatingRequest body) =>
-        {
-            var (userId, error) = EndpointHelpers.RequireUserId(http);
-            if (error is not null) return error;
-
-            if (body.Rating is < 1 or > 5)
-            {
-                return Results.BadRequest(new { message = "rating must be between 1 and 5" });
-            }
-
-            var userBook = await db.UserBooks.FirstOrDefaultAsync(x => x.UserId == userId && x.BookId == id);
-            if (userBook is null)
-            {
-                return Results.NotFound();
-            }
-
-            userBook.Rating = body.Rating;
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status, userBook.Rating));
-        })
-        .WithTags("Library")
-        .WithSummary("Set my star rating for a library book")
-        .WithDescription("Rating must be 1–5. Book must already be in the user's library (404 otherwise).")
-        .Produces<UserLibraryStateDto>(StatusCodes.Status200OK)
-        .Produces(StatusCodes.Status400BadRequest)
-        .Produces(StatusCodes.Status401Unauthorized)
-        .Produces(StatusCodes.Status404NotFound);
-
         app.MapGet("/api/users/{id:int}/books", async (CrudDbContext db, int id, LibraryStatus? status, int? page, int? pageSize) =>
         {
             var (p, ps) = EndpointHelpers.NormalizePagination(page, pageSize, defaultPageSize: 20, maxPageSize: 100);
@@ -148,8 +119,7 @@ public static class LibraryEndpoints
                     x.b.Description,
                     x.b.Genre,
                     x.b.CoverUrl,
-                    x.ub.Status,
-                    x.ub.Rating
+                    x.ub.Status
                 ))
                 .ToListAsync();
 

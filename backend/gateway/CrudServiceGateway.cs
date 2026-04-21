@@ -114,6 +114,14 @@ public static class CrudServiceGateway
             return null;
         }
 
+        if (TryGetSingleSegmentId(path, "/api/book-comments/", out var bookCommentId))
+        {
+            var info = await authzClient.FetchBookCommentInfo(http, bookCommentId);
+            if (info is null) return Results.NotFound();
+            if (info.AuthorUserId != userId) return GatewayRequestUtils.Forbidden("not_owner");
+            return null;
+        }
+
         if (HttpMethods.IsPut(method) && TryGetSingleSegmentId(path, "/api/communities/", out var communityId))
         {
             var info = await authzClient.FetchCommunityOwnerInfo(http, communityId);

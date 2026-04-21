@@ -305,9 +305,6 @@ namespace crud.Migrations
                     b.Property<int>("BookId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("Rating")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 

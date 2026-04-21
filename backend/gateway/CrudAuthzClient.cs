@@ -46,6 +46,11 @@ public sealed class CrudAuthzClient(IHttpClientFactory clients, IConfiguration c
         return await SendRequestAsync<PostCommentInfo>(http, $"/internal/post-comments/{commentId}");
     }
 
+    public async Task<BookCommentInfo?> FetchBookCommentInfo(HttpContext http, int commentId)
+    {
+        return await SendRequestAsync<BookCommentInfo>(http, $"/internal/book-comments/{commentId}");
+    }
+
     public async Task<CommunityOwnerInfo?> FetchCommunityOwnerInfo(HttpContext http, int communityId)
     {
         return await SendRequestAsync<CommunityOwnerInfo>(http, $"/internal/communities/{communityId}");

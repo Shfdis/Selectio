@@ -109,18 +109,16 @@ public static class BookEndpoints
             }
 
             LibraryStatus? userStatus = null;
-            int? userRating = null;
             if (userId is not null)
             {
                 var ub = await db.UserBooks.FirstOrDefaultAsync(x => x.UserId == userId.Value && x.BookId == id);
                 if (ub is not null)
                 {
                     userStatus = ub.Status;
-                    userRating = ub.Rating;
                 }
             }
 
-            return Results.Ok(ToBookDto(book, null, userStatus, userRating));
+            return Results.Ok(ToBookDto(book, null, userStatus));
         });
 
         group.MapGet("/search", async (HttpContext http, CrudDbContext db, string? query, int? page, int? pageSize) =>
@@ -174,32 +172,30 @@ public static class BookEndpoints
             return new List<BookDto>();
         }
 
-        Dictionary<int, (LibraryStatus Status, int? Rating)> userLibrary = new();
+        Dictionary<int, LibraryStatus> userLibrary = new();
         if (userId is not null)
         {
             var ids = books.Select(b => b.Id).ToList();
             var entries = await db.UserBooks
                 .Where(ub => ub.UserId == userId.Value && ids.Contains(ub.BookId))
-                .Select(ub => new { ub.BookId, ub.Status, ub.Rating })
+                .Select(ub => new { ub.BookId, ub.Status })
                 .ToListAsync();
 
-            userLibrary = entries.ToDictionary(x => x.BookId, x => (x.Status, x.Rating));
+            userLibrary = entries.ToDictionary(x => x.BookId, x => x.Status);
         }
 
         return books.Select(b =>
         {
             LibraryStatus? status = null;
-            int? rating = null;
             if (userLibrary.TryGetValue(b.Id, out var ur))
             {
-                status = ur.Status;
-                rating = ur.Rating;
+                status = ur;
             }
-            return ToBookDto(b, null, status, rating);
+            return ToBookDto(b, null, status);
         }).ToList();
     }
 
-    private static BookDto ToBookDto(Book b, double? averageRating, LibraryStatus? userStatus, int? userRating) =>
+    private static BookDto ToBookDto(Book b, double? averageRating, LibraryStatus? userStatus) =>
         new(
             b.Id,
             b.Title,
@@ -210,8 +206,7 @@ public static class BookEndpoints
             b.CoverUrl,
             b.ReleaseDate,
             averageRating,
-            userStatus,
-            userRating
+            userStatus
         );
 
     private static (int page, int pageSize) NormalizePagination(int? page, int? pageSize)
