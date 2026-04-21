@@ -28,7 +28,7 @@ public static class EmbeddingAnnSearch
             FROM crud."Books" b
             WHERE b."Embedding" IS NOT NULL
               AND (@ex_len = 0 OR NOT (b."Id" = ANY (@ex)))
-            ORDER BY b."Embedding" <=> @query
+            ORDER BY b."Embedding" OPERATOR(public.<=>) @query
             LIMIT @lim OFFSET @off
             """,
             conn);
@@ -67,7 +67,7 @@ public static class EmbeddingAnnSearch
             WHERE p."Status" = @published
               AND p."Embedding" IS NOT NULL
               AND (@ex_len = 0 OR NOT (p."Id" = ANY (@ex)))
-            ORDER BY p."Embedding" <=> @query
+            ORDER BY p."Embedding" OPERATOR(public.<=>) @query
             LIMIT @lim OFFSET @off
             """,
             conn);
