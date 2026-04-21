@@ -6,6 +6,29 @@ import subprocess
 
 class TestCrudBooks:
     @staticmethod
+    def _seed_book(title: str, genre: str, second_genre: str, popularity: int) -> None:
+        esc_title = title.replace("'", "''")
+        esc_genre = genre.replace("'", "''")
+        esc_second = second_genre.replace("'", "''")
+        cmd = [
+            "docker", "exec", "selectio_postgres",
+            "psql", "-U", "postgres", "-d", "selectio_main", "-c",
+            f"INSERT INTO crud.\"Books\" (\"Title\",\"Author\",\"Description\",\"Genre\",\"SecondGenre\",\"CoverUrl\",\"Popularity\") "
+            f"VALUES ('{esc_title}','Seed Author','','{esc_genre}','{esc_second}','',{popularity});"
+        ]
+        subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
+
+    @staticmethod
+    def _cleanup_seeded_titles(titles: list[str]) -> None:
+        escaped = ", ".join("'" + t.replace("'", "''") + "'" for t in titles)
+        cmd = [
+            "docker", "exec", "selectio_postgres",
+            "psql", "-U", "postgres", "-d", "selectio_main", "-c",
+            f"DELETE FROM crud.\"Books\" WHERE \"Title\" IN ({escaped});"
+        ]
+        subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
+
+    @staticmethod
     def _seed_user_book(user_id: int, book_id: int, status: int, rating: int | None = None) -> None:
         rating_sql = "NULL" if rating is None else str(rating)
         cmd = [
@@ -130,6 +153,39 @@ class TestCrudBooks:
             assert target["userRating"] == 5
         finally:
             self._cleanup_user_book(user_id, book_id)
+
+    def test_popular_by_genre_matches_genre_or_second_genre(self, crud_base_url):
+        top = "GenreSeedTop"
+        second = "GenreSeedSecond"
+        titles = [top, second]
+        self._seed_book(top, "Fantasy", "Romance", 9000)
+        self._seed_book(second, "History", "Fantasy", 8000)
+        try:
+            resp = requests.get(
+                f"{crud_base_url}/api/books/popular-by-genre",
+                params={"genre": "fantasy", "pageSize": 20},
+                timeout=5,
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            found = [b["title"] for b in data if b["title"] in titles]
+            assert top in found
+            assert second in found
+        finally:
+            self._cleanup_seeded_titles(titles)
+
+    def test_recommended_books_requires_user(self, crud_base_url):
+        resp = requests.get(f"{crud_base_url}/api/books/recommended", timeout=5)
+        assert resp.status_code == 401
+
+    def test_recommended_books_returns_list_for_user(self, crud_base_url):
+        resp = requests.get(
+            f"{crud_base_url}/api/books/recommended",
+            headers={"X-User-Id": "6001"},
+            timeout=5,
+        )
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), list)
 
 
 if __name__ == "__main__":
