@@ -8,6 +8,7 @@ public sealed record BookDto(
     string Author,
     string Description,
     string Genre,
+    string SecondGenre,
     string CoverUrl,
     DateOnly? ReleaseDate,
     double? AverageRating,

@@ -39,6 +39,7 @@ public class CrudDbContext : DbContext
             e.Property(x => x.Author).IsRequired();
             e.Property(x => x.Description).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.Genre).IsRequired().HasDefaultValue(string.Empty);
+            e.Property(x => x.SecondGenre).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.CoverUrl).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.Popularity).HasDefaultValue(0);
             e.Property(x => x.ReleaseDate);
