@@ -1,25 +1,135 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import LibraryHeader from '../components/LibraryHeader';
 import BookRowCard from '../components/BookRowCard';
-import { useState } from 'react';
-import { inProgressBooks, libraryFilterGenres } from '../data/libraryBooks';
+import { useMemo, useState } from 'react';
 import LibrarySortSheet from '../components/LibrarySortSheet';
 import LibraryFilterSheet from '../components/LibraryFilterSheet';
 import LibraryMoveSheet from '../components/LibraryMoveSheet';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+import { useGetCurrentUserQuery } from '../slices/userSlice';
+import {
+  mapApiBookGenres,
+  useMoveBookInLibraryMutation,
+  useRemoveBookFromLibraryMutation,
+} from '../slices/booksSlice';
+import { useGetUserLibraryBooksQuery } from '../slices/profileSlice';
+
+const LIBRARY_STATUS = {
+  wantToRead: 0,
+  inProgress: 1,
+  read: 2,
+};
+const DEFAULT_BOOK_COVER = 'https://via.placeholder.com/120x120?text=Book';
+const normalizeGenre = (value) => String(value ?? '').trim();
 
 export default function InProgress() {
   const navigation = useNavigation();
   const [activeId, setActiveId] = useState(null);
   const [selectedSortId, setSelectedSortId] = useState('title-asc');
   const [selectedGenres, setSelectedGenres] = useState([]);
-  const [books, setBooks] = useState(inProgressBooks);
-  const [selectedBookIndex, setSelectedBookIndex] = useState(null);
+  const [selectedBookId, setSelectedBookId] = useState(null);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
+  const { data: currentUser } = useGetCurrentUserQuery();
+  const userId = currentUser?.id;
+  const {
+    data: libraryData = [],
+    isFetching,
+    isLoading,
+  } = useGetUserLibraryBooksQuery(
+    { userId, status: LIBRARY_STATUS.inProgress, page: 1, pageSize: 100 },
+    { skip: !userId },
+  );
+  const [moveBookInLibrary] = useMoveBookInLibraryMutation();
+  const [removeBookFromLibrary] = useRemoveBookFromLibraryMutation();
 
-  const selectedBook =
-    typeof selectedBookIndex === 'number' ? books[selectedBookIndex] : null;
+  const books = useMemo(
+    () =>
+      libraryData.map((book) => ({
+        id: book.bookId,
+        imageUrl: book.coverUrl || DEFAULT_BOOK_COVER,
+        title: book.title || 'Без названия',
+        author: book.author || 'Неизвестный автор',
+        ...mapApiBookGenres({ genre: book.genre, secondGenre: '' }),
+      })),
+    [libraryData],
+  );
+
+  const availableGenres = useMemo(() => {
+    const unique = new Set();
+    books.forEach((book) => {
+      const genre = normalizeGenre(book.genreFirst);
+      if (genre) {
+        unique.add(genre);
+      }
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [books]);
+
+  const visibleBooks = useMemo(() => {
+    const selectedGenresNormalized = selectedGenres.map((genre) => normalizeGenre(genre).toLowerCase());
+    const filtered = books.filter((book) => {
+      if (selectedGenresNormalized.length === 0) {
+        return true;
+      }
+      const genre = normalizeGenre(book.genreFirst).toLowerCase();
+      return selectedGenresNormalized.includes(genre);
+    });
+
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      switch (selectedSortId) {
+        case 'title-desc':
+          return String(b.title).localeCompare(String(a.title), 'ru');
+        case 'author-asc':
+          return Number(b.id || 0) - Number(a.id || 0);
+        case 'author-desc':
+          return Number(a.id || 0) - Number(b.id || 0);
+        case 'title-asc':
+        default:
+          return String(a.title).localeCompare(String(b.title), 'ru');
+      }
+    });
+    return sorted;
+  }, [books, selectedGenres, selectedSortId]);
+
+  const selectedBook = useMemo(
+    () => visibleBooks.find((book) => book.id === selectedBookId) ?? null,
+    [selectedBookId, visibleBooks],
+  );
+
+  const closeActionSheets = () => {
+    setActiveId(null);
+    setSelectedBookId(null);
+  };
+
+  const onMoveToShelf = async (targetShelf) => {
+    if (!selectedBook?.id || !Object.prototype.hasOwnProperty.call(LIBRARY_STATUS, targetShelf)) {
+      return;
+    }
+    try {
+      setIsMutating(true);
+      await moveBookInLibrary({ bookId: selectedBook.id, status: LIBRARY_STATUS[targetShelf] }).unwrap();
+      setSelectedBookId(null);
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const onConfirmDelete = async () => {
+    if (!selectedBook?.id) {
+      return;
+    }
+    try {
+      setIsMutating(true);
+      await removeBookFromLibrary({ bookId: selectedBook.id }).unwrap();
+      setIsDeleteConfirmVisible(false);
+      setSelectedBookId(null);
+    } finally {
+      setIsMutating(false);
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -32,18 +142,26 @@ export default function InProgress() {
         onToggleActive={(id) => setActiveId((prev) => (prev === id ? null : id))}
       />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {books.map((b, idx) => (
+        {(isLoading || isFetching) && books.length === 0 ? (
+          <ActivityIndicator style={styles.loader} size="large" color="#555C40" />
+        ) : null}
+        {!isLoading && !isFetching && visibleBooks.length === 0 ? (
+          <Text style={styles.emptyState}>В этом списке пока нет книг</Text>
+        ) : null}
+        {visibleBooks.map((b) => (
           <BookRowCard
-            key={`${b.title}-${idx}`}
+            key={`${b.id}-${b.title}`}
             book={b}
-            isMoreActive={selectedBookIndex === idx}
+            isMoreActive={selectedBookId === b.id}
             onPressMore={() => {
-              setSelectedBookIndex((prev) => (prev === idx ? null : idx));
+              setSelectedBookId((prev) => (prev === b.id ? null : b.id));
               setActiveId(null);
             }}
             onPressBook={() => {
-              setActiveId(null);
-              setSelectedBookIndex(null);
+              closeActionSheets();
+              if (b?.id) {
+                navigation.navigate('book', { bookId: b.id });
+              }
             }}
           />
         ))}
@@ -59,7 +177,7 @@ export default function InProgress() {
         layout="rows"
         rowsPreset="community"
         title="Жанры"
-        genres={libraryFilterGenres}
+        genres={availableGenres}
         selectedGenres={selectedGenres}
         onToggleGenre={(genre) =>
           setSelectedGenres((prev) =>
@@ -73,27 +191,20 @@ export default function InProgress() {
         visible={selectedBook != null}
         list="inProgress"
         bookTitle={selectedBook?.title || ''}
-        onMoveToShelf={() => {
-          if (typeof selectedBookIndex === 'number') {
-            setBooks((prev) => prev.filter((_, idx) => idx !== selectedBookIndex));
-          }
-          setSelectedBookIndex(null);
-        }}
+        onMoveToShelf={onMoveToShelf}
         onDelete={() => {
           setIsDeleteConfirmVisible(true);
         }}
-        onClose={() => setSelectedBookIndex(null)}
+        onClose={() => setSelectedBookId(null)}
       />
       <DeleteConfirmDialog
         visible={isDeleteConfirmVisible}
-        onCancel={() => setIsDeleteConfirmVisible(false)}
-        onConfirm={() => {
-          if (typeof selectedBookIndex === 'number') {
-            setBooks((prev) => prev.filter((_, idx) => idx !== selectedBookIndex));
+        onCancel={() => {
+          if (!isMutating) {
+            setIsDeleteConfirmVisible(false);
           }
-          setIsDeleteConfirmVisible(false);
-          setSelectedBookIndex(null);
         }}
+        onConfirm={onConfirmDelete}
       />
     </View>
   );
@@ -109,6 +220,17 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingBottom: '10%',
+  },
+  loader: {
+    marginTop: 24,
+  },
+  emptyState: {
+    marginTop: 24,
+    fontSize: 16,
+    color: '#81876D',
+    fontFamily: 'Playfair',
+    fontWeight: 400,
+    textAlign: 'center',
   },
 });
 
