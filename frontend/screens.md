@@ -32,9 +32,9 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - Already implemented: recommended books (`/api/books/recommended`) and recommended feed posts (`/api/posts/recommended`) are loaded from backend and rendered as a mixed stream.
    - To implement: optional server-driven ranking strategy to replace client-side 50/50 interleaving when product rules are finalized.
 
-8. `Communities` (tab inside `main`) - **Status: Mocked**
-   - Already implemented: community discovery/subscription sections and routing.
-   - To implement: backend-backed community lists, discover search, and feed data.
+8. `Communities` (tab inside `main`) - **Status: Implemented**
+   - Already implemented: subscriptions strip, created-communities strip, communities search, and feed are wired to backend endpoints.
+   - To implement: optional server endpoints for direct "my created communities" list (currently derived from `/api/communities` by `ownerUserId`).
 
 9. `Book` (`book`) - **Status: Mocked**
    - Already implemented: detail/reviews UI and library action controls.
@@ -114,6 +114,7 @@ This order is optimized to replace mock data safely while keeping user flows wor
 2. **Main tab data loading**
    - `profile`, `search`, `home` (recommendations), and `groups` tabs each trigger their backend query and render non-mock data.
    - Recommendations feed validates mixed book/post rendering with 50/50 random interleaving policy.
+   - Communities tab validates subscriptions, owned communities strip, search, and feed endpoints.
 
 3. **Book and search flow**
    - `Search` result -> `Book` opens correct book detail from API.
@@ -126,27 +127,32 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - Reaching the bottom loads and appends the next books page.
    - Full manual checklist: `app/tests/recommendations.integration.checklist.md`.
 
-5. **Library shelf lifecycle**
+5. **Communities tab integration**
+   - `Communities` loads subscriptions via `/api/users/{id}/communities`, discover/search via `/api/communities`, and feed via `/api/users/me/feed`.
+   - Cover cards and search results navigate with `communityId` route params.
+   - Full manual checklist: `app/tests/communities.integration.checklist.md`.
+
+6. **Library shelf lifecycle**
    - Add/move/remove book across `wantToRead`, `inProgress`, `readBooks` persists server-side and survives app reload.
 
-6. **Review lifecycle**
+7. **Review lifecycle**
    - Create review from `newReview`, edit from `editReview`, and verify updated review appears on both `readBooks` and `Book`.
 
-7. **Profile updates**
+8. **Profile updates**
    - `editProfile` save persists and re-renders in `Profile`.
    - `Profile` tabs (`books`, `reviews`, `favorites`) load from `/api/users/{id}/books`, `/api/users/me/book-comments`, and `/api/users/favorites` without mock data.
 
-8. **Community lifecycle**
+9. **Community lifecycle**
    - Create community (`newCommunity`), edit (`editCommunity`), and verify it appears in `allMyCreatedCommunities` and `myCommunity`.
 
-9. **Subscriptions and community lists**
+10. **Subscriptions and community lists**
    - Subscribe/unsubscribe in `community` updates `allMySubscriptions` and `communities` tab sections.
 
-10. **Post and comment lifecycle**
+11. **Post and comment lifecycle**
    - Create post (`newPost`) appears in `community`/`myCommunity` feed.
    - Open `postComments`, add comment, and verify persisted comments/like state.
 
-11. **Moderation flow**
+12. **Moderation flow**
    - `suggestedPosts` publish/delete mutations update queue and downstream community feed correctly.
 
 ## Notes
