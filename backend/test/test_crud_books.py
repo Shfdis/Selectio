@@ -7,14 +7,20 @@ import uuid as uuid_lib
 
 class TestCrudBooks:
     @staticmethod
-    def _seed_book_with_popularity(title: str, popularity: int, genre: str = "Fantasy") -> None:
+    def _seed_book_with_popularity(
+        title: str,
+        popularity: int,
+        genre: str = "Fantasy",
+        second_genre: str = "",
+    ) -> None:
         esc_title = title.replace("'", "''")
         esc_genre = genre.replace("'", "''")
+        esc_second_genre = second_genre.replace("'", "''")
         cmd = [
             "docker", "exec", "selectio_postgres",
             "psql", "-U", "postgres", "-d", "selectio_main", "-c",
-            f"INSERT INTO crud.\"Books\" (\"Title\", \"Author\", \"Description\", \"Genre\", \"CoverUrl\", \"Popularity\") "
-            f"VALUES ('{esc_title}', 'Popularity Test', '', '{esc_genre}', '', {popularity});"
+            f"INSERT INTO crud.\"Books\" (\"Title\", \"Author\", \"Description\", \"Genre\", \"SecondGenre\", \"CoverUrl\", \"Popularity\") "
+            f"VALUES ('{esc_title}', 'Popularity Test', '', '{esc_genre}', '{esc_second_genre}', '', {popularity});"
         ]
         subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
 
@@ -36,7 +42,7 @@ class TestCrudBooks:
         assert len(data) > 0
 
         first = data[0]
-        for key in ["id", "title", "author", "description", "genre", "coverUrl", "releaseDate", "averageRating"]:
+        for key in ["id", "title", "author", "description", "genre", "secondGenre", "coverUrl", "releaseDate", "averageRating"]:
             assert key in first
 
     def test_get_missing_book_returns_404(self, crud_base_url):
@@ -73,6 +79,34 @@ class TestCrudBooks:
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
+        for row in data:
+            genre_text = f"{row.get('genre', '')} {row.get('secondGenre', '')}".lower()
+            assert "fantasy" in genre_text
+
+    def test_popular_by_genre_matches_second_genre_and_orders_by_popularity(self, crud_base_url):
+        token = uuid_lib.uuid4().hex[:8]
+        top_secondary = f"PopularitySecondGenre_{token}_TopSecondary"
+        mid_primary = f"PopularitySecondGenre_{token}_MidPrimary"
+        non_match = f"PopularitySecondGenre_{token}_NoMatch"
+        titles = [top_secondary, mid_primary, non_match]
+
+        self._seed_book_with_popularity(top_secondary, 2400, genre="Romance", second_genre="Fantasy")
+        self._seed_book_with_popularity(mid_primary, 1600, genre="Fantasy", second_genre="Thriller")
+        self._seed_book_with_popularity(non_match, 3200, genre="Biography", second_genre="History")
+
+        try:
+            response = requests.get(
+                f"{crud_base_url}/api/books/popular-by-genre",
+                params={"genre": "Fantasy", "page": 1, "pageSize": 20},
+                timeout=5,
+            )
+            assert response.status_code == 200
+            data = response.json()
+            found = [b for b in data if b["title"] in titles]
+            assert [b["title"] for b in found[:2]] == [top_secondary, mid_primary]
+            assert all(b["title"] != non_match for b in data)
+        finally:
+            self._cleanup_seeded_titles(titles)
 
     def test_search_orders_by_popularity_desc_then_id(self, crud_base_url):
         token = uuid_lib.uuid4().hex[:8]

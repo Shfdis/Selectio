@@ -83,7 +83,9 @@ public static class BookEndpoints
             if (!string.IsNullOrWhiteSpace(genre))
             {
                 var g = genre.Trim();
-                q = q.Where(b => EF.Functions.ILike(b.Genre, $"%{g}%"));
+                q = q.Where(b =>
+                    EF.Functions.ILike(b.Genre, $"%{g}%") ||
+                    EF.Functions.ILike(b.SecondGenre, $"%{g}%"));
             }
             var items = await q
                 .OrderByDescending(b => b.Popularity)
@@ -219,7 +221,7 @@ public static class BookEndpoints
     }
 
     private static BookDto ToBookDto(Book b, double? averageRating, LibraryStatus? userStatus, int? userRating) =>
-        new(b.Id, b.Title, b.Author, b.Description, b.Genre, b.CoverUrl, b.ReleaseDate, averageRating, userStatus, userRating);
+        new(b.Id, b.Title, b.Author, b.Description, b.Genre, b.SecondGenre, b.CoverUrl, b.ReleaseDate, averageRating, userStatus, userRating);
 
     private static (int page, int pageSize) NormalizePagination(int? page, int? pageSize)
     {
