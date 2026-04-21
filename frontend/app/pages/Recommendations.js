@@ -65,88 +65,51 @@ export function RecommendationsMainContent() {
   const navigation = useNavigation();
   const scrollRef = useRef(null);
   const [booksPage, setBooksPage] = useState(1);
-  const [booksSource, setBooksSource] = useState(null);
   const [booksForRecommendations, setBooksForRecommendations] = useState([]);
   const [hasMoreBooks, setHasMoreBooks] = useState(true);
-  const appendedPagesRef = useRef(new Set());
+  const appendedPageNumbersRef = useRef(new Set());
   const isLoadingMoreRef = useRef(false);
+  const pageSize = 20;
   const {
     data: recommendedBooksPage = [],
-    isSuccess: isRecommendedPageSuccess,
     isFetching: isRecommendedPageFetching,
-  } = useGetRecommendedBooksQuery(
-    { page: booksPage, pageSize: 20 },
-    { skip: booksSource === 'popular' },
-  );
+  } = useGetRecommendedBooksQuery({ page: booksPage, pageSize });
   const {
     data: popularBooksPage = [],
-    isSuccess: isPopularPageSuccess,
     isFetching: isPopularPageFetching,
-  } = useGetPopularBooksQuery(
-    { page: booksPage, pageSize: 20 },
-    { skip: booksSource === 'recommended' },
-  );
+  } = useGetPopularBooksQuery({ page: booksPage, pageSize });
   const { data: recommendedPosts = [] } = useGetRecommendedPostsQuery({ page: 1, pageSize: 20 });
 
   useEffect(() => {
-    if (booksSource) {
+    if (isRecommendedPageFetching || isPopularPageFetching) {
       return;
     }
-    if (recommendedBooksPage.length > 0) {
-      setBooksSource('recommended');
+    if (appendedPageNumbersRef.current.has(booksPage)) {
       return;
     }
-    if (isRecommendedPageSuccess && popularBooksPage.length > 0) {
-      setBooksSource('popular');
-      return;
-    }
-    if (isRecommendedPageSuccess && isPopularPageSuccess) {
-      setBooksSource('popular');
-    }
-  }, [
-    booksSource,
-    recommendedBooksPage,
-    popularBooksPage,
-    isRecommendedPageSuccess,
-    isPopularPageSuccess,
-  ]);
+    appendedPageNumbersRef.current.add(booksPage);
+    const pageBooks = recommendedBooksPage.length > 0 ? recommendedBooksPage : popularBooksPage;
 
-  const activeBooksPage =
-    booksSource === 'popular'
-      ? popularBooksPage
-      : booksSource === 'recommended'
-        ? recommendedBooksPage
-        : recommendedBooksPage.length > 0
-          ? recommendedBooksPage
-          : popularBooksPage;
-
-  useEffect(() => {
-    if (!booksSource || activeBooksPage.length === 0) {
-      if (!booksSource && isRecommendedPageSuccess && isPopularPageSuccess && activeBooksPage.length === 0) {
-        setHasMoreBooks(false);
-      }
-      return;
-    }
-    const pageKey = `${booksSource}-${booksPage}`;
-    if (appendedPagesRef.current.has(pageKey)) {
-      return;
-    }
-    appendedPagesRef.current.add(pageKey);
     setBooksForRecommendations((prev) => {
       const existingIds = new Set(prev.map((book) => book?.id));
-      const incoming = activeBooksPage.filter((book) => !existingIds.has(book?.id));
+      const incoming = pageBooks.filter((book) => !existingIds.has(book?.id));
       return [...prev, ...incoming];
     });
-    if (activeBooksPage.length < 20) {
+
+    const recommendedHasMore = recommendedBooksPage.length >= pageSize;
+    const popularHasMore = popularBooksPage.length >= pageSize;
+    const noDataOnThisPage = recommendedBooksPage.length === 0 && popularBooksPage.length === 0;
+    if ((!recommendedHasMore && !popularHasMore) || noDataOnThisPage) {
       setHasMoreBooks(false);
     }
     isLoadingMoreRef.current = false;
   }, [
-    booksSource,
     booksPage,
-    activeBooksPage,
-    isRecommendedPageSuccess,
-    isPopularPageSuccess,
+    pageSize,
+    recommendedBooksPage,
+    popularBooksPage,
+    isRecommendedPageFetching,
+    isPopularPageFetching,
   ]);
 
   const scrollToTop = useCallback(() => {

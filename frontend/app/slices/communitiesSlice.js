@@ -1,6 +1,7 @@
 import { userApi } from "./userSlice";
 
 export const communitiesApi = userApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     searchCommunities: builder.query({
       query: ({ query = "", page = 1, pageSize = 20 } = {}) => ({
