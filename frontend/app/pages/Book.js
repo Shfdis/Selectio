@@ -104,8 +104,21 @@ export default function Book() {
     };
   }, [bookData]);
   const reviews = useMemo(
-    () =>
-      bookComments.map((review) => ({
+    () => {
+      const latestByAuthor = new Map();
+      bookComments.forEach((review) => {
+        const authorId = Number(review?.authorUserId);
+        if (!Number.isFinite(authorId) || authorId <= 0) {
+          return;
+        }
+        const existing = latestByAuthor.get(authorId);
+        const existingTime = existing ? Date.parse(existing.createdAt ?? '') : Number.NEGATIVE_INFINITY;
+        const currentTime = Date.parse(review?.createdAt ?? '');
+        if (!existing || (!Number.isNaN(currentTime) && currentTime >= existingTime)) {
+          latestByAuthor.set(authorId, review);
+        }
+      });
+      return Array.from(latestByAuthor.values()).map((review) => ({
         id: review.id,
         userName: review.authorUsername || 'Пользователь',
         dateText: formatDate(review.createdAt),
@@ -114,7 +127,8 @@ export default function Book() {
         rating: review.rating ?? 0,
         text: review.content || '',
         showEdit: false,
-      })),
+      }));
+    },
     [bookComments, book.author, book.title],
   );
 

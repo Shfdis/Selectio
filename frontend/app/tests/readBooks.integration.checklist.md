@@ -11,4 +11,5 @@ Run these checks with backend data and an authenticated user.
 7. Verify "Переместить в «В процессе»" triggers `PUT /api/books/{id}/library` with status `InProgress` and removes the book from `readBooks`.
 8. Verify "Удалить из списка" confirms and triggers `DELETE /api/books/{id}/library`, then removes the row from `readBooks`.
 9. Verify returning to `Profile` updates the `Прочитанное` count after move/delete actions.
-10. Verify adding/editing a review still updates the local `ReadBooks` UI (known gap: not yet persisted to backend).
+10. Verify adding a review from `ReadBooks` calls `newReview`, persists to backend, and updated text/rating appears after returning.
+11. Verify editing an existing review from `ReadBooks` calls `editReview`, persists via API, and updated text/rating appears after returning.

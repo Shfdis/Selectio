@@ -71,20 +71,36 @@ export function Profile() {
     [],
   );
   const reviews = useMemo(
-    () =>
-      reviewData.map((review) => ({
+    () => {
+      const latestByBookId = new Map();
+      reviewData.forEach((review) => {
+        const bookId = Number(review?.bookId ?? review?.book?.id);
+        if (!Number.isFinite(bookId) || bookId <= 0) {
+          return;
+        }
+        const existing = latestByBookId.get(bookId);
+        const existingTime = existing ? Date.parse(existing.createdAt ?? '') : Number.NEGATIVE_INFINITY;
+        const currentTime = Date.parse(review?.createdAt ?? '');
+        if (!existing || (!Number.isNaN(currentTime) && currentTime >= existingTime)) {
+          latestByBookId.set(bookId, review);
+        }
+      });
+      return Array.from(latestByBookId.values()).map((review) => ({
         id: review.id,
+        bookId: Number(review?.bookId ?? review?.book?.id),
         title: review.book?.title || 'Без названия',
         author: review.book?.author || 'Неизвестный автор',
         rating: review.rating ?? 0,
         text: review.content || '',
         book: {
+          id: Number(review?.bookId ?? review?.book?.id),
           imageUrl: review.book?.coverUrl,
           title: review.book?.title || 'Без названия',
           author: review.book?.author || 'Неизвестный автор',
           ...mapApiBookGenres(review.book),
         },
-      })),
+      }));
+    },
     [reviewData],
   );
   const favoritePosts = useMemo(
