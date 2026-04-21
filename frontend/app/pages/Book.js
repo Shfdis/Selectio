@@ -24,6 +24,7 @@ const LIBRARY_STATUS = {
 const LIBRARY_STATUS_BY_NAME = {
   wanttoread: 'wantToRead',
   inprogress: 'inProgress',
+  reading: 'inProgress',
   read: 'read',
 };
 const LIBRARY_STATUS_REVERSE = {

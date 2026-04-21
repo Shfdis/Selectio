@@ -44,17 +44,17 @@ This order is optimized to replace mock data safely while keeping user flows wor
     - Already implemented: books-by-genre grid uses `/api/books/popular-by-genre` with pagination and opens `Book` by `bookId`.
     - To implement: optional empty-state copy and retry CTA for no-results/error cases.
 
-11. `WantToRead` (`wantToRead`) - **Status: Mocked**
-    - Already implemented: shelf UI with local move/delete interactions.
-    - To implement: backend shelf query and move/delete mutations.
+11. `WantToRead` (`wantToRead`) - **Status: Implemented**
+    - Already implemented: shelf list is loaded from `/api/users/{id}/books?status=WantToRead`, and move/delete actions are persisted via `PUT/DELETE /api/books/{id}/library`.
+    - To implement: optional pagination for very large shelves and mutation error toasts.
 
-12. `InProgress` (`inProgress`) - **Status: Mocked**
-    - Already implemented: shelf UI with local-only state updates.
-    - To implement: backend shelf query and state-changing mutations.
+12. `InProgress` (`inProgress`) - **Status: Implemented**
+    - Already implemented: shelf list is loaded from `/api/users/{id}/books?status=InProgress`, and move/delete actions are persisted via `PUT/DELETE /api/books/{id}/library`.
+    - To implement: optional pagination for very large shelves and mutation error toasts.
 
-13. `ReadBooks` (`readBooks`) - **Status: Mocked**
-    - Already implemented: read shelf UI and local review/rating entry points.
-    - To implement: backend read shelf + persisted ratings/reviews.
+13. `ReadBooks` (`readBooks`) - **Status: Partially implemented**
+    - Already implemented: read shelf list is loaded from `/api/users/{id}/books?status=Read`, move/delete actions are persisted via `PUT/DELETE /api/books/{id}/library`, and API `rating` is displayed in the list.
+    - To implement: persist `newReview`/`editReview` through `/api/books/{id}/comments` and `/api/books/{id}/rate` instead of local-only review update params.
 
 14. `NewReview` (`newReview`) - **Status: Mocked**
     - Already implemented: review form and navigation return flow.
@@ -136,7 +136,13 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - Full manual checklist: `app/tests/communities.integration.checklist.md`.
 
 6. **Library shelf lifecycle**
+   - `wantToRead` screen loads from backend (`/api/users/{id}/books` with status filter), supports move/delete via `/api/books/{id}/library`, and opens `Book` with valid `bookId`.
+   - `inProgress` screen loads from backend (`/api/users/{id}/books` with status filter), supports move/delete via `/api/books/{id}/library`, and opens `Book` with valid `bookId`.
+   - `readBooks` screen loads from backend (`/api/users/{id}/books` with status filter), supports move/delete via `/api/books/{id}/library`, and shows API `rating`.
    - Add/move/remove book across `wantToRead`, `inProgress`, `readBooks` persists server-side and survives app reload.
+   - Full manual checklist for `WantToRead`: `app/tests/wantToRead.integration.checklist.md`.
+   - Full manual checklist for `InProgress`: `app/tests/inProgress.integration.checklist.md`.
+   - Full manual checklist for `ReadBooks`: `app/tests/readBooks.integration.checklist.md`.
 
 7. **Review lifecycle**
    - Create review from `newReview`, edit from `editReview`, and verify updated review appears on both `readBooks` and `Book`.
