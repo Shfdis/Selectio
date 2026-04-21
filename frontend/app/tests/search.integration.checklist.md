@@ -11,3 +11,4 @@ Run these checks against a running backend and seeded data.
 7. Tap a result and verify navigation to `book` with `bookId` param.
 8. Tap a genre card and verify navigation to `genre` with `genreName` param.
 9. Search for random text and confirm empty-state "Ничего не найдено".
+10. Verify genre cards are derived from both `genre` and `secondGenre` fields without duplicates.

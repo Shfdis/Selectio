@@ -5,23 +5,42 @@ import HorizontalCoverSection from '../components/HorizontalCoverSection';
 import SearchHeader, { searchHeaderHeight } from '../components/SearchHeader';
 import BookRowCard from '../components/BookRowCard';
 import SearchResultsSheet from '../components/SearchResults';
-import { useGetPopularBooksQuery, useGetRecommendedBooksQuery, useSearchBooksQuery } from '../slices/booksSlice';
+import {
+  mapApiBookGenres,
+  useGetPopularBooksQuery,
+  useGetRecommendedBooksQuery,
+  useLazyGetPopularBooksByGenreQuery,
+  useSearchBooksQuery,
+} from '../slices/booksSlice';
 
 const GENRES_PER_COLUMN = 2;
 const DEFAULT_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
+const FIXED_GENRES = [
+  'детское',
+  'графический роман',
+  'фэнтези',
+  'проза',
+  'исторический роман',
+  'детектив',
+  'нон-фикшн',
+  'поэзия',
+  'романтика',
+  'подростковое',
+];
 
 function toBookCardModel(book) {
-  const genre = (book?.genre || '').trim();
-  const [genreFirst = '', ...restGenres] = genre.split(/\s+/);
+  const { genreFirst, genreSecond } = mapApiBookGenres(book);
   return {
     id: book?.id,
     imageUrl: book?.coverUrl || DEFAULT_COVER_URI,
     title: book?.title || 'Без названия',
     author: book?.author || 'Неизвестный автор',
     genreFirst,
-    genreSecond: restGenres.join(' '),
+    genreSecond,
   };
 }
+
+const normalizeGenre = (value) => String(value ?? '').trim().toLowerCase();
 
 function splitGenreTitleForCard(label) {
   const trimmed = String(label).trim();
@@ -60,10 +79,16 @@ export function Search() {
   const suppressResultsSheetAutoOpenUntilRef = useRef(0);
   const { data: recommendedBooks = [] } = useGetRecommendedBooksQuery({ page: 1, pageSize: 10 });
   const { data: popularBooks = [] } = useGetPopularBooksQuery({ page: 1, pageSize: 12 });
+  const [triggerPopularByGenre] = useLazyGetPopularBooksByGenreQuery();
   const { data: searchBooks = [] } = useSearchBooksQuery(
     { query: trimmedQuery, page: 1, pageSize: 20 },
     { skip: trimmedQuery.length === 0 },
   );
+  const [genreCoverMap, setGenreCoverMap] = useState(() => {
+    const initial = new Map();
+    FIXED_GENRES.forEach((genre) => initial.set(normalizeGenre(genre), DEFAULT_COVER_URI));
+    return initial;
+  });
 
   const recommendedCovers = useMemo(
     () => recommendedBooks.slice(0, 8).map((book) => book.coverUrl || DEFAULT_COVER_URI),
@@ -116,20 +141,36 @@ export function Search() {
     navigation.navigate('genre', { genreName });
   };
 
-  const genreCoverMap = useMemo(() => {
-    const map = new Map();
-    popularBooks.forEach((book) => {
-      const label = (book?.genre || '').trim();
-      if (!label || map.has(label)) {
+  useEffect(() => {
+    let isMounted = true;
+    const loadGenreCovers = async () => {
+      const entries = await Promise.all(
+        FIXED_GENRES.map(async (genre) => {
+          const normalized = normalizeGenre(genre);
+          try {
+            const data = await triggerPopularByGenre({ genre, page: 1, pageSize: 1 }, true).unwrap();
+            const coverUri = data?.[0]?.coverUrl || DEFAULT_COVER_URI;
+            return [normalized, coverUri];
+          } catch {
+            return [normalized, DEFAULT_COVER_URI];
+          }
+        }),
+      );
+
+      if (!isMounted) {
         return;
       }
-      map.set(label, book?.coverUrl || DEFAULT_COVER_URI);
-    });
-    return map;
-  }, [popularBooks]);
+      setGenreCoverMap(new Map(entries));
+    };
+
+    loadGenreCovers();
+    return () => {
+      isMounted = false;
+    };
+  }, [triggerPopularByGenre]);
 
   const genreColumns = useMemo(() => {
-    const list = Array.from(genreCoverMap.keys());
+    const list = FIXED_GENRES;
     const columns = [];
     for (let i = 0; i < list.length; i += GENRES_PER_COLUMN) {
       columns.push(list.slice(i, i + GENRES_PER_COLUMN));
@@ -191,7 +232,7 @@ export function Search() {
                   <GenreCard
                     key={`${colIdx}-${rowIdx}-${label}`}
                     label={label}
-                    coverUri={genreCoverMap.get(label) || DEFAULT_COVER_URI}
+                    coverUri={genreCoverMap.get(normalizeGenre(label)) || DEFAULT_COVER_URI}
                     onPressGenre={onPressGenre}
                   />
                 ))}

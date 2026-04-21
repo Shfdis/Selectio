@@ -2,7 +2,7 @@ import { View, StyleSheet, Image, Pressable, ScrollView, useWindowDimensions, Ac
 import { useRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import PageHeader from '../components/PageHeader';
-import { useGetPopularBooksByGenreQuery } from '../slices/booksSlice';
+import { mapApiBookGenres, useGetPopularBooksByGenreQuery } from '../slices/booksSlice';
 
 const DEFAULT_COVER_URI = 'https://via.placeholder.com/104x148?text=Book';
 const PAGE_SIZE = 20;
@@ -45,7 +45,10 @@ export default function Genre() {
     }
     const selectedGenre = normalizeGenre(genreName);
     const filteredBySelectedGenre = pageData.filter(
-      (item) => normalizeGenre(item?.genre) === selectedGenre,
+      (item) => {
+        const { genreFirst, genreSecond } = mapApiBookGenres(item);
+        return normalizeGenre(genreFirst) === selectedGenre || normalizeGenre(genreSecond) === selectedGenre;
+      },
     );
     loadedPagesRef.current.add(pageKey);
     setBooks((prev) => {

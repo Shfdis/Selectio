@@ -7,6 +7,7 @@ import ReviewCard from '../components/ReviewCard';
 import BookAddToLibrary from '../components/BookAddToLibrary';
 import LibraryMoveSheet, { LIBRARY_SHELF_ICONS, LIBRARY_SHELF_LABELS } from '../components/LibraryMoveSheet';
 import {
+  mapApiBookGenres,
   useAddBookToLibraryMutation,
   useGetBookByIdQuery,
   useGetBookCommentsQuery,
@@ -89,8 +90,7 @@ export default function Book() {
     setLibraryShelfLocal(libraryShelfFromApi);
   }, [libraryShelfFromApi, resolvedBookId]);
   const book = useMemo(() => {
-    const genre = (bookData?.genre || '').trim();
-    const [genreFirst = '', ...restGenres] = genre.split(/\s+/);
+    const { genreFirst, genreSecond } = mapApiBookGenres(bookData);
     return {
       id: bookData?.id,
       imageUrl: bookData?.coverUrl || DEFAULT_BOOK_COVER,
@@ -98,7 +98,7 @@ export default function Book() {
       title: bookData?.title || 'Без названия',
       author: bookData?.author || 'Неизвестный автор',
       genreFirst,
-      genreSecond: restGenres.join(' '),
+      genreSecond,
       description: bookData?.description || '',
     };
   }, [bookData]);

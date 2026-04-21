@@ -29,8 +29,8 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - To implement: add pagination/infinite-scroll and dedicated trending source when backend endpoint is available.
 
 7. `Recommendations` (tab inside `main`) - **Status: Implemented**
-   - Already implemented: recommended books (`/api/books/recommended`) and recommended feed posts (`/api/posts/recommended`) are loaded from backend and rendered as a mixed stream.
-   - To implement: optional server-driven ranking strategy to replace client-side 50/50 interleaving when product rules are finalized.
+   - Already implemented: recommended books (`/api/books/recommended`) are shown in the top books rail and recommended posts (`/api/posts/recommended`) are shown in the feed.
+   - To implement: optional dedicated pagination UX for the top books rail.
 
 8. `Communities` (tab inside `main`) - **Status: Implemented**
    - Already implemented: subscriptions strip, created-communities strip, communities search, and feed are wired to backend endpoints.
@@ -119,14 +119,15 @@ This order is optimized to replace mock data safely while keeping user flows wor
 3. **Book and search flow**
    - `Search` result -> `Book` opens correct book detail from API.
    - `Genre` -> book list pagination works and item opens `Book`.
+   - `genre`/`secondGenre` backend fields are mapped to UI genre chips/cards consistently.
    - Full manual checklist: `app/tests/search.integration.checklist.md`.
    - Full manual checklist for `Book`: `app/tests/book.integration.checklist.md`.
    - Full manual checklist for `Genre`: `app/tests/genre.integration.checklist.md`.
 
 4. **Recommendations mixed feed**
-   - `Recommendations` loads books from `/api/books/recommended` and posts from `/api/posts/recommended`.
-   - Mixed feed interleaves item types with per-item 50/50 chance when both pools are non-empty.
-   - Reaching the bottom loads and appends the next books page.
+   - `Recommendations` loads books from `/api/books/recommended` for the books rail and posts from `/api/posts/recommended` for the feed.
+   - Feed contains post cards only (no standalone book rows).
+   - Reaching the bottom loads and appends the next books page for recommendations.
    - Full manual checklist: `app/tests/recommendations.integration.checklist.md`.
 
 5. **Communities tab integration**
