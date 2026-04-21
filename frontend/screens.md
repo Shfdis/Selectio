@@ -52,17 +52,17 @@ This order is optimized to replace mock data safely while keeping user flows wor
     - Already implemented: shelf list is loaded from `/api/users/{id}/books?status=InProgress`, and move/delete actions are persisted via `PUT/DELETE /api/books/{id}/library`.
     - To implement: optional pagination for very large shelves and mutation error toasts.
 
-13. `ReadBooks` (`readBooks`) - **Status: Partially implemented**
-    - Already implemented: read shelf list is loaded from `/api/users/{id}/books?status=Read`, move/delete actions are persisted via `PUT/DELETE /api/books/{id}/library`, and API `rating` is displayed in the list.
-    - To implement: persist `newReview`/`editReview` through `/api/books/{id}/comments` and `/api/books/{id}/rate` instead of local-only review update params.
+13. `ReadBooks` (`readBooks`) - **Status: Implemented**
+    - Already implemented: read shelf list is loaded from `/api/users/{id}/books?status=Read`, move/delete actions are persisted via `PUT/DELETE /api/books/{id}/library`, and rating/review edit entry points are resolved from backend data.
+    - To implement: optional dedicated pagination for large read shelves.
 
-14. `NewReview` (`newReview`) - **Status: Mocked**
-    - Already implemented: review form and navigation return flow.
-    - To implement: create-review API mutation.
+14. `NewReview` (`newReview`) - **Status: Implemented**
+    - Already implemented: review form submits rating and review text via `PUT /api/books/{id}/rate` and `POST /api/books/{id}/comments`.
+    - To implement: optional inline validation/error messaging.
 
-15. `EditReview` (`editReview`) - **Status: Mocked**
-    - Already implemented: edit-review form and local update flow.
-    - To implement: update-review API mutation.
+15. `EditReview` (`editReview`) - **Status: Implemented**
+    - Already implemented: edit-review form updates rating via `PUT /api/books/{id}/rate`, updates existing review via `PUT /api/book-comments/{id}`, and supports delete via `DELETE /api/book-comments/{id}`.
+    - To implement: optional inline error toasts for mutation failures.
 
 16. `EditProfile` (`editProfile`) - **Status: Implemented (core)**
     - Already implemented: profile fetch and update mutation.
@@ -145,7 +145,12 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - Full manual checklist for `ReadBooks`: `app/tests/readBooks.integration.checklist.md`.
 
 7. **Review lifecycle**
-   - Create review from `newReview`, edit from `editReview`, and verify updated review appears on both `readBooks` and `Book`.
+   - Create review from `newReview` persists via `POST /api/books/{id}/comments` and rating via `PUT /api/books/{id}/rate`.
+   - Edit review from `editReview` persists edited text/rating via `PUT /api/book-comments/{id}` plus `PUT /api/books/{id}/rate`.
+   - Delete review from `editReview` persists via `DELETE /api/book-comments/{id}`.
+   - Verify updated review appears on both `readBooks` and `Book`.
+   - Full manual checklist for `NewReview`: `app/tests/newReview.integration.checklist.md`.
+   - Full manual checklist for `EditReview`: `app/tests/editReview.integration.checklist.md`.
 
 8. **Profile updates**
    - `editProfile` save persists and re-renders in `Profile`.

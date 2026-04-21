@@ -58,6 +58,29 @@ export const booksApi = userApi.injectEndpoints({
       }),
       providesTags: ["Books"],
     }),
+    createBookComment: builder.mutation({
+      query: ({ bookId, content, rating }) => ({
+        url: `/api/books/${bookId}/comments`,
+        method: "POST",
+        body: { content, rating },
+      }),
+      invalidatesTags: ["User", "Books", "RecommendedBooks"],
+    }),
+    updateBookComment: builder.mutation({
+      query: ({ commentId, content, rating }) => ({
+        url: `/api/book-comments/${commentId}`,
+        method: "PUT",
+        body: { content, rating },
+      }),
+      invalidatesTags: ["User", "Books", "RecommendedBooks"],
+    }),
+    deleteBookComment: builder.mutation({
+      query: ({ commentId }) => ({
+        url: `/api/book-comments/${commentId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["User", "Books", "RecommendedBooks"],
+    }),
     addBookToLibrary: builder.mutation({
       query: ({ bookId, status }) => ({
         url: `/api/books/${bookId}/library`,
@@ -92,6 +115,9 @@ export const {
   useGetRecommendedBooksQuery,
   useGetBookByIdQuery,
   useGetBookCommentsQuery,
+  useCreateBookCommentMutation,
+  useUpdateBookCommentMutation,
+  useDeleteBookCommentMutation,
   useAddBookToLibraryMutation,
   useMoveBookInLibraryMutation,
   useRemoveBookFromLibraryMutation,

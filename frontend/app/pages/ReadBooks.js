@@ -2,7 +2,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { useNavigation } from '@react-navigation/native';
 import LibraryHeader from '../components/LibraryHeader';
 import BookRowCard from '../components/BookRowCard';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import LibrarySortSheet from '../components/LibrarySortSheet';
 import LibraryFilterSheet from '../components/LibraryFilterSheet';
 import LibraryMoveSheet from '../components/LibraryMoveSheet';
@@ -13,7 +13,7 @@ import {
   useMoveBookInLibraryMutation,
   useRemoveBookFromLibraryMutation,
 } from '../slices/booksSlice';
-import { useGetUserLibraryBooksQuery } from '../slices/profileSlice';
+import { useGetMyBookCommentsQuery, useGetUserLibraryBooksQuery } from '../slices/profileSlice';
 
 const LIBRARY_STATUS = {
   wantToRead: 0,
@@ -23,7 +23,7 @@ const LIBRARY_STATUS = {
 const DEFAULT_BOOK_COVER = 'https://via.placeholder.com/120x120?text=Book';
 const normalizeGenre = (value) => String(value ?? '').trim();
 
-export default function ReadBooks({ route }) {
+export default function ReadBooks() {
   const navigation = useNavigation();
   const [activeId, setActiveId] = useState(null);
   const [selectedSortId, setSelectedSortId] = useState('title-asc');
@@ -43,6 +43,7 @@ export default function ReadBooks({ route }) {
   );
   const [moveBookInLibrary] = useMoveBookInLibraryMutation();
   const [removeBookFromLibrary] = useRemoveBookFromLibraryMutation();
+  const { data: myBookComments = [] } = useGetMyBookCommentsQuery(undefined, { skip: !userId });
 
   const books = useMemo(
     () =>
@@ -100,47 +101,47 @@ export default function ReadBooks({ route }) {
     [selectedBookId, visibleBooks],
   );
 
-  const initialRatings = useMemo(
+  const myCommentsByBookId = useMemo(() => {
+    const map = new Map();
+    myBookComments.forEach((comment) => {
+      const bookId = Number(comment?.bookId);
+      if (!Number.isFinite(bookId) || bookId <= 0) {
+        return;
+      }
+      const existing = map.get(bookId);
+      const existingTime = existing ? Date.parse(existing.createdAt ?? '') : Number.NEGATIVE_INFINITY;
+      const currentTime = Date.parse(comment?.createdAt ?? '');
+      if (!existing || (!Number.isNaN(currentTime) && currentTime >= existingTime)) {
+        map.set(bookId, comment);
+      }
+    });
+    return map;
+  }, [myBookComments]);
+
+  const userRatings = useMemo(() => {
+    const ratings = Object.fromEntries(
+      books.map((book) => [book.id, typeof book?.userRating === 'number' ? book.userRating : null]),
+    );
+    books.forEach((book) => {
+      const comment = myCommentsByBookId.get(book.id);
+      if (comment && typeof comment.rating === 'number') {
+        ratings[book.id] = comment.rating;
+      }
+    });
+    return ratings;
+  }, [books, myCommentsByBookId]);
+
+  const userReviewTexts = useMemo(
     () =>
       Object.fromEntries(
-        books.map((book) => [book.id, typeof book?.userRating === 'number' ? book.userRating : null]),
+        books.map((book) => [book.id, myCommentsByBookId.get(book.id)?.content ?? '']),
       ),
-    [books],
+    [books, myCommentsByBookId],
   );
-  const [userRatings, setUserRatings] = useState({});
-  const [userReviewTexts, setUserReviewTexts] = useState({});
-
-  useEffect(() => {
-    setUserRatings((prev) => ({ ...initialRatings, ...prev }));
-    setUserReviewTexts((prev) => ({ ...Object.fromEntries(books.map((book) => [book.id, ''])), ...prev }));
-  }, [books, initialRatings]);
-
-  useEffect(() => {
-    const update = route?.params?.reviewUpdate;
-    if (!update) return;
-
-    const { idx, rating, text } = update;
-    const updatedBookId = typeof idx === 'number' ? visibleBooks[idx]?.id : null;
-    if (updatedBookId && typeof rating === 'number') {
-      setUserRatings((prev) => {
-        const next = { ...prev };
-        next[updatedBookId] = rating;
-        return next;
-      });
-      if (typeof text === 'string') {
-        setUserReviewTexts((prev) => {
-          const next = { ...prev };
-          next[updatedBookId] = text;
-          return next;
-        });
-      }
-    }
-    navigation.setParams({ reviewUpdate: undefined });
-  }, [navigation, route?.params?.reviewUpdate, visibleBooks]);
 
   const onPressNewReview = (book, idx) => {
     setActiveId(null);
-    navigation.navigate('newReview', { book, idx });
+    navigation.navigate('newReview', { book, idx, bookId: book?.id });
   };
 
   const onPressUserRating = (book, idx) => {
@@ -148,10 +149,12 @@ export default function ReadBooks({ route }) {
     setSelectedBookId(null);
     const rating = userRatings[book?.id];
     if (typeof rating !== 'number' || Number.isNaN(rating)) return;
+    const selectedCommentId = myCommentsByBookId.get(book?.id)?.id;
     navigation.navigate('editReview', {
       review: {
-        id: `read-books-${idx}`,
+        id: selectedCommentId,
         idx,
+        bookId: book?.id,
         book,
         rating,
         text: userReviewTexts[book?.id] ?? '',

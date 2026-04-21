@@ -1,37 +1,30 @@
 import { useState } from 'react';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import ReviewEditorScreen from '../components/ReviewEditor';
+import { useCreateBookCommentMutation } from '../slices/booksSlice';
 
 export default function NewReview({ route }) {
   const navigation = useNavigation();
+  const [createBookComment, { isLoading: isCreatingComment }] = useCreateBookCommentMutation();
 
   const book = route?.params?.book;
-  const idx = route?.params?.idx;
 
   const [rating, setRating] = useState(0);
   const [text, setText] = useState('');
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
+    const bookId = Number(book?.id);
+    if (!Number.isFinite(bookId) || bookId <= 0) {
+      return;
+    }
     const safeRating = Math.max(1, Math.min(5, Math.floor(rating)));
-
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 1,
-        routes: [
-          { name: 'main', params: { mainTab: 'profile' } },
-          {
-            name: 'readBooks',
-            params: {
-              reviewUpdate: {
-                idx,
-                rating: safeRating,
-                text: typeof text === 'string' ? text : '',
-              },
-            },
-          },
-        ],
-      }),
-    );
+    const textStr = typeof text === 'string' ? text : '';
+    try {
+      await createBookComment({ bookId, rating: safeRating, content: textStr }).unwrap();
+    } catch (error) {
+      throw error;
+    }
+    navigation.goBack();
   };
 
   return (
@@ -44,7 +37,8 @@ export default function NewReview({ route }) {
       onChangeText={setText}
       onPressBack={() => navigation.goBack()}
       onPressConfirm={onSubmit}
-      confirmDisabled={rating < 1}
+      inputsDisabled={isCreatingComment}
+      confirmDisabled={rating < 1 || isCreatingComment}
     />
   );
 }
