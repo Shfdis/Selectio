@@ -13,6 +13,7 @@ public class Book
     public string Description { get; set; } = string.Empty;
     public string Genre { get; set; } = string.Empty;
     public string CoverUrl { get; set; } = string.Empty;
+    public int Popularity { get; set; }
     public DateOnly? ReleaseDate { get; set; }
     public Vector? Embedding { get; set; }
 }

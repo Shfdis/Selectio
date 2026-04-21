@@ -20,3 +20,32 @@ The `vector` extension is installed in the **`public`** schema so Npgsql’s `Us
 
 - `GET /api/books/recommended` and `GET /api/posts/recommended` use pgvector **cosine distance** with the HNSW-backed columns (ANN-style `ORDER BY ... <=> query`).
 - If no embeddings are loaded, these endpoints return empty lists; the app should fall back to popular/search lists.
+
+## Syncing book popularity into CRUD
+
+CRUD persists book popularity on `crud."Books"."Popularity"` and uses it for non-recommendation listing order. Recompute popularity in recsys first (on `recsys.public.works.popularity`), then sync into CRUD.
+
+Example SQL (run against CRUD DB after exporting/importing `work_id,popularity` into a temp table):
+
+```sql
+ALTER TABLE crud."Books" ADD COLUMN IF NOT EXISTS "Popularity" integer NOT NULL DEFAULT 0;
+
+DROP TABLE IF EXISTS tmp_work_popularity;
+CREATE TEMP TABLE tmp_work_popularity (
+  work_id text PRIMARY KEY,
+  popularity integer NOT NULL
+);
+
+-- Load via COPY from CSV with columns: work_id,popularity
+-- \copy tmp_work_popularity(work_id, popularity) FROM '/tmp/work_popularity.csv' WITH (FORMAT csv, HEADER true)
+
+UPDATE crud."Books"
+SET "Popularity" = 0;
+
+UPDATE crud."Books" b
+SET "Popularity" = t.popularity
+FROM tmp_work_popularity t
+WHERE b."Id"::text = t.work_id;
+```
+
+This reset + update pattern keeps ordering deterministic even when some CRUD books do not appear in the latest recsys export.

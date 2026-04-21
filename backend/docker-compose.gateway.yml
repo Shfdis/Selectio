@@ -17,10 +17,47 @@ services:
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
       Gateway__InternalToken: ${GATEWAY_INTERNAL_TOKEN}
+      Downstream__ImageService: http://image-service:8085
     depends_on:
       auth:
         condition: service_started
       crud:
+        condition: service_started
+      image-service:
+        condition: service_started
+    networks:
+      - selectio_internal
+
+  minio:
+    image: minio/minio:latest
+    container_name: selectio_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - selectio_internal
+
+  image-service:
+    build:
+      context: ./image-service
+      dockerfile: Dockerfile
+    container_name: selectio_image_service
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8085
+      MinIO__Endpoint: http://minio:9000
+      MinIO__AccessKey: minio
+      MinIO__SecretKey: minioadmin
+      MinIO__Bucket: selectio-media
+      Gateway__InternalToken: ${GATEWAY_INTERNAL_TOKEN}
+      Gateway__PublicBaseUrl: ${GATEWAY_PUBLIC_BASE_URL:-http://localhost:8080}
+    depends_on:
+      minio:
         condition: service_started
     networks:
       - selectio_internal
@@ -107,5 +144,7 @@ volumes:
   postgres_data:
     driver: local
   sqlite_data:
+    driver: local
+  minio_data:
     driver: local
 
