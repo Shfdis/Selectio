@@ -5,15 +5,23 @@ import HorizontalCoverSection from '../components/HorizontalCoverSection';
 import SearchHeader, { searchHeaderHeight } from '../components/SearchHeader';
 import BookRowCard from '../components/BookRowCard';
 import SearchResultsSheet from '../components/SearchResults';
-import { exampleBook } from '../data/bookPage';
-import { bookSearchCatalog, libraryFilterGenres } from '../data/libraryBooks';
-
-const coverImageUri = exampleBook.imageUrl;
-const recommendedCovers = [coverImageUri, coverImageUri, coverImageUri];
-const popularCovers = [coverImageUri, coverImageUri, coverImageUri];
-const trendingCovers = [coverImageUri, coverImageUri, coverImageUri];
+import { useGetPopularBooksQuery, useGetRecommendedBooksQuery, useSearchBooksQuery } from '../slices/booksSlice';
 
 const GENRES_PER_COLUMN = 2;
+const DEFAULT_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
+
+function toBookCardModel(book) {
+  const genre = (book?.genre || '').trim();
+  const [genreFirst = '', ...restGenres] = genre.split(/\s+/);
+  return {
+    id: book?.id,
+    imageUrl: book?.coverUrl || DEFAULT_COVER_URI,
+    title: book?.title || 'Без названия',
+    author: book?.author || 'Неизвестный автор',
+    genreFirst,
+    genreSecond: restGenres.join(' '),
+  };
+}
 
 function splitGenreTitleForCard(label) {
   const trimmed = String(label).trim();
@@ -47,20 +55,28 @@ export function Search() {
   const scrollRef = useRef(null);
   const searchInputRef = useRef(null);
   const [query, setQuery] = useState('');
+  const trimmedQuery = query.trim();
   const [resultsSheetDismissed, setResultsSheetDismissed] = useState(false);
   const suppressResultsSheetAutoOpenUntilRef = useRef(0);
+  const { data: recommendedBooks = [] } = useGetRecommendedBooksQuery({ page: 1, pageSize: 10 });
+  const { data: popularBooks = [] } = useGetPopularBooksQuery({ page: 1, pageSize: 12 });
+  const { data: searchBooks = [] } = useSearchBooksQuery(
+    { query: trimmedQuery, page: 1, pageSize: 20 },
+    { skip: trimmedQuery.length === 0 },
+  );
 
-  const filteredBooks = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return bookSearchCatalog.filter(
-      (b) =>
-        b.title.toLowerCase().includes(q) ||
-        b.author.toLowerCase().includes(q) ||
-        (b.genreFirst && b.genreFirst.toLowerCase().includes(q)) ||
-        (b.genreSecond && b.genreSecond.toLowerCase().includes(q)),
-    );
-  }, [query]);
+  const recommendedCovers = useMemo(
+    () => recommendedBooks.slice(0, 8).map((book) => book.coverUrl || DEFAULT_COVER_URI),
+    [recommendedBooks],
+  );
+  const popularCovers = useMemo(
+    () => popularBooks.slice(0, 8).map((book) => book.coverUrl || DEFAULT_COVER_URI),
+    [popularBooks],
+  );
+  const trendingCovers = useMemo(
+    () => popularBooks.slice(4, 12).map((book) => book.coverUrl || DEFAULT_COVER_URI),
+    [popularBooks],
+  );
 
   useEffect(() => {
     if (!query.trim()) {
@@ -68,7 +84,7 @@ export function Search() {
     }
   }, [query]);
 
-  const showResultsSheet = query.trim().length > 0 && !resultsSheetDismissed;
+  const showResultsSheet = trimmedQuery.length > 0 && !resultsSheetDismissed;
 
   const dismissResultsSheet = useCallback(() => {
     suppressResultsSheetAutoOpenUntilRef.current = Date.now() + 1100;
@@ -88,26 +104,40 @@ export function Search() {
     }
   }, []);
 
-  const onPressBook = () => {
-    navigation.navigate('book');
+  const onPressBook = (book) => {
+    navigation.navigate('book', { bookId: book?.id });
   };
 
-  const onPressBookFromResults = useCallback(() => {
-    navigation.navigate('book');
+  const onPressBookFromResults = useCallback((book) => {
+    navigation.navigate('book', { bookId: book?.id });
   }, [navigation]);
 
   const onPressGenre = (genreName) => {
     navigation.navigate('genre', { genreName });
   };
 
+  const genreCoverMap = useMemo(() => {
+    const map = new Map();
+    popularBooks.forEach((book) => {
+      const label = (book?.genre || '').trim();
+      if (!label || map.has(label)) {
+        return;
+      }
+      map.set(label, book?.coverUrl || DEFAULT_COVER_URI);
+    });
+    return map;
+  }, [popularBooks]);
+
   const genreColumns = useMemo(() => {
-    const list = Array.isArray(libraryFilterGenres) ? libraryFilterGenres : [];
+    const list = Array.from(genreCoverMap.keys());
     const columns = [];
     for (let i = 0; i < list.length; i += GENRES_PER_COLUMN) {
       columns.push(list.slice(i, i + GENRES_PER_COLUMN));
     }
     return columns;
-  }, []);
+  }, [genreCoverMap]);
+
+  const searchItems = useMemo(() => searchBooks.map(toBookCardModel), [searchBooks]);
 
   return (
     <View style={styles.screen}>
@@ -137,14 +167,14 @@ export function Search() {
           title="Рекомендованные"
           subtitle="Книги на основе ваших вкусовых предпочтений"
           covers={recommendedCovers}
-          onPressCover={onPressBook}
+          onPressCover={(_, index) => onPressBook(recommendedBooks[index])}
         />
 
         <HorizontalCoverSection
           title="Популярные"
           subtitle="Выбор большого числа читателей"
           covers={popularCovers}
-          onPressCover={onPressBook}
+          onPressCover={(_, index) => onPressBook(popularBooks[index])}
           style={styles.sectionAltBg}
         />
 
@@ -161,7 +191,7 @@ export function Search() {
                   <GenreCard
                     key={`${colIdx}-${rowIdx}-${label}`}
                     label={label}
-                    coverUri={coverImageUri}
+                    coverUri={genreCoverMap.get(label) || DEFAULT_COVER_URI}
                     onPressGenre={onPressGenre}
                   />
                 ))}
@@ -174,7 +204,7 @@ export function Search() {
           title="В тренде"
           subtitle="Выбор большого числа читателей"
           covers={trendingCovers}
-          onPressCover={onPressBook}
+          onPressCover={(_, index) => onPressBook(popularBooks[index + 4] || popularBooks[index])}
           style={styles.sectionAltBg}
         />
       </ScrollView>
@@ -184,8 +214,8 @@ export function Search() {
         topOffset={searchHeaderHeight}
         onDismiss={dismissResultsSheet}
         emptyMessage="Ничего не найдено"
-        data={filteredBooks}
-        keyExtractor={(b, idx) => b.searchCatalogKey ?? `${b.title}-${idx}`}
+        data={searchItems}
+        keyExtractor={(b, idx) => `${b.id ?? b.title}-${idx}`}
         renderItem={({ item: b }) => (
           <BookRowCard book={b} showMoreButton={false} onPressBook={() => onPressBookFromResults(b)} />
         )}

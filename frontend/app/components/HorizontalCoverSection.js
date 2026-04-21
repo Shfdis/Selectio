@@ -41,7 +41,7 @@ export default function HorizontalCoverSection({
           <CoverTile
             key={index}
             imageUri={uri}
-            onPress={onPressCover}
+            onPress={() => onPressCover?.(uri, index)}
             squareCovers={squareCovers}
           />
         ))}

@@ -10,6 +10,7 @@ export default function PostCard({
   dateText,
   text,
   imageSource,
+  imageUri,
   book,
   initialLikes = 0,
   initialComments = 0,
@@ -71,9 +72,9 @@ export default function PostCard({
 
         <Text style={styles.postText}>{text}</Text>
 
-        {imageSource ? (
+        {imageSource || imageUri ? (
           <View style={styles.imageFrame}>
-            <Image source={imageSource} style={styles.postImage} resizeMode="cover" />
+            <Image source={imageSource ?? { uri: imageUri }} style={styles.postImage} resizeMode="cover" />
           </View>
         ) : null}
 
