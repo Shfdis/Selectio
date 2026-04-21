@@ -17,7 +17,7 @@ public static class BookEndpoints
     {
         var group = app.MapGroup("/api/books").WithTags("Books");
 
-        group.MapGet("", async (HttpContext http, CrudDbContext db, int? page, int? pageSize) =>
+        group.MapGet("", async (HttpContext http, CrudDbContext db, int? page, int? pageSize, CancellationToken cancellationToken) =>
         {
             var (p, ps) = NormalizePagination(page, pageSize);
             var userId = GatewayIdentity.GetUserId(http);
@@ -27,9 +27,9 @@ public static class BookEndpoints
                 .ThenBy(b => b.Id)
                 .Skip((p - 1) * ps)
                 .Take(ps)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
-            return Results.Ok(await MapBooksToDtosAsync(db, items, userId));
+            return Results.Ok(await MapBooksToDtosAsync(db, items, userId, cancellationToken));
         });
 
         group.MapGet("/recommended", async (
@@ -73,10 +73,10 @@ public static class BookEndpoints
 
             var books = await db.Books.Where(b => ids.Contains(b.Id)).ToListAsync(cancellationToken);
             var ordered = ids.Select(id => books.First(b => b.Id == id)).ToList();
-            return Results.Ok(await MapBooksToDtosAsync(db, ordered, userId));
+            return Results.Ok(await MapBooksToDtosAsync(db, ordered, userId, cancellationToken));
         });
 
-        group.MapGet("/popular-by-genre", async (HttpContext http, CrudDbContext db, string? genre, int? page, int? pageSize) =>
+        group.MapGet("/popular-by-genre", async (HttpContext http, CrudDbContext db, string? genre, int? page, int? pageSize, CancellationToken cancellationToken) =>
         {
             var (p, ps) = NormalizePagination(page, pageSize);
             var userId = GatewayIdentity.GetUserId(http);
@@ -94,15 +94,15 @@ public static class BookEndpoints
                 .ThenBy(b => b.Id)
                 .Skip((p - 1) * ps)
                 .Take(ps)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
-            return Results.Ok(await MapBooksToDtosAsync(db, items, userId));
+            return Results.Ok(await MapBooksToDtosAsync(db, items, userId, cancellationToken));
         });
 
-        group.MapGet("/{id:int}", async (HttpContext http, CrudDbContext db, int id) =>
+        group.MapGet("/{id:int}", async (HttpContext http, CrudDbContext db, int id, CancellationToken cancellationToken) =>
         {
             var userId = GatewayIdentity.GetUserId(http);
-            var book = await db.Books.FirstOrDefaultAsync(b => b.Id == id);
+            var book = await db.Books.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
             if (book is null)
             {
                 return Results.NotFound();
@@ -111,17 +111,18 @@ public static class BookEndpoints
             LibraryStatus? userStatus = null;
             if (userId is not null)
             {
-                var ub = await db.UserBooks.FirstOrDefaultAsync(x => x.UserId == userId.Value && x.BookId == id);
+                var ub = await db.UserBooks.FirstOrDefaultAsync(x => x.UserId == userId.Value && x.BookId == id, cancellationToken);
                 if (ub is not null)
                 {
                     userStatus = ub.Status;
                 }
             }
 
-            return Results.Ok(ToBookDto(book, null, userStatus));
+            var avgs = await GetAverageRatingsByBookIdAsync(db, [id], cancellationToken);
+            return Results.Ok(ToBookDto(book, avgs[id], userStatus));
         });
 
-        group.MapGet("/search", async (HttpContext http, CrudDbContext db, string? query, int? page, int? pageSize) =>
+        group.MapGet("/search", async (HttpContext http, CrudDbContext db, string? query, int? page, int? pageSize, CancellationToken cancellationToken) =>
         {
             if (string.IsNullOrWhiteSpace(query))
             {
@@ -142,12 +143,12 @@ public static class BookEndpoints
                 .ThenBy(b => b.Id)
                 .Skip((p - 1) * ps)
                 .Take(ps)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
-            return Results.Ok(await MapBooksToDtosAsync(db, items, userId));
+            return Results.Ok(await MapBooksToDtosAsync(db, items, userId, cancellationToken));
         });
 
-        group.MapGet("/popular", async (HttpContext http, CrudDbContext db, int? page, int? pageSize) =>
+        group.MapGet("/popular", async (HttpContext http, CrudDbContext db, int? page, int? pageSize, CancellationToken cancellationToken) =>
         {
             var (p, ps) = NormalizePagination(page, pageSize);
             var userId = GatewayIdentity.GetUserId(http);
@@ -157,29 +158,35 @@ public static class BookEndpoints
                 .ThenBy(b => b.Id)
                 .Skip((p - 1) * ps)
                 .Take(ps)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
-            return Results.Ok(await MapBooksToDtosAsync(db, items, userId));
+            return Results.Ok(await MapBooksToDtosAsync(db, items, userId, cancellationToken));
         });
 
         return app;
     }
 
-    private static async Task<List<BookDto>> MapBooksToDtosAsync(CrudDbContext db, List<Book> books, int? userId)
+    private static async Task<List<BookDto>> MapBooksToDtosAsync(
+        CrudDbContext db,
+        List<Book> books,
+        int? userId,
+        CancellationToken cancellationToken)
     {
         if (books.Count == 0)
         {
             return new List<BookDto>();
         }
 
+        var bookIds = books.Select(b => b.Id).ToList();
+        var averageByBookId = await GetAverageRatingsByBookIdAsync(db, bookIds, cancellationToken);
+
         Dictionary<int, LibraryStatus> userLibrary = new();
         if (userId is not null)
         {
-            var ids = books.Select(b => b.Id).ToList();
             var entries = await db.UserBooks
-                .Where(ub => ub.UserId == userId.Value && ids.Contains(ub.BookId))
+                .Where(ub => ub.UserId == userId.Value && bookIds.Contains(ub.BookId))
                 .Select(ub => new { ub.BookId, ub.Status })
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             userLibrary = entries.ToDictionary(x => x.BookId, x => x.Status);
         }
@@ -191,8 +198,35 @@ public static class BookEndpoints
             {
                 status = ur;
             }
-            return ToBookDto(b, null, status);
+            return ToBookDto(b, averageByBookId[b.Id], status);
         }).ToList();
+    }
+
+    /// <summary>Per-bookId average of <see cref="BookComment.Rating"/>, 1-decimal rounded; null when no comments.</summary>
+    private static async Task<Dictionary<int, double?>> GetAverageRatingsByBookIdAsync(
+        CrudDbContext db,
+        IReadOnlyList<int> bookIds,
+        CancellationToken cancellationToken)
+    {
+        var result = bookIds.Distinct().ToDictionary(id => id, _ => (double?)null);
+        if (result.Count == 0)
+        {
+            return result;
+        }
+
+        var rows = await db.BookComments
+            .AsNoTracking()
+            .Where(c => bookIds.Contains(c.BookId))
+            .GroupBy(c => c.BookId)
+            .Select(g => new { BookId = g.Key, Avg = g.Average(x => (double)x.Rating) })
+            .ToListAsync(cancellationToken);
+
+        foreach (var r in rows)
+        {
+            result[r.BookId] = Math.Round(r.Avg, 1, MidpointRounding.AwayFromZero);
+        }
+
+        return result;
     }
 
     private static BookDto ToBookDto(Book b, double? averageRating, LibraryStatus? userStatus) =>

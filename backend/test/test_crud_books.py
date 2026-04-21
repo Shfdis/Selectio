@@ -182,6 +182,56 @@ class TestCrudBooks:
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
+    def test_average_rating_from_comments_rounded_one_decimal(self, crud_base_url):
+        title = "AvgRatingSeedBook"
+        self._seed_book(title, "TestGenre", "Other", 50)
+        try:
+            books = requests.get(f"{crud_base_url}/api/books/search", params={"query": title}, timeout=5).json()
+            assert books, books
+            book_id = books[0]["id"]
+
+            u1, u2 = 88001, 88002
+            h1 = {"X-User-Id": str(u1)}
+            h2 = {"X-User-Id": str(u2)}
+            r1 = requests.post(
+                f"{crud_base_url}/api/books/{book_id}/comments",
+                json={"content": "a", "rating": 4},
+                headers=h1,
+                timeout=5,
+            )
+            r2 = requests.post(
+                f"{crud_base_url}/api/books/{book_id}/comments",
+                json={"content": "b", "rating": 5},
+                headers=h2,
+                timeout=5,
+            )
+            assert r1.status_code == 200, r1.text
+            assert r2.status_code == 200, r2.text
+
+            by_id = requests.get(f"{crud_base_url}/api/books/{book_id}", timeout=5)
+            assert by_id.status_code == 200
+            assert by_id.json()["averageRating"] == 4.5
+
+            listed = requests.get(f"{crud_base_url}/api/books", params={"pageSize": 100}, timeout=5).json()
+            row = next((b for b in listed if b["id"] == book_id), None)
+            assert row is not None
+            assert row["averageRating"] == 4.5
+        finally:
+            self._cleanup_seeded_titles([title])
+
+    def test_average_rating_null_when_no_comments(self, crud_base_url):
+        title = "NoCommentsAvgBook"
+        self._seed_book(title, "X", "Y", 1)
+        try:
+            books = requests.get(f"{crud_base_url}/api/books/search", params={"query": title}, timeout=5).json()
+            assert books
+            book_id = books[0]["id"]
+            by_id = requests.get(f"{crud_base_url}/api/books/{book_id}", timeout=5)
+            assert by_id.status_code == 200
+            assert by_id.json().get("averageRating") is None
+        finally:
+            self._cleanup_seeded_titles([title])
+
 
 if __name__ == "__main__":
     import pytest
