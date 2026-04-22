@@ -14,7 +14,12 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import { useEffect, useMemo, useState } from 'react';
-import { useCreatePostCommentMutation, useGetPostCommentsQuery } from '../slices/postsSlice';
+import {
+  useCreatePostCommentMutation,
+  useGetPostCommentsQuery,
+  useLikePostCommentMutation,
+  useUnlikePostCommentMutation,
+} from '../slices/postsSlice';
 
 const defaultAvatar = require('../assets/icons/profile-avatar.png');
 
@@ -32,9 +37,19 @@ const formatDate = (isoString) => {
   return `${dd}.${mm}.${yy}`;
 };
 
-function ThreadCommentItem({ username, dateText, text, initialLikes = 0, initiallyLiked = false, isLast }) {
+function ThreadCommentItem({
+  commentId,
+  username,
+  dateText,
+  text,
+  initialLikes = 0,
+  initiallyLiked = false,
+  isLast,
+}) {
   const [liked, setLiked] = useState(initiallyLiked);
   const [likes, setLikes] = useState(initialLikes);
+  const [likePostComment] = useLikePostCommentMutation();
+  const [unlikePostComment] = useUnlikePostCommentMutation();
 
   useEffect(() => {
     setLiked(initiallyLiked);
@@ -46,12 +61,25 @@ function ThreadCommentItem({ username, dateText, text, initialLikes = 0, initial
     [liked],
   );
 
-  const onToggleLike = () => {
-    setLiked((v) => {
-      const next = !v;
-      setLikes((c) => (next ? c + 1 : Math.max(0, c - 1)));
-      return next;
-    });
+  const onToggleLike = async () => {
+    if (!Number.isFinite(commentId) || commentId <= 0) {
+      return;
+    }
+    const previousLiked = liked;
+    const previousLikes = likes;
+    const nextLiked = !previousLiked;
+    setLiked(nextLiked);
+    setLikes((c) => (nextLiked ? c + 1 : Math.max(0, c - 1)));
+    try {
+      if (nextLiked) {
+        await likePostComment({ commentId }).unwrap();
+      } else {
+        await unlikePostComment({ commentId }).unwrap();
+      }
+    } catch (_error) {
+      setLiked(previousLiked);
+      setLikes(previousLikes);
+    }
   };
 
   return (
@@ -106,11 +134,12 @@ export default function PostComments() {
     () =>
       postComments.map((comment) => ({
         id: String(comment?.id ?? ''),
+        commentId: Number(comment?.id),
         username: comment?.authorUsername || `user${comment?.authorUserId ?? ''}`,
         dateText: formatDate(comment?.createdAt),
         text: comment?.content || '',
-        likes: 0,
-        liked: false,
+        likes: Number(comment?.likeCount ?? 0),
+        liked: Boolean(comment?.likedByCurrentUser),
       })),
     [postComments],
   );
@@ -163,6 +192,7 @@ export default function PostComments() {
           {threadComments.map((c, index) => (
             <ThreadCommentItem
               key={c.id}
+              commentId={c.commentId}
               username={c.username}
               dateText={c.dateText}
               text={c.text}

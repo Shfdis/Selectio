@@ -5,6 +5,7 @@ const communitiesFeedListTag = { type: "Post", id: "LIST:communities-feed" };
 const communityPostsListTag = (communityId) => ({ type: "Post", id: `LIST:community:${communityId}` });
 const postTag = (postId) => ({ type: "Post", id: postId });
 const postCommentsListTag = (postId) => ({ type: "PostComment", id: `LIST:post:${postId}` });
+const postCommentTag = (commentId) => ({ type: "PostComment", id: commentId });
 const favoritePostsListTag = { type: "FavoritePost", id: "LIST:me" };
 
 export const postsApi = userApi.injectEndpoints({
@@ -68,6 +69,20 @@ export const postsApi = userApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, arg) => [postCommentsListTag(arg?.postId), postTag(arg?.postId)],
     }),
+    likePostComment: builder.mutation({
+      query: ({ commentId }) => ({
+        url: `/api/comments/${commentId}/like`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, arg) => [postCommentTag(arg?.commentId)],
+    }),
+    unlikePostComment: builder.mutation({
+      query: ({ commentId }) => ({
+        url: `/api/comments/${commentId}/like`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _error, arg) => [postCommentTag(arg?.commentId)],
+    }),
     likePost: builder.mutation({
       query: ({ postId }) => ({
         url: `/api/posts/${postId}/like`,
@@ -106,6 +121,8 @@ export const {
   useSuggestPostMutation,
   useGetPostCommentsQuery,
   useCreatePostCommentMutation,
+  useLikePostCommentMutation,
+  useUnlikePostCommentMutation,
   useLikePostMutation,
   useUnlikePostMutation,
   useFavoritePostMutation,
