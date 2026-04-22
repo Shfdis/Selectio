@@ -69,6 +69,28 @@ export const postsApi = userApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, arg) => [postCommentsListTag(arg?.postId), postTag(arg?.postId)],
     }),
+    updatePostComment: builder.mutation({
+      query: ({ commentId, content }) => ({
+        url: `/api/comments/${commentId}`,
+        method: "PUT",
+        body: { content },
+      }),
+      invalidatesTags: (_result, _error, arg) => [
+        postCommentTag(arg?.commentId),
+        postCommentsListTag(arg?.postId),
+      ],
+    }),
+    deletePostComment: builder.mutation({
+      query: ({ commentId }) => ({
+        url: `/api/comments/${commentId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _error, arg) => [
+        postCommentTag(arg?.commentId),
+        postCommentsListTag(arg?.postId),
+        postTag(arg?.postId),
+      ],
+    }),
     likePostComment: builder.mutation({
       query: ({ commentId }) => ({
         url: `/api/comments/${commentId}/like`,
@@ -121,6 +143,8 @@ export const {
   useSuggestPostMutation,
   useGetPostCommentsQuery,
   useCreatePostCommentMutation,
+  useUpdatePostCommentMutation,
+  useDeletePostCommentMutation,
   useLikePostCommentMutation,
   useUnlikePostCommentMutation,
   useLikePostMutation,

@@ -89,8 +89,8 @@ This order is optimized to replace mock data safely while keeping user flows wor
     - To implement: optional richer error mapping/UX for API validation responses and moderation-specific success states.
 
 22. `PostComments` (`postComments`) - **Status: Implemented**
-    - Already implemented: comments thread loads from `GET /api/posts/{id}/comments`, comment creation is persisted via `POST /api/posts/{id}/comments`, and comment like/unlike is persisted via `POST/DELETE /api/comments/{id}/like`.
-    - To implement: optional UX polish for comment-like errors and disabled-state feedback.
+    - Already implemented: comments thread loads from `GET /api/posts/{id}/comments`, comment create/update/delete is persisted via `POST /api/posts/{id}/comments` and `PUT/DELETE /api/comments/{id}`, and comment like/unlike is persisted via `POST/DELETE /api/comments/{id}/like`.
+    - To implement: optional UX polish for mutation errors and inline owner-action affordances.
 
 23. `AllMySubscriptions` (`allMySubscriptions`) - **Status: Mocked**
     - Already implemented: subscribed-community grid UI.
@@ -179,6 +179,7 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - Like/unlike post from feed cards and verify persistence via `POST/DELETE /api/posts/{id}/like`.
    - Favorite/unfavorite post from feed cards and verify persistence via `POST/DELETE /api/posts/{id}/favorite` and profile "Избранное" list update.
    - Open `postComments`, add comment, and verify persisted comments state in `GET /api/posts/{id}/comments`.
+   - Edit/delete own post comments in `postComments` and verify persistence via `PUT/DELETE /api/comments/{id}`.
    - Like/unlike a post comment and verify persistence via `POST/DELETE /api/comments/{id}/like` with updated `likeCount`/`likedByCurrentUser` on refetch.
    - Full manual checklist for `PostComments`: `app/tests/postComments.integration.checklist.md`.
 

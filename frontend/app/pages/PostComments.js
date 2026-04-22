@@ -14,10 +14,13 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import { useEffect, useMemo, useState } from 'react';
+import { useGetCurrentUserQuery } from '../slices/userSlice';
 import {
   useCreatePostCommentMutation,
+  useDeletePostCommentMutation,
   useGetPostCommentsQuery,
   useLikePostCommentMutation,
+  useUpdatePostCommentMutation,
   useUnlikePostCommentMutation,
 } from '../slices/postsSlice';
 
@@ -44,10 +47,18 @@ function ThreadCommentItem({
   text,
   initialLikes = 0,
   initiallyLiked = false,
+  isMine = false,
+  onPressEdit,
+  onPressSaveEdit,
+  onPressCancelEdit,
+  onPressDelete,
+  controlsDisabled = false,
+  isEditing = false,
   isLast,
 }) {
   const [liked, setLiked] = useState(initiallyLiked);
   const [likes, setLikes] = useState(initialLikes);
+  const [editDraft, setEditDraft] = useState(text);
   const [likePostComment] = useLikePostCommentMutation();
   const [unlikePostComment] = useUnlikePostCommentMutation();
 
@@ -55,6 +66,9 @@ function ThreadCommentItem({
     setLiked(initiallyLiked);
     setLikes(initialLikes);
   }, [initialLikes, initiallyLiked]);
+  useEffect(() => {
+    setEditDraft(text);
+  }, [text, isEditing]);
 
   const likeIcon = useMemo(
     () => (liked ? require('../assets/icons/icon-heart-filled.png') : require('../assets/icons/icon-heart.png')),
@@ -95,9 +109,53 @@ function ThreadCommentItem({
               {dateText}
             </Text>
           </View>
+          {isMine ? (
+            <Pressable style={styles.topRightAction} onPress={onPressEdit} hitSlop={10} disabled={controlsDisabled}>
+              <Image source={require('../assets/icons/icon_write.png')} style={styles.topRightActionIcon} resizeMode="contain" />
+            </Pressable>
+          ) : null}
         </View>
 
-        <Text style={styles.commentBodyText}>{text}</Text>
+        {isEditing ? (
+          <View style={styles.inlineEditWrap}>
+            <TextInput
+              value={editDraft}
+              onChangeText={setEditDraft}
+              placeholder="Редактирование комментария"
+              placeholderTextColor="#565d3f"
+              style={styles.inlineEditInput}
+              editable={!controlsDisabled}
+              multiline
+            />
+            <View style={styles.inlineEditActions}>
+              <Pressable
+                onPress={() => onPressCancelEdit?.()}
+                hitSlop={8}
+                disabled={controlsDisabled}
+              >
+                <Text style={[styles.inlineEditActionText, controlsDisabled ? styles.ownerActionTextDisabled : null]}>
+                  Отмена
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => onPressSaveEdit?.(editDraft)}
+                hitSlop={8}
+                disabled={controlsDisabled || editDraft.trim().length === 0}
+              >
+                <Text
+                  style={[
+                    styles.inlineEditActionText,
+                    (controlsDisabled || editDraft.trim().length === 0) ? styles.ownerActionTextDisabled : null,
+                  ]}
+                >
+                  Сохранить
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.commentBodyText}>{text}</Text>
+        )}
 
         <View style={styles.commentLikeRow}>
           <Pressable style={styles.commentLikeHit} onPress={onToggleLike} hitSlop={10}>
@@ -108,6 +166,11 @@ function ThreadCommentItem({
             />
           </Pressable>
           <Text style={styles.commentLikeCount}>{likes}</Text>
+          {isMine ? (
+            <Pressable style={styles.bottomRightAction} onPress={onPressDelete} hitSlop={10} disabled={controlsDisabled}>
+              <Image source={require('../assets/icons/icon_tresh.png')} style={styles.bottomRightActionIcon} resizeMode="contain" />
+            </Pressable>
+          ) : null}
         </View>
       </View>
       {!isLast ? <View style={styles.commentBottomHairline} /> : null}
@@ -119,6 +182,8 @@ export default function PostComments() {
   const navigation = useNavigation();
   const route = useRoute();
   const postId = Number(route?.params?.postId);
+  const { data: currentUser } = useGetCurrentUserQuery();
+  const currentUserId = Number(currentUser?.id);
   const {
     data: postComments = [],
     isLoading: isLoadingComments,
@@ -127,14 +192,19 @@ export default function PostComments() {
     { skip: !Number.isFinite(postId) || postId <= 0 },
   );
   const [createPostComment, { isLoading: isCreatingComment }] = useCreatePostCommentMutation();
+  const [updatePostComment, { isLoading: isUpdatingComment }] = useUpdatePostCommentMutation();
+  const [deletePostComment, { isLoading: isDeletingComment }] = useDeletePostCommentMutation();
   const [draft, setDraft] = useState('');
-  const canSend = draft.trim().length > 0 && !isCreatingComment;
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const isBusy = isCreatingComment || isUpdatingComment || isDeletingComment;
+  const canSend = draft.trim().length > 0 && !isBusy;
 
   const threadComments = useMemo(
     () =>
       postComments.map((comment) => ({
         id: String(comment?.id ?? ''),
         commentId: Number(comment?.id),
+        authorUserId: Number(comment?.authorUserId),
         username: comment?.authorUsername || `user${comment?.authorUserId ?? ''}`,
         dateText: formatDate(comment?.createdAt),
         text: comment?.content || '',
@@ -160,6 +230,37 @@ export default function PostComments() {
       return;
     }
     setDraft('');
+  };
+
+  const onPressEditComment = (comment) => {
+    setEditingCommentId(comment?.commentId);
+  };
+
+  const onPressSaveEditComment = async (comment, nextText) => {
+    const trimmed = String(nextText ?? '').trim();
+    if (!trimmed) {
+      return;
+    }
+    try {
+      await updatePostComment({ postId, commentId: comment?.commentId, content: trimmed }).unwrap();
+      setEditingCommentId(null);
+    } catch (_error) {
+      Alert.alert('Не удалось обновить комментарий', 'Попробуйте ещё раз.', [{ text: 'Ок' }]);
+    }
+  };
+
+  const onPressDeleteComment = async (comment) => {
+    if (!Number.isFinite(comment?.commentId) || comment.commentId <= 0) {
+      return;
+    }
+    try {
+      await deletePostComment({ postId, commentId: comment.commentId }).unwrap();
+      if (editingCommentId === comment.commentId) {
+        setEditingCommentId(null);
+      }
+    } catch (_error) {
+      Alert.alert('Не удалось удалить', 'Попробуйте ещё раз.', [{ text: 'Ок' }]);
+    }
   };
 
   return (
@@ -198,6 +299,13 @@ export default function PostComments() {
               text={c.text}
               initialLikes={c.likes}
               initiallyLiked={c.liked}
+              isMine={Number.isFinite(currentUserId) && c.authorUserId === currentUserId}
+              onPressEdit={() => onPressEditComment(c)}
+              onPressSaveEdit={(nextText) => onPressSaveEditComment(c, nextText)}
+              onPressCancelEdit={() => setEditingCommentId(null)}
+              onPressDelete={() => onPressDeleteComment(c)}
+              isEditing={editingCommentId === c.commentId}
+              controlsDisabled={isBusy}
               isLast={index === threadComments.length - 1}
             />
           ))}
@@ -212,6 +320,7 @@ export default function PostComments() {
             textAlign="left"
             textAlignVertical="top"
             style={styles.footerInput}
+            editable={!isBusy}
           />
           <Pressable
             style={[styles.sendButton, !canSend ? styles.sendButtonDisabled : null]}
@@ -281,6 +390,17 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     flex: 1,
   },
+  topRightAction: {
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topRightActionIcon: {
+    width: 24,
+    height: 24,
+    tintColor: '#2D2800',
+  },
   commentUsername: {
     fontSize: 16,
     color: '#2D2800',
@@ -304,6 +424,34 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     lineHeight: 17,
     alignSelf: 'flex-start',
+  },
+  inlineEditWrap: {
+    marginTop: 12,
+  },
+  inlineEditInput: {
+    borderWidth: 1,
+    borderColor: '#81876D',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#E4DFD0',
+    color: '#2D2800',
+    fontFamily: 'Playfair',
+    fontSize: 14,
+    minHeight: 54,
+    textAlignVertical: 'top',
+  },
+  inlineEditActions: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 14,
+  },
+  inlineEditActionText: {
+    fontSize: 14,
+    color: '#555C40',
+    fontFamily: 'Playfair',
+    fontWeight: '600',
   },
   commentLikeRow: {
     marginTop: 16,
@@ -331,6 +479,21 @@ const styles = StyleSheet.create({
     fontFamily: 'CrimsonText',
     fontWeight: '400',
     lineHeight: 20,
+  },
+  bottomRightAction: {
+    marginLeft: 'auto',
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomRightActionIcon: {
+    width: 24,
+    height: 24,
+    tintColor: '#2D2800',
+  },
+  ownerActionTextDisabled: {
+    opacity: 0.5,
   },
   footer: {
     flexDirection: 'row',
