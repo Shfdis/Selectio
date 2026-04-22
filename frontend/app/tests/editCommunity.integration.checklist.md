@@ -5,4 +5,5 @@
 - [ ] Change genre selection, save, reopen community, and verify selected primary genre persists.
 - [ ] Pick a local cover image, save, and verify upload request to `POST /api/images` is sent before `PUT /api/communities/{id}`.
 - [ ] After cover update, reopen `myCommunity` and verify the updated cover URL is rendered from backend response.
+- [ ] Tap `Удалить сообщество`, verify `DELETE /api/communities/{id}` is called, and app navigates to `main` communities tab.
 - [ ] Verify failed save/upload shows error alert and does not navigate away silently.

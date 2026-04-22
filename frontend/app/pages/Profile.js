@@ -45,6 +45,7 @@ function FavoritePostItem({ favoritePost, avatarUrl }) {
   const { genreFirst, genreSecond } = mapApiBookGenres(postDetails?.book);
   const resolvedItem = {
     postId,
+    authorUserId: Number(postDetails?.authorUserId ?? favoritePost?.authorUserId),
     username: postDetails?.authorUsername || favoritePost?.username || 'Пользователь',
     dateText: formatDate(postDetails?.createdAt || favoritePost?.dateText),
     text: postDetails?.content || favoritePost?.text || '',
@@ -64,6 +65,7 @@ function FavoritePostItem({ favoritePost, avatarUrl }) {
 
   return (
     <PostCard
+      authorUserId={resolvedItem.authorUserId}
       avatarUri={avatarUrl || undefined}
       postId={resolvedItem.postId}
       username={resolvedItem.username}
@@ -152,6 +154,7 @@ export function Profile() {
     () => {
       return favoritePostsData.map((post) => ({
         id: post.postId,
+        authorUserId: Number(post?.authorUserId),
         username: displayName,
         dateText: formatDate(post.favoritedAt || post.createdAt),
         text: post.content || '',

@@ -73,6 +73,13 @@ export const communitiesApi = userApi.injectEndpoints({
       }),
       invalidatesTags: ["User"],
     }),
+    deleteCommunity: builder.mutation({
+      query: ({ communityId }) => ({
+        url: `/api/communities/${communityId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["User"],
+    }),
     joinCommunity: builder.mutation({
       query: ({ communityId }) => ({
         url: `/api/communities/${communityId}/join`,
@@ -99,6 +106,7 @@ export const {
   useGetCommunityPostsQuery,
   useCreateCommunityMutation,
   useUpdateCommunityMutation,
+  useDeleteCommunityMutation,
   useJoinCommunityMutation,
   useLeaveCommunityMutation,
 } = communitiesApi;

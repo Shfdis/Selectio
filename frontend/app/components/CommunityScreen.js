@@ -85,6 +85,8 @@ export default function CommunityScreenLayout({
             <PostCard
               key={p.id}
               postId={p.id}
+              authorUserId={p.authorUserId}
+              avatarUri={p.avatarUri}
               username={p.username}
               dateText={p.dateText}
               text={p.text}

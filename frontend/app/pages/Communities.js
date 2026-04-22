@@ -48,6 +48,7 @@ const mapFeedPost = (post) => {
   return {
     id: post?.id,
     postId: post?.id,
+    authorUserId: Number(post?.authorUserId),
     username: post?.authorUsername || 'Пользователь',
     dateText: formatDate(post?.createdAt),
     text: post?.content || '',
@@ -219,6 +220,7 @@ export function Communities() {
             <PostCard
               key={p.id}
               postId={p.postId}
+              authorUserId={p.authorUserId}
               avatarUri={p.avatarUri}
               username={p.username}
               dateText={p.dateText}
