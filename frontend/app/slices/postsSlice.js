@@ -9,7 +9,27 @@ export const postsApi = userApi.injectEndpoints({
         params: { page, pageSize },
       }),
     }),
+    createPost: builder.mutation({
+      query: ({ communityId, bookId, content, photoUrl }) => ({
+        url: "/api/posts",
+        method: "POST",
+        body: { communityId, bookId, content, photoUrl },
+      }),
+      invalidatesTags: ["User"],
+    }),
+    suggestPost: builder.mutation({
+      query: ({ communityId, bookId, content, photoUrl }) => ({
+        url: "/api/posts/suggest",
+        method: "POST",
+        body: { communityId, bookId, content, photoUrl },
+      }),
+      invalidatesTags: ["User"],
+    }),
   }),
 });
 
-export const { useGetRecommendedPostsQuery } = postsApi;
+export const {
+  useGetRecommendedPostsQuery,
+  useCreatePostMutation,
+  useSuggestPostMutation,
+} = postsApi;

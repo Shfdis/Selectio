@@ -1,57 +1,171 @@
-import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useMemo } from 'react';
 import CommunityScreenLayout from '../components/CommunityScreen';
-import { exampleCommunity, examplePosts } from '../data/communityPage';
+import { mapApiBookGenres } from '../slices/booksSlice';
+import {
+  useGetCommunityByIdQuery,
+  useGetCommunityPostsQuery,
+  useJoinCommunityMutation,
+  useLeaveCommunityMutation,
+  useGetUserCommunitiesQuery,
+  useGetCommunitiesCatalogQuery,
+} from '../slices/communitiesSlice';
+import { useGetCurrentUserQuery } from '../slices/userSlice';
+
+const DEFAULT_COVER_URI = 'https://via.placeholder.com/156x156?text=Community';
+const DEFAULT_BOOK_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
+
+const formatDate = (isoString) => {
+  if (!isoString) {
+    return '';
+  }
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yy = String(date.getFullYear()).slice(-2);
+  return `${dd}.${mm}.${yy}`;
+};
+
+const mapCommunityModel = (community) => ({
+  coverImageUrl: community?.coverUrl || DEFAULT_COVER_URI,
+  subscribersCount: `${community?.subscriberCount ?? 0}`,
+  name: community?.name || 'Сообщество',
+  genres: community?.genre ? [community.genre] : [],
+  description: community?.description || '',
+});
+
+const mapCommunityPosts = (posts) =>
+  posts.map((post) => {
+    const { genreFirst, genreSecond } = mapApiBookGenres(post?.book);
+    return {
+      id: post?.id,
+      username: post?.authorUsername || 'Пользователь',
+      dateText: formatDate(post?.createdAt),
+      text: post?.content || '',
+      imageSource: post?.photoUrl ? { uri: post.photoUrl } : undefined,
+      initialLikes: post?.likeCount ?? 0,
+      initialComments: post?.commentCount ?? 0,
+      initiallyLiked: Boolean(post?.likedByCurrentUser),
+      initiallyBookmarked: Boolean(post?.favoritedByCurrentUser),
+      book: {
+        imageUrl: post?.book?.coverUrl || DEFAULT_BOOK_COVER_URI,
+        title: post?.book?.title || 'Без названия',
+        author: post?.book?.author || 'Неизвестный автор',
+        genreFirst,
+        genreSecond,
+      },
+    };
+  });
 
 export default function Community() {
   const navigation = useNavigation();
-  const community = exampleCommunity;
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const route = useRoute();
+  const { data: currentUser } = useGetCurrentUserQuery();
+  const userId = currentUser?.id;
+  const routeCommunityId = Number(route?.params?.communityId);
+  const { data: communitiesCatalog = [] } = useGetCommunitiesCatalogQuery({ page: 1, pageSize: 1 });
+  const fallbackCommunityId = communitiesCatalog[0]?.id;
+  const communityId = Number.isFinite(routeCommunityId) && routeCommunityId > 0 ? routeCommunityId : fallbackCommunityId;
+  const { data: communityData, isFetching: isFetchingCommunity } = useGetCommunityByIdQuery(communityId, {
+    skip: !communityId,
+  });
+  const { data: postsData = [], isFetching: isFetchingPosts } = useGetCommunityPostsQuery(
+    { communityId, page: 1, pageSize: 20 },
+    { skip: !communityId },
+  );
+  const { data: myCommunities = [] } = useGetUserCommunitiesQuery(
+    { userId, page: 1, pageSize: 200 },
+    { skip: !userId || !communityId },
+  );
+  const [joinCommunity, { isLoading: isJoining }] = useJoinCommunityMutation();
+  const [leaveCommunity, { isLoading: isLeaving }] = useLeaveCommunityMutation();
+
+  const community = useMemo(() => mapCommunityModel(communityData), [communityData]);
+  const posts = useMemo(() => mapCommunityPosts(postsData), [postsData]);
+  const isSubscribed = useMemo(
+    () => myCommunities.some((item) => Number(item?.id) === Number(communityId)),
+    [myCommunities, communityId],
+  );
+  const isBusy = isJoining || isLeaving;
 
   const onPressBack = () => {
     navigation.goBack();
   };
 
-  const onPressSubscribe = () => {
-    setIsSubscribed(true);
+  const onPressSubscribe = async () => {
+    if (!communityId || isBusy) {
+      return;
+    }
+    await joinCommunity({ communityId }).unwrap();
   };
 
-  const onPressUnsubscribe = () => {
-    setIsSubscribed(false);
+  const onPressUnsubscribe = async () => {
+    if (!communityId || isBusy) {
+      return;
+    }
+    await leaveCommunity({ communityId }).unwrap();
   };
+
+  if (!communityId || isFetchingCommunity) {
+    return (
+      <View style={styles.loaderScreen}>
+        <ActivityIndicator size="large" color="#555C40" />
+      </View>
+    );
+  }
 
   return (
     <CommunityScreenLayout
       community={community}
-      posts={examplePosts}
+      posts={posts}
       onPressBack={onPressBack}
       renderActionArea={() =>
         !isSubscribed ? (
-          <Pressable style={styles.subscribeButton} onPress={onPressSubscribe} hitSlop={10}>
+          <Pressable
+            style={[styles.subscribeButton, isBusy ? styles.disabledButton : null]}
+            onPress={onPressSubscribe}
+            hitSlop={10}
+            disabled={isBusy}
+          >
             <Image
               source={require('../assets/icons/icon_plus.png')}
               style={styles.subscribeIcon}
               resizeMode="contain"
             />
-            <Text style={styles.subscribeButtonText}>Подписаться</Text>
+            <Text style={styles.subscribeButtonText}>{isJoining ? 'Подписка...' : 'Подписаться'}</Text>
           </Pressable>
         ) : (
           <View style={styles.subscribedButtonsRow}>
-            <Pressable style={styles.subscribedButton} onPress={onPressUnsubscribe} hitSlop={10}>
+            <Pressable
+              style={[styles.subscribedButton, isBusy ? styles.disabledButton : null]}
+              onPress={onPressUnsubscribe}
+              hitSlop={10}
+              disabled={isBusy}
+            >
               <Image
                 source={require('../assets/icons/icon_x.png')}
                 style={styles.subscribedIcon}
                 resizeMode="contain"
               />
               <Text style={styles.subscribedButtonText} numberOfLines={1}>
-                Отписаться
+                {isLeaving ? 'Отписка...' : 'Отписаться'}
               </Text>
             </Pressable>
             <Pressable
-              style={[styles.subscribedButton, styles.subscribedButtonOffer]}
-              onPress={() => navigation.navigate('newPost')}
+              style={[
+                styles.subscribedButton,
+                styles.subscribedButtonOffer,
+                isBusy ? styles.disabledButton : null,
+              ]}
+              onPress={() => {
+                navigation.navigate('newPost', { communityId, mode: 'suggest' });
+              }}
               hitSlop={10}
+              disabled={isBusy}
             >
               <Image
                 source={require('../assets/icons/icon_offer.png')}
@@ -73,6 +187,15 @@ export default function Community() {
 }
 
 const styles = StyleSheet.create({
+  loaderScreen: {
+    flex: 1,
+    backgroundColor: '#ECE8DD',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabledButton: {
+    opacity: 0.65,
+  },
   subscribeButton: {
     position: 'relative',
     justifyContent: 'center',

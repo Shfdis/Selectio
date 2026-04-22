@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { bookSearchCatalog } from '../data/libraryBooks';
 import BookRowCard from './BookRowCard';
 import SearchResultsSheet from './SearchResults';
 import SearchInput, { defaultSearchPlaceholder } from './SearchInput';
@@ -16,6 +15,7 @@ export default function NewPostEditor({
   onChangeBookSearchQuery,
   selectedBook,
   onSelectBook,
+  searchBooksCatalog = [],
   comment,
   onChangeComment,
   attachedPhotoUri,
@@ -35,14 +35,14 @@ export default function NewPostEditor({
   const filteredBooks = useMemo(() => {
     const q = bookSearchQuery.trim().toLowerCase();
     if (!q) return [];
-    return bookSearchCatalog.filter(
+    return searchBooksCatalog.filter(
       (book) =>
-        book.title.toLowerCase().includes(q) ||
-        book.author.toLowerCase().includes(q) ||
-        (book.genreFirst && book.genreFirst.toLowerCase().includes(q)) ||
-        (book.genreSecond && book.genreSecond.toLowerCase().includes(q)),
+        String(book?.title ?? '').toLowerCase().includes(q) ||
+        String(book?.author ?? '').toLowerCase().includes(q) ||
+        (book?.genreFirst && String(book.genreFirst).toLowerCase().includes(q)) ||
+        (book?.genreSecond && String(book.genreSecond).toLowerCase().includes(q)),
     );
-  }, [bookSearchQuery]);
+  }, [bookSearchQuery, searchBooksCatalog]);
 
   const showResultsSheet = bookPickerOpen && bookSearchQuery.trim().length > 0 && !resultsSheetDismissed;
 

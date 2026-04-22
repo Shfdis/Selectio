@@ -68,37 +68,37 @@ This order is optimized to replace mock data safely while keeping user flows wor
     - Already implemented: profile fetch/update, and avatar upload pipeline via `POST /api/images` + `PUT /api/users/profile`.
     - To implement: optional field validation and per-field inline error messaging.
 
-17. `AllMySubscriptions` (`allMySubscriptions`) - **Status: Mocked**
-    - Already implemented: subscribed-community grid UI.
-    - To implement: backend list query for subscribed communities.
+17. `Community` (`community`) - **Status: Implemented**
+    - Already implemented: community detail (`GET /api/communities/{id}`), published posts (`GET /api/communities/{id}/posts`), and join/leave actions (`POST /api/communities/{id}/join`, `POST /api/communities/{id}/leave`) are backend-backed.
+    - To implement: optional richer error toasts/empty states for failed joins/leaves.
 
-18. `AllMyCreatedCommunities` (`allMyCreatedCommunities`) - **Status: Mocked**
-    - Already implemented: created-community grid UI.
-    - To implement: backend list query for user-created communities.
+18. `MyCommunity` (`myCommunity`) - **Status: Implemented**
+    - Already implemented: owner community detail/posts are loaded from backend by `communityId` with owner-first fallback from `/api/communities`.
+    - To implement: optional direct owner-only backend query endpoint for "my community" when multiple owned communities exist.
 
-19. `Community` (`community`) - **Status: Mocked**
-    - Already implemented: community header/feed UI and local subscribe toggle.
-    - To implement: community detail/posts queries and subscribe/unsubscribe mutation.
+19. `NewCommunity` (`newCommunity`) - **Status: Implemented**
+    - Already implemented: create form submits to `POST /api/communities`, uploads local cover image via `POST /api/images`, and opens created `myCommunity` by returned `communityId`.
+    - To implement: optional server-side validation messaging mapping for duplicate names and genre constraints.
 
-20. `MyCommunity` (`myCommunity`) - **Status: Mocked**
-    - Already implemented: owner community UI and moderation navigation points.
-    - To implement: owner-specific community data and privileged actions from backend.
-
-21. `NewCommunity` (`newCommunity`) - **Status: Stubbed**
-    - Already implemented: create form UX and image selection.
-    - To implement: create-community mutation and submit success/error handling.
-
-22. `EditCommunity` (`editCommunity`) - **Status: Mocked**
+20. `EditCommunity` (`editCommunity`) - **Status: Mocked**
     - Already implemented: edit form UX with local prefill.
     - To implement: community fetch + update mutation.
 
-23. `NewPost` (`newPost`) - **Status: Stubbed**
-    - Already implemented: post composer UI and media picker.
-    - To implement: create-post mutation and optimistic refresh strategy.
+21. `NewPost` (`newPost`) - **Status: Implemented**
+    - Already implemented: post composer uses backend book search (`GET /api/books/search`), creates published posts via `POST /api/posts` (from `myCommunity`) and suggested posts via `POST /api/posts/suggest` (from `community`), and supports optional media upload through `POST /api/images`.
+    - To implement: optional richer error mapping/UX for API validation responses and moderation-specific success states.
 
-24. `PostComments` (`postComments`) - **Status: Mocked**
+22. `PostComments` (`postComments`) - **Status: Mocked**
     - Already implemented: comments thread UI, input, and local like state.
     - To implement: comments query, add-comment mutation, and comment-like mutation.
+
+23. `AllMySubscriptions` (`allMySubscriptions`) - **Status: Mocked**
+    - Already implemented: subscribed-community grid UI.
+    - To implement: backend list query for subscribed communities.
+
+24. `AllMyCreatedCommunities` (`allMyCreatedCommunities`) - **Status: Mocked**
+    - Already implemented: created-community grid UI.
+    - To implement: backend list query for user-created communities.
 
 25. `SuggestedPosts` (`suggestedPosts`) - **Status: Mocked**
     - Already implemented: moderation queue UI with local publish/delete actions.
@@ -160,13 +160,20 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - Full manual checklist for `EditProfile`: `app/tests/editProfile.integration.checklist.md`.
 
 9. **Community lifecycle**
-   - Create community (`newCommunity`), edit (`editCommunity`), and verify it appears in `allMyCreatedCommunities` and `myCommunity`.
+   - Open `community` and verify details/posts load from `/api/communities/{id}` and `/api/communities/{id}/posts`.
+   - Join/leave in `community` persists via `/api/communities/{id}/join` and `/api/communities/{id}/leave` and affects memberships.
+   - Open `myCommunity` and verify owner-specific community details/posts are loaded from backend by `communityId`.
+   - Create community (`newCommunity`) and verify created item opens in `myCommunity` and appears in created/subscribed lists.
+   - Full manual checklist for `Community`: `app/tests/community.integration.checklist.md`.
+   - Full manual checklist for `MyCommunity`: `app/tests/myCommunity.integration.checklist.md`.
+   - Full manual checklist for `NewCommunity`: `app/tests/newCommunity.integration.checklist.md`.
 
 10. **Subscriptions and community lists**
    - Subscribe/unsubscribe in `community` updates `allMySubscriptions` and `communities` tab sections.
 
 11. **Post and comment lifecycle**
-   - Create post (`newPost`) appears in `community`/`myCommunity` feed.
+   - Create post from `myCommunity` via `POST /api/posts` and verify it appears in `/api/communities/{id}/posts` feed cards.
+   - Suggest post from `community` via `POST /api/posts/suggest` and verify it is not shown in published community feed until moderation approves it.
    - Open `postComments`, add comment, and verify persisted comments/like state.
 
 12. **Moderation flow**
