@@ -181,6 +181,40 @@ class TestGateway:
         data = edit_resp.json()
         assert data["error"]["code"] == "forbidden"
 
+    def test_owner_enforcement_community_delete(self, gateway_base_url, seeded_books):
+        token_owner = _create_user_token(gateway_base_url)
+        token_other = _create_user_token(gateway_base_url)
+        h_owner = {"Authorization": f"Bearer {token_owner}"}
+        h_other = {"Authorization": f"Bearer {token_other}"}
+
+        community_name = f"gw_del_{uuid_lib.uuid4().hex[:8]}"
+        created = requests.post(
+            f"{gateway_base_url}/api/communities",
+            headers=h_owner,
+            json={"name": community_name, "description": "delete me"},
+            timeout=15,
+        )
+        assert created.status_code == 200, created.text
+        community_id = created.json()["id"]
+
+        denied = requests.delete(
+            f"{gateway_base_url}/api/communities/{community_id}",
+            headers=h_other,
+            timeout=15,
+        )
+        assert denied.status_code == 403
+        assert denied.json()["error"]["code"] == "forbidden"
+
+        ok = requests.delete(
+            f"{gateway_base_url}/api/communities/{community_id}",
+            headers=h_owner,
+            timeout=15,
+        )
+        assert ok.status_code == 200, ok.text
+
+        missing = requests.get(f"{gateway_base_url}/api/communities/{community_id}", timeout=15)
+        assert missing.status_code == 404
+
     def test_post_comment_like_via_gateway(self, gateway_base_url, seeded_books):
         token_a = _create_user_token(gateway_base_url)
         token_b = _create_user_token(gateway_base_url)

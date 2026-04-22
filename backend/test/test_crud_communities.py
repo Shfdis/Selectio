@@ -108,6 +108,57 @@ class TestCrudCommunities:
         )
         assert r2.status_code == 403
 
+    def test_owner_can_delete_community(self, crud_base_url):
+        owner_id = 2010
+        headers = {"X-User-Id": str(owner_id)}
+        name = f"del_comm_{uuid.uuid4().hex[:8]}"
+        created = requests.post(
+            f"{crud_base_url}/api/communities",
+            json={"name": name},
+            headers=headers,
+            timeout=5,
+        )
+        assert created.status_code == 200
+        cid = created.json()["id"]
+
+        deleted = requests.delete(
+            f"{crud_base_url}/api/communities/{cid}",
+            headers=headers,
+            timeout=5,
+        )
+        assert deleted.status_code == 200
+
+        missing = requests.get(f"{crud_base_url}/api/communities/{cid}", timeout=5)
+        assert missing.status_code == 404
+
+    def test_non_owner_delete_community_forbidden(self, crud_base_url):
+        owner_id = 2011
+        other_id = 2012
+        name = f"del_denied_{uuid.uuid4().hex[:8]}"
+        created = requests.post(
+            f"{crud_base_url}/api/communities",
+            json={"name": name},
+            headers={"X-User-Id": str(owner_id)},
+            timeout=5,
+        )
+        assert created.status_code == 200
+        cid = created.json()["id"]
+
+        denied = requests.delete(
+            f"{crud_base_url}/api/communities/{cid}",
+            headers={"X-User-Id": str(other_id)},
+            timeout=5,
+        )
+        assert denied.status_code == 403
+
+    def test_delete_missing_community_returns_404(self, crud_base_url):
+        resp = requests.delete(
+            f"{crud_base_url}/api/communities/99999999",
+            headers={"X-User-Id": "2013"},
+            timeout=5,
+        )
+        assert resp.status_code == 404
+
     def test_community_by_id_includes_subscriber_count(self, crud_base_url):
         r = requests.get(f"{crud_base_url}/api/communities", params={"pageSize": 1}, timeout=5)
         assert r.status_code == 200

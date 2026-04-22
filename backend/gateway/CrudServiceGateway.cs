@@ -122,7 +122,7 @@ public static class CrudServiceGateway
             return null;
         }
 
-        if (HttpMethods.IsPut(method) && TryGetSingleSegmentId(path, "/api/communities/", out var communityId))
+        if ((HttpMethods.IsPut(method) || HttpMethods.IsDelete(method)) && TryGetSingleSegmentId(path, "/api/communities/", out var communityId))
         {
             var info = await authzClient.FetchCommunityOwnerInfo(http, communityId);
             if (info is null) return Results.NotFound();

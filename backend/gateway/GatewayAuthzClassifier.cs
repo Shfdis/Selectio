@@ -64,7 +64,7 @@ public static class GatewayAuthzClassifier
             return AuthzRequirement.Owner;
         }
 
-        if (HttpMethods.IsPut(method) && TrySingleIdPath(path, "/api/communities/", out _))
+        if ((HttpMethods.IsPut(method) || HttpMethods.IsDelete(method)) && TrySingleIdPath(path, "/api/communities/", out _))
         {
             return AuthzRequirement.Owner;
         }

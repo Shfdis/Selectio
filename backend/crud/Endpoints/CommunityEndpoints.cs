@@ -191,6 +191,38 @@ public static class CommunityEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
 
+        group.MapDelete("/{id:int}", async (HttpContext http, CrudDbContext db, int id) =>
+        {
+            if (!GatewayIdentity.TryGetUserId(http, out var userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var community = await db.Communities.FirstOrDefaultAsync(c => c.Id == id);
+            if (community is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (community.OwnerUserId != userId)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            db.Communities.Remove(community);
+            await db.SaveChangesAsync();
+            return Results.Ok(new { message = "deleted" });
+        })
+        .WithSummary("Delete community (owner only)")
+        .WithDescription(
+            "Owner-only hard delete of a community. " +
+            "Deletes the community row and dependent data via configured cascading foreign keys."
+        )
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
         group.MapPost("/{id:int}/join", async (HttpContext http, CrudDbContext db, int id) =>
         {
             if (!GatewayIdentity.TryGetUserId(http, out var userId))
