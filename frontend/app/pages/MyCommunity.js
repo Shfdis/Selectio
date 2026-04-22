@@ -94,7 +94,7 @@ export default function MyCommunity() {
     navigation.navigate('newPost', { communityId, mode: 'publish' });
   };
   const onPressSuggestedPosts = () => {
-    navigation.navigate('suggestedPosts');
+    navigation.navigate('suggestedPosts', { communityId });
   };
 
   if (!communityId || isFetchingCommunity) {

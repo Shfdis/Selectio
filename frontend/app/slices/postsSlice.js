@@ -3,6 +3,7 @@ import { userApi } from "./userSlice";
 const recommendedPostsListTag = { type: "Post", id: "LIST:recommended" };
 const communitiesFeedListTag = { type: "Post", id: "LIST:communities-feed" };
 const communityPostsListTag = (communityId) => ({ type: "Post", id: `LIST:community:${communityId}` });
+const suggestedPostsListTag = (communityId) => ({ type: "Post", id: `LIST:suggested:${communityId}` });
 const postTag = (postId) => ({ type: "Post", id: postId });
 const postCommentsListTag = (postId) => ({ type: "PostComment", id: `LIST:post:${postId}` });
 const postCommentTag = (commentId) => ({ type: "PostComment", id: commentId });
@@ -28,6 +29,19 @@ export const postsApi = userApi.injectEndpoints({
       query: (postId) => `/api/posts/${postId}`,
       providesTags: (_result, _error, postId) => [postTag(postId)],
     }),
+    getSuggestedPosts: builder.query({
+      query: ({ communityId, page = 1, pageSize = 20 } = {}) => ({
+        url: `/api/communities/${communityId}/suggestions`,
+        params: { page, pageSize },
+      }),
+      providesTags: (result = [], _error, arg) => [
+        suggestedPostsListTag(arg?.communityId),
+        ...result
+          .map((post) => post?.id)
+          .filter((id) => id != null)
+          .map((id) => postTag(id)),
+      ],
+    }),
     createPost: builder.mutation({
       query: ({ communityId, bookId, content, photoUrl }) => ({
         url: "/api/posts",
@@ -46,7 +60,33 @@ export const postsApi = userApi.injectEndpoints({
         method: "POST",
         body: { communityId, bookId, content, photoUrl },
       }),
-      invalidatesTags: (_result, _error, arg) => [communityPostsListTag(arg?.communityId)],
+      invalidatesTags: (_result, _error, arg) => [
+        communityPostsListTag(arg?.communityId),
+        suggestedPostsListTag(arg?.communityId),
+      ],
+    }),
+    approveSuggestedPost: builder.mutation({
+      query: ({ postId }) => ({
+        url: `/api/posts/${postId}/approve`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, arg) => [
+        postTag(arg?.postId),
+        suggestedPostsListTag(arg?.communityId),
+        communityPostsListTag(arg?.communityId),
+        communitiesFeedListTag,
+        recommendedPostsListTag,
+      ],
+    }),
+    rejectSuggestedPost: builder.mutation({
+      query: ({ postId }) => ({
+        url: `/api/posts/${postId}/reject`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, arg) => [
+        postTag(arg?.postId),
+        suggestedPostsListTag(arg?.communityId),
+      ],
     }),
     getPostComments: builder.query({
       query: ({ postId, page = 1, pageSize = 100 } = {}) => ({
@@ -139,8 +179,11 @@ export const postsApi = userApi.injectEndpoints({
 export const {
   useGetRecommendedPostsQuery,
   useGetPostByIdQuery,
+  useGetSuggestedPostsQuery,
   useCreatePostMutation,
   useSuggestPostMutation,
+  useApproveSuggestedPostMutation,
+  useRejectSuggestedPostMutation,
   useGetPostCommentsQuery,
   useCreatePostCommentMutation,
   useUpdatePostCommentMutation,

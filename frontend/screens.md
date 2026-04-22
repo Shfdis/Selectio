@@ -100,9 +100,9 @@ This order is optimized to replace mock data safely while keeping user flows wor
     - Already implemented: created communities grid is loaded from `/api/communities` and filtered by `ownerUserId === currentUser.id`, each card opens `myCommunity` with route `communityId`.
     - To implement: optional server endpoint for owner-scoped pagination (to avoid fetching full catalog for large datasets).
 
-25. `SuggestedPosts` (`suggestedPosts`) - **Status: Mocked**
-    - Already implemented: moderation queue UI with local publish/delete actions.
-    - To implement: suggested-posts queue query and moderation mutations.
+25. `SuggestedPosts` (`suggestedPosts`) - **Status: Implemented**
+    - Already implemented: moderation queue is loaded from `GET /api/communities/{id}/suggestions`; moderator actions persist via `POST /api/posts/{id}/approve` and `POST /api/posts/{id}/reject`.
+    - To implement: optional pagination/infinite-scroll for large moderation queues.
 
 ## Required integration tests
 
@@ -188,6 +188,7 @@ This order is optimized to replace mock data safely while keeping user flows wor
 
 12. **Moderation flow**
    - `suggestedPosts` publish/delete mutations update queue and downstream community feed correctly.
+   - Full manual checklist for `SuggestedPosts`: `app/tests/suggestedPosts.integration.checklist.md`.
 
 ## Notes
 
