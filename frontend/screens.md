@@ -92,9 +92,9 @@ This order is optimized to replace mock data safely while keeping user flows wor
     - Already implemented: comments thread loads from `GET /api/posts/{id}/comments`, comment create/update/delete is persisted via `POST /api/posts/{id}/comments` and `PUT/DELETE /api/comments/{id}`, and comment like/unlike is persisted via `POST/DELETE /api/comments/{id}/like`.
     - To implement: optional UX polish for mutation errors and inline owner-action affordances.
 
-23. `AllMySubscriptions` (`allMySubscriptions`) - **Status: Mocked**
-    - Already implemented: subscribed-community grid UI.
-    - To implement: backend list query for subscribed communities.
+23. `AllMySubscriptions` (`allMySubscriptions`) - **Status: Implemented**
+    - Already implemented: subscribed communities grid is loaded from `GET /api/users/{id}/communities` and each card navigates to `community` with route `communityId`.
+    - To implement: optional pagination UX for very large subscription lists.
 
 24. `AllMyCreatedCommunities` (`allMyCreatedCommunities`) - **Status: Mocked**
     - Already implemented: created-community grid UI.
@@ -173,6 +173,7 @@ This order is optimized to replace mock data safely while keeping user flows wor
 
 10. **Subscriptions and community lists**
    - Subscribe/unsubscribe in `community` updates `allMySubscriptions` and `communities` tab sections.
+   - Full manual checklist for `AllMySubscriptions`: `app/tests/allMySubscriptions.integration.checklist.md`.
 
 11. **Post and comment lifecycle**
    - Create post from `myCommunity` via `POST /api/posts` and verify it appears in `/api/communities/{id}/posts` feed cards.
