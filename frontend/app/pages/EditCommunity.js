@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import CommunityEditor from '../components/CommunityEditor';
 import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
 import {
+  useDeleteCommunityMutation,
   useGetCommunitiesCatalogQuery,
   useGetCommunityByIdQuery,
   useUpdateCommunityMutation,
@@ -53,6 +54,7 @@ export default function EditCommunity() {
   const [isFormInitialized, setIsFormInitialized] = useState(false);
   const [uploadImage, { isLoading: isUploadingImage }] = useUploadImageMutation();
   const [updateCommunity, { isLoading: isUpdatingCommunity }] = useUpdateCommunityMutation();
+  const [deleteCommunity, { isLoading: isDeletingCommunity }] = useDeleteCommunityMutation();
 
   useEffect(() => {
     if (!communityData || isFormInitialized) {
@@ -99,13 +101,27 @@ export default function EditCommunity() {
     }
   };
 
+  const onPressDelete = async () => {
+    if (!communityId) {
+      return;
+    }
+    try {
+      await deleteCommunity({ communityId }).unwrap();
+      navigation.navigate('main', { mainTab: 'groups' });
+    } catch (_error) {
+      Alert.alert('Не удалось удалить', 'Попробуйте ещё раз.', [{ text: 'Ок' }]);
+    }
+  };
+
+  const isBusy = isUpdatingCommunity || isUploadingImage || isDeletingCommunity;
+
   return (
     <View style={styles.screen}>
       <ScreenHeader
         headerTitle="Настройки сообщества"
         onPressBack={() => navigation.goBack()}
         onPressConfirm={onPressSave}
-        confirmDisabled={isUpdatingCommunity || isUploadingImage || !isFormInitialized}
+        confirmDisabled={isBusy || !isFormInitialized}
       />
 
       <CommunityEditor
@@ -123,6 +139,16 @@ export default function EditCommunity() {
         selectedGenres={selectedGenres}
         onSelectedGenresChange={setSelectedGenres}
       />
+
+      <View style={styles.deleteWrap}>
+        <Pressable
+          style={[styles.deleteButton, isBusy ? styles.deleteButtonDisabled : null]}
+          onPress={onPressDelete}
+          disabled={isBusy || !isFormInitialized}
+        >
+          <Text style={styles.deleteText}>Удалить сообщество</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -131,5 +157,30 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#ECE8DD',
+  },
+  deleteWrap: {
+    paddingHorizontal: '6%',
+    paddingBottom: 16,
+  },
+  deleteButton: {
+    width: '100%',
+    borderRadius: 40,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#A03A3A',
+    borderWidth: 1,
+    borderColor: '#8B7B4E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteButtonDisabled: {
+    opacity: 0.6,
+  },
+  deleteText: {
+    fontSize: 18,
+    color: '#ECE8DD',
+    fontFamily: 'Playfair',
+    fontWeight: '600',
+    lineHeight: 22,
   },
 });

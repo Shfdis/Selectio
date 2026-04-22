@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
 import { useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import BookCard from './BookCard';
+import { useGetUserProfileQuery } from '../slices/profileSlice';
 import {
   useFavoritePostMutation,
   useLikePostMutation,
@@ -12,6 +13,7 @@ import {
 export default function PostCard({
   avatarSource = require('../assets/icons/profile-avatar.png'),
   avatarUri,
+  authorUserId,
   postId,
   username,
   dateText,
@@ -30,6 +32,11 @@ export default function PostCard({
   const [liked, setLiked] = useState(initiallyLiked);
   const [bookmarked, setBookmarked] = useState(initiallyBookmarked);
   const [likes, setLikes] = useState(initialLikes);
+  const normalizedAuthorUserId = Number(authorUserId);
+  const { data: authorProfile } = useGetUserProfileQuery(normalizedAuthorUserId, {
+    skip: !Number.isFinite(normalizedAuthorUserId) || normalizedAuthorUserId <= 0,
+  });
+  const resolvedAvatarUri = authorProfile?.avatarUrl || avatarUri;
   const [likePost] = useLikePostMutation();
   const [unlikePost] = useUnlikePostMutation();
   const [favoritePost] = useFavoritePostMutation();
@@ -104,7 +111,7 @@ export default function PostCard({
       <View style={styles.inner}>
         <View style={styles.headerRow}>
           <Image
-            source={avatarUri ? { uri: avatarUri } : avatarSource}
+            source={resolvedAvatarUri ? { uri: resolvedAvatarUri } : avatarSource}
             style={styles.avatar}
             resizeMode="cover"
           />

@@ -15,6 +15,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import { useEffect, useMemo, useState } from 'react';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
+import { useGetUserProfileQuery } from '../slices/profileSlice';
 import {
   useCreatePostCommentMutation,
   useDeletePostCommentMutation,
@@ -42,9 +43,11 @@ const formatDate = (isoString) => {
 
 function ThreadCommentItem({
   commentId,
+  authorUserId,
   username,
   dateText,
   text,
+  avatarUri,
   initialLikes = 0,
   initiallyLiked = false,
   isMine = false,
@@ -59,6 +62,11 @@ function ThreadCommentItem({
   const [liked, setLiked] = useState(initiallyLiked);
   const [likes, setLikes] = useState(initialLikes);
   const [editDraft, setEditDraft] = useState(text);
+  const normalizedAuthorUserId = Number(authorUserId);
+  const { data: authorProfile } = useGetUserProfileQuery(normalizedAuthorUserId, {
+    skip: !Number.isFinite(normalizedAuthorUserId) || normalizedAuthorUserId <= 0,
+  });
+  const resolvedAvatarUri = authorProfile?.avatarUrl || avatarUri;
   const [likePostComment] = useLikePostCommentMutation();
   const [unlikePostComment] = useUnlikePostCommentMutation();
 
@@ -100,7 +108,7 @@ function ThreadCommentItem({
     <View style={styles.commentRow}>
       <View style={styles.commentInner}>
         <View style={styles.commentHeaderRow}>
-          <Image source={defaultAvatar} style={styles.commentAvatar} resizeMode="cover" />
+          <Image source={resolvedAvatarUri ? { uri: resolvedAvatarUri } : defaultAvatar} style={styles.commentAvatar} resizeMode="cover" />
           <View style={styles.commentHeaderText}>
             <Text style={styles.commentUsername} numberOfLines={1}>
               {username}
@@ -208,6 +216,7 @@ export default function PostComments() {
         username: comment?.authorUsername || `user${comment?.authorUserId ?? ''}`,
         dateText: formatDate(comment?.createdAt),
         text: comment?.content || '',
+        avatarUri: comment?.authorAvatarUrl || comment?.avatarUrl || undefined,
         likes: Number(comment?.likeCount ?? 0),
         liked: Boolean(comment?.likedByCurrentUser),
       })),
@@ -294,9 +303,11 @@ export default function PostComments() {
             <ThreadCommentItem
               key={c.id}
               commentId={c.commentId}
+              authorUserId={c.authorUserId}
               username={c.username}
               dateText={c.dateText}
               text={c.text}
+              avatarUri={c.avatarUri}
               initialLikes={c.likes}
               initiallyLiked={c.liked}
               isMine={Number.isFinite(currentUserId) && c.authorUserId === currentUserId}

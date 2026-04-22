@@ -28,6 +28,7 @@ const toPostCardModel = (post) => {
   return {
     id: post?.id,
     postId: post?.id,
+    authorUserId: Number(post?.authorUserId),
     username: post?.authorUsername || 'Пользователь',
     dateText: formatDate(post?.createdAt),
     text: post?.content || '',
@@ -130,10 +131,7 @@ export function RecommendationsMainContent() {
     [hasMoreBooks, isRecommendedPageFetching, isPopularPageFetching],
   );
 
-  const feedPosts = useMemo(
-    () => recommendedPosts.map((post) => toPostCardModel(post)),
-    [recommendedPosts],
-  );
+  const feedPosts = useMemo(() => recommendedPosts.map((post) => toPostCardModel(post)), [recommendedPosts]);
 
   return (
     <View style={styles.screen}>
@@ -160,6 +158,7 @@ export function RecommendationsMainContent() {
             <PostCard
               key={`post-${post.id}`}
               postId={post.postId}
+              authorUserId={post.authorUserId}
               avatarUri={post.avatarUri}
               username={post.username}
               dateText={post.dateText}

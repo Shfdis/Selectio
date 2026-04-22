@@ -43,10 +43,13 @@ const mapCommunityPosts = (posts) =>
     const { genreFirst, genreSecond } = mapApiBookGenres(post?.book);
     return {
       id: post?.id,
+      postId: post?.id,
+      authorUserId: Number(post?.authorUserId),
       username: post?.authorUsername || 'Пользователь',
       dateText: formatDate(post?.createdAt),
       text: post?.content || '',
       imageSource: post?.photoUrl ? { uri: post.photoUrl } : undefined,
+      avatarUri: post?.authorAvatarUrl || post?.avatarUrl || undefined,
       initialLikes: post?.likeCount ?? 0,
       initialComments: post?.commentCount ?? 0,
       initiallyLiked: Boolean(post?.likedByCurrentUser),

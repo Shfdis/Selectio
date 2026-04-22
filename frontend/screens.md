@@ -81,7 +81,7 @@ This order is optimized to replace mock data safely while keeping user flows wor
     - To implement: optional server-side validation messaging mapping for duplicate names and genre constraints.
 
 20. `EditCommunity` (`editCommunity`) - **Status: Implemented**
-    - Already implemented: edit form fetches current community (`GET /api/communities/{id}`), supports optional cover upload via `POST /api/images`, and persists updates through `PUT /api/communities/{id}`.
+    - Already implemented: edit form fetches current community (`GET /api/communities/{id}`), supports optional cover upload via `POST /api/images`, persists updates through `PUT /api/communities/{id}`, and supports owner deletion via `DELETE /api/communities/{id}` with navigation back to communities tab.
     - To implement: optional field-level validation UX for server-side errors.
 
 21. `NewPost` (`newPost`) - **Status: Implemented**
@@ -165,6 +165,7 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - Open `myCommunity` and verify owner-specific community details/posts are loaded from backend by `communityId`.
    - Create community (`newCommunity`) and verify created item opens in `myCommunity` and appears in created/subscribed lists.
    - Edit community (`editCommunity`) updates name/description/genre/cover and persists after reopening `myCommunity`.
+   - Delete community (`editCommunity`) persists via `DELETE /api/communities/{id}` and returns user to communities tab.
    - Full manual checklist for `Community`: `app/tests/community.integration.checklist.md`.
    - Full manual checklist for `MyCommunity`: `app/tests/myCommunity.integration.checklist.md`.
    - Full manual checklist for `NewCommunity`: `app/tests/newCommunity.integration.checklist.md`.
