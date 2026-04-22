@@ -96,9 +96,9 @@ This order is optimized to replace mock data safely while keeping user flows wor
     - Already implemented: subscribed communities grid is loaded from `GET /api/users/{id}/communities` and each card navigates to `community` with route `communityId`.
     - To implement: optional pagination UX for very large subscription lists.
 
-24. `AllMyCreatedCommunities` (`allMyCreatedCommunities`) - **Status: Mocked**
-    - Already implemented: created-community grid UI.
-    - To implement: backend list query for user-created communities.
+24. `AllMyCreatedCommunities` (`allMyCreatedCommunities`) - **Status: Implemented**
+    - Already implemented: created communities grid is loaded from `/api/communities` and filtered by `ownerUserId === currentUser.id`, each card opens `myCommunity` with route `communityId`.
+    - To implement: optional server endpoint for owner-scoped pagination (to avoid fetching full catalog for large datasets).
 
 25. `SuggestedPosts` (`suggestedPosts`) - **Status: Mocked**
     - Already implemented: moderation queue UI with local publish/delete actions.
@@ -174,6 +174,7 @@ This order is optimized to replace mock data safely while keeping user flows wor
 10. **Subscriptions and community lists**
    - Subscribe/unsubscribe in `community` updates `allMySubscriptions` and `communities` tab sections.
    - Full manual checklist for `AllMySubscriptions`: `app/tests/allMySubscriptions.integration.checklist.md`.
+   - Full manual checklist for `AllMyCreatedCommunities`: `app/tests/allMyCreatedCommunities.integration.checklist.md`.
 
 11. **Post and comment lifecycle**
    - Create post from `myCommunity` via `POST /api/posts` and verify it appears in `/api/communities/{id}/posts` feed cards.
