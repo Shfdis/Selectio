@@ -10,3 +10,4 @@ Run these checks with authenticated user and backend data.
 6. Tap a search result and verify navigation to `community`/`myCommunity` with `communityId`.
 7. Tap subscription and created-community cover cards and verify route params include `communityId`.
 8. Tap feed post comments icon and verify navigation to `postComments`.
+9. If feed payload includes author avatar URL, verify post card avatar renders remote image (otherwise placeholder icon is shown).

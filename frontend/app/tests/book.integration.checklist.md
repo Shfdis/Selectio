@@ -11,3 +11,4 @@ Run these checks with backend data and authenticated user.
 7. Verify "Удалить из списка" removes membership via `DELETE /api/books/{id}/library`.
 8. Verify UI shelf badge/state reflects backend `userStatus` after each mutation.
 9. Verify navigating back and reopening the same book preserves server-backed shelf state.
+10. If book review author is current user, verify avatar matches saved profile avatar (fallback icon for users without avatar URL).

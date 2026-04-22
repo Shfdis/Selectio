@@ -15,6 +15,21 @@ export const profileApi = userApi.injectEndpoints({
       }),
       invalidatesTags: ["User"],
     }),
+    uploadImage: builder.mutation({
+      query: ({ uri, name = "avatar.jpg", type = "image/jpeg" }) => {
+        const formData = new FormData();
+        formData.append("file", {
+          uri,
+          name,
+          type,
+        });
+        return {
+          url: "/api/images",
+          method: "POST",
+          body: formData,
+        };
+      },
+    }),
     getUserLibraryBooks: builder.query({
       query: ({ userId, status, page = 1, pageSize = 100 }) => ({
         url: `/api/users/${userId}/books`,
@@ -42,6 +57,7 @@ export const profileApi = userApi.injectEndpoints({
 export const {
   useGetUserProfileQuery,
   useUpdateProfileMutation,
+  useUploadImageMutation,
   useGetUserLibraryBooksQuery,
   useGetMyBookCommentsQuery,
   useGetMyFavoritePostsQuery,

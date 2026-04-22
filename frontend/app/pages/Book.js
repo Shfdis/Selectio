@@ -15,6 +15,8 @@ import {
   useMoveBookInLibraryMutation,
   useRemoveBookFromLibraryMutation,
 } from '../slices/booksSlice';
+import { useGetCurrentUserQuery } from '../slices/userSlice';
+import { useGetUserProfileQuery } from '../slices/profileSlice';
 
 const LIBRARY_STATUS = {
   wantToRead: 0,
@@ -62,6 +64,11 @@ const resolveShelfFromUserStatus = (status) => {
 export default function Book() {
   const navigation = useNavigation();
   const route = useRoute();
+  const { data: currentUser } = useGetCurrentUserQuery();
+  const userId = currentUser?.id;
+  const { data: currentProfile } = useGetUserProfileQuery(userId, { skip: !userId });
+  const currentUsername = currentProfile?.username || currentUser?.username || '';
+  const currentAvatarUrl = currentProfile?.avatarUrl || '';
   const scrollRef = useRef(null);
   const routeBookId = route?.params?.bookId;
   const numericBookId = Number(routeBookId);
@@ -121,6 +128,13 @@ export default function Book() {
       return Array.from(latestByAuthor.values()).map((review) => ({
         id: review.id,
         userName: review.authorUsername || 'Пользователь',
+        avatarUrl:
+          currentAvatarUrl &&
+          currentUsername &&
+          review.authorUsername &&
+          review.authorUsername === currentUsername
+            ? currentAvatarUrl
+            : '',
         dateText: formatDate(review.createdAt),
         title: book.title,
         author: book.author,
@@ -129,7 +143,7 @@ export default function Book() {
         showEdit: false,
       }));
     },
-    [bookComments, book.author, book.title],
+    [bookComments, book.author, book.title, currentAvatarUrl, currentUsername],
   );
 
   const onPressBack = () => {
@@ -256,7 +270,15 @@ export default function Book() {
             {reviews.map((r) => (
               <View key={r.id} style={styles.reviewItem}>
                 <View style={styles.reviewHeader}>
-                  <Image source={require('../assets/icons/profile-avatar.png')} style={styles.reviewAvatar} resizeMode="cover" />
+                  <Image
+                    source={
+                      r.avatarUrl
+                        ? { uri: r.avatarUrl }
+                        : require('../assets/icons/profile-avatar.png')
+                    }
+                    style={styles.reviewAvatar}
+                    resizeMode="cover"
+                  />
                   <View style={styles.reviewHeaderText}>
                     <Text style={styles.reviewUserName} numberOfLines={1}>
                       {r.userName}

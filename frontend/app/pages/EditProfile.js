@@ -5,9 +5,28 @@ import { useDispatch } from 'react-redux';
 import { removeToken } from '../utils/secureStore';
 import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
 import { userApi, useGetCurrentUserQuery } from '../slices/userSlice';
-import { useGetUserProfileQuery, useUpdateProfileMutation } from '../slices/profileSlice';
+import { useGetUserProfileQuery, useUpdateProfileMutation, useUploadImageMutation } from '../slices/profileSlice';
 import ScreenHeader from '../components/ScreenHeader';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+
+const isLocalAssetUri = (uri) => typeof uri === 'string' && (uri.startsWith('file://') || uri.startsWith('content://'));
+
+const buildUploadMeta = (uri) => {
+  const normalized = String(uri ?? '');
+  const fallback = { name: 'avatar.jpg', type: 'image/jpeg' };
+  if (!normalized) {
+    return fallback;
+  }
+  const fileName = normalized.split('/').pop() || fallback.name;
+  const hasJpeg = /\.(jpe?g)$/i.test(fileName);
+  const hasPng = /\.png$/i.test(fileName);
+  const hasWebp = /\.webp$/i.test(fileName);
+  const mimeType = hasPng ? 'image/png' : hasWebp ? 'image/webp' : 'image/jpeg';
+  if (hasJpeg || hasPng || hasWebp) {
+    return { name: fileName, type: mimeType };
+  }
+  return fallback;
+};
 
 export default function EditProfile() {
   const navigation = useNavigation();
@@ -16,6 +35,7 @@ export default function EditProfile() {
   const userId = currentUser?.id;
   const { data: profile } = useGetUserProfileQuery(userId, { skip: !userId });
   const [updateProfile, { isLoading }] = useUpdateProfileMutation();
+  const [uploadImage, { isLoading: isUploadingImage }] = useUploadImageMutation();
 
   const [username, setUsername] = useState('');
   const [description, setDescription] = useState('');
@@ -35,10 +55,21 @@ export default function EditProfile() {
 
   const onPressSave = async () => {
     try {
+      let resolvedAvatarUrl = avatarUri || profile?.avatarUrl || '';
+      if (isLocalAssetUri(resolvedAvatarUrl)) {
+        const { name, type } = buildUploadMeta(resolvedAvatarUrl);
+        const uploadResponse = await uploadImage({
+          uri: resolvedAvatarUrl,
+          name,
+          type,
+        }).unwrap();
+        resolvedAvatarUrl = uploadResponse?.url || '';
+      }
+
       await updateProfile({
         username,
         description,
-        avatarUrl: avatarUri || profile?.avatarUrl || '',
+        avatarUrl: resolvedAvatarUrl,
       }).unwrap();
       dispatch(userApi.util.invalidateTags(['User']));
       navigation.goBack();
@@ -63,7 +94,7 @@ export default function EditProfile() {
         headerTitle="Настройки профиля"
         onPressBack={() => navigation.goBack()}
         onPressConfirm={onPressSave}
-        confirmDisabled={isLoading}
+        confirmDisabled={isLoading || isUploadingImage}
       />
 
       <View style={styles.avatarSection}>
