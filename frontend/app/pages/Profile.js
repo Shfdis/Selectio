@@ -57,6 +57,7 @@ export function Profile() {
   const navigation = useNavigation();
 
   const displayName = profile?.username || currentUser?.username || 'Новый пользователь';
+  const avatarUrl = profile?.avatarUrl || '';
   const description =
     profile?.description ||
     currentUser?.description ||
@@ -148,7 +149,10 @@ export function Profile() {
       >
         <View style={[styles.padded, { height: paddedHeight }]}>
           <View style={styles.headerRow}>
-            <Image source={require('../assets/icons/profile-avatar.png')} style={styles.avatar} />
+            <Image
+              source={avatarUrl ? { uri: avatarUrl } : require('../assets/icons/profile-avatar.png')}
+              style={styles.avatar}
+            />
 
             <Pressable style={styles.settingsButton} onPress={onPressSettings}>
               <Image source={require('../assets/icons/icon-settings.png')} style={styles.settingsIcon} />
@@ -219,6 +223,7 @@ export function Profile() {
               {favoritePosts.map((p) => (
                 <PostCard
                   key={p.id}
+                  avatarUri={avatarUrl || undefined}
                   postId={p.id}
                   username={p.username}
                   dateText={p.dateText}

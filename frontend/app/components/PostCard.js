@@ -5,6 +5,7 @@ import BookCard from './BookCard';
 
 export default function PostCard({
   avatarSource = require('../assets/icons/profile-avatar.png'),
+  avatarUri,
   postId,
   username,
   dateText,
@@ -59,7 +60,11 @@ export default function PostCard({
     <View style={[styles.wrapper, style]}>
       <View style={styles.inner}>
         <View style={styles.headerRow}>
-          <Image source={avatarSource} style={styles.avatar} resizeMode="cover" />
+          <Image
+            source={avatarUri ? { uri: avatarUri } : avatarSource}
+            style={styles.avatar}
+            resizeMode="cover"
+          />
           <View style={styles.headerText}>
             <Text style={styles.username} numberOfLines={1}>
               {username}

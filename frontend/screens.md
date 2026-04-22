@@ -21,7 +21,7 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - To implement: no direct data layer; depends on tab integrations below.
 
 5. `Profile` (tab inside `main`) - **Status: Implemented**
-   - Already implemented: current profile identity/bio, library counts by status, "my reviews", and "favorites" are loaded from backend queries.
+   - Already implemented: current profile identity/bio/avatar, library counts by status, "my reviews", and "favorites" are loaded from backend queries.
    - To implement: optional UX polish for favorites cards (enrich post details) and loading/error states per tab.
 
 6. `Search` (tab inside `main`) - **Status: Implemented**
@@ -29,15 +29,15 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - To implement: add pagination/infinite-scroll and dedicated trending source when backend endpoint is available.
 
 7. `Recommendations` (tab inside `main`) - **Status: Implemented**
-   - Already implemented: recommended books (`/api/books/recommended`) are shown in the top books rail and recommended posts (`/api/posts/recommended`) are shown in the feed.
+   - Already implemented: recommended books (`/api/books/recommended`) are shown in the top books rail and recommended posts (`/api/posts/recommended`) are shown in the feed; post cards render backend author avatar when present.
    - To implement: optional dedicated pagination UX for the top books rail.
 
 8. `Communities` (tab inside `main`) - **Status: Implemented**
-   - Already implemented: subscriptions strip, created-communities strip, communities search, and feed are wired to backend endpoints.
+   - Already implemented: subscriptions strip, created-communities strip, communities search, and feed are wired to backend endpoints; feed post cards render backend author avatar when present.
    - To implement: optional server endpoints for direct "my created communities" list (currently derived from `/api/communities` by `ownerUserId`).
 
 9. `Book` (`book`) - **Status: Implemented**
-   - Already implemented: book detail (`/api/books/{id}`), reviews (`/api/books/{id}/comments`), and library add/move/remove actions (`/api/books/{id}/library`) are backend-backed.
+   - Already implemented: book detail (`/api/books/{id}`), reviews (`/api/books/{id}/comments`), and library add/move/remove actions (`/api/books/{id}/library`) are backend-backed; current-user reviews render saved profile avatar URL.
    - To implement: optional inline error toasts/loading states for mutation failures.
 
 10. `Genre` (`genre`) - **Status: Implemented**
@@ -57,16 +57,16 @@ This order is optimized to replace mock data safely while keeping user flows wor
     - To implement: optional dedicated pagination for large read shelves.
 
 14. `NewReview` (`newReview`) - **Status: Implemented**
-    - Already implemented: review form submits rating and review text via `PUT /api/books/{id}/rate` and `POST /api/books/{id}/comments`.
+    - Already implemented: review form submits rating and review text via `POST /api/books/{id}/comments`.
     - To implement: optional inline validation/error messaging.
 
 15. `EditReview` (`editReview`) - **Status: Implemented**
-    - Already implemented: edit-review form updates rating via `PUT /api/books/{id}/rate`, updates existing review via `PUT /api/book-comments/{id}`, and supports delete via `DELETE /api/book-comments/{id}`.
+    - Already implemented: edit-review form updates existing review via `PUT /api/book-comments/{id}` and supports delete via `DELETE /api/book-comments/{id}`.
     - To implement: optional inline error toasts for mutation failures.
 
-16. `EditProfile` (`editProfile`) - **Status: Implemented (core)**
-    - Already implemented: profile fetch and update mutation.
-    - To implement: production-ready avatar upload/media pipeline.
+16. `EditProfile` (`editProfile`) - **Status: Implemented**
+    - Already implemented: profile fetch/update, and avatar upload pipeline via `POST /api/images` + `PUT /api/users/profile`.
+    - To implement: optional field validation and per-field inline error messaging.
 
 17. `AllMySubscriptions` (`allMySubscriptions`) - **Status: Mocked**
     - Already implemented: subscribed-community grid UI.
@@ -145,8 +145,8 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - Full manual checklist for `ReadBooks`: `app/tests/readBooks.integration.checklist.md`.
 
 7. **Review lifecycle**
-   - Create review from `newReview` persists via `POST /api/books/{id}/comments` and rating via `PUT /api/books/{id}/rate`.
-   - Edit review from `editReview` persists edited text/rating via `PUT /api/book-comments/{id}` plus `PUT /api/books/{id}/rate`.
+   - Create review from `newReview` persists via `POST /api/books/{id}/comments`.
+   - Edit review from `editReview` persists edited text/rating via `PUT /api/book-comments/{id}`.
    - Delete review from `editReview` persists via `DELETE /api/book-comments/{id}`.
    - Verify updated review appears on both `readBooks` and `Book`.
    - Full manual checklist for `NewReview`: `app/tests/newReview.integration.checklist.md`.
@@ -154,7 +154,10 @@ This order is optimized to replace mock data safely while keeping user flows wor
 
 8. **Profile updates**
    - `editProfile` save persists and re-renders in `Profile`.
+   - `editProfile` avatar change uploads media to `/api/images` and persists returned URL in profile.
+   - Updated avatar is rendered in `Profile` header and in current-user review/post surfaces with placeholder fallback for users without avatar URL.
    - `Profile` tabs (`books`, `reviews`, `favorites`) load from `/api/users/{id}/books`, `/api/users/me/book-comments`, and `/api/users/favorites` without mock data.
+   - Full manual checklist for `EditProfile`: `app/tests/editProfile.integration.checklist.md`.
 
 9. **Community lifecycle**
    - Create community (`newCommunity`), edit (`editCommunity`), and verify it appears in `allMyCreatedCommunities` and `myCommunity`.

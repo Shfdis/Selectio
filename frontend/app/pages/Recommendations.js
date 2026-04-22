@@ -32,6 +32,7 @@ const toPostCardModel = (post) => {
     dateText: formatDate(post?.createdAt),
     text: post?.content || '',
     imageUri: post?.photoUrl || undefined,
+    avatarUri: post?.authorAvatarUrl || post?.avatarUrl || undefined,
     book: {
       imageUrl: post?.book?.coverUrl || DEFAULT_COVER_URI,
       title: post?.book?.title || 'Без названия',
@@ -159,6 +160,7 @@ export function RecommendationsMainContent() {
             <PostCard
               key={`post-${post.id}`}
               postId={post.postId}
+              avatarUri={post.avatarUri}
               username={post.username}
               dateText={post.dateText}
               text={post.text}

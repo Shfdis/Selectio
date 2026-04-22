@@ -52,6 +52,7 @@ const mapFeedPost = (post) => {
     dateText: formatDate(post?.createdAt),
     text: post?.content || '',
     imageUri: post?.photoUrl || undefined,
+    avatarUri: post?.authorAvatarUrl || post?.avatarUrl || undefined,
     book: {
       imageUrl: post?.book?.coverUrl || DEFAULT_COVER_URI,
       title: post?.book?.title || 'Без названия',
@@ -218,6 +219,7 @@ export function Communities() {
             <PostCard
               key={p.id}
               postId={p.postId}
+              avatarUri={p.avatarUri}
               username={p.username}
               dateText={p.dateText}
               text={p.text}
