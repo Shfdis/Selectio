@@ -18,8 +18,10 @@ function buildRows(coverCount) {
 export default function AllCommunities({
   headerTitle,
   headerSubtitle,
-  coverImageUrls,
+  coverImageUrls = [],
   coverPressRoute,
+  coverPressParamsByIndex = [],
+  onPressCover,
 }) {
   const navigation = useNavigation();
   const scrollRef = useRef(null);
@@ -73,7 +75,17 @@ export default function AllCommunities({
                     borderRadius: 10,
                   },
                 ]}
-                onPress={() => navigation.navigate(coverPressRoute)}
+                onPress={() => {
+                  if (typeof onPressCover === 'function') {
+                    onPressCover(index);
+                    return;
+                  }
+                  if (!coverPressRoute) {
+                    return;
+                  }
+                  const routeParams = coverPressParamsByIndex[index];
+                  navigation.navigate(coverPressRoute, routeParams);
+                }}
               >
                 <Image
                   source={{ uri: coverImageUrls[index] }}
