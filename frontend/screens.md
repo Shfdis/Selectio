@@ -21,7 +21,7 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - To implement: no direct data layer; depends on tab integrations below.
 
 5. `Profile` (tab inside `main`) - **Status: Implemented**
-   - Already implemented: current profile identity/bio/avatar, library counts by status, "my reviews", and "favorites" are loaded from backend queries.
+   - Already implemented: current profile identity/bio/avatar, library counts by status, "my reviews", and "favorites" are loaded from backend queries; unbookmarking a post in "Избранное" persists via `DELETE /api/posts/{id}/favorite` and removes it after refetch.
    - To implement: optional UX polish for favorites cards (enrich post details) and loading/error states per tab.
 
 6. `Search` (tab inside `main`) - **Status: Implemented**
@@ -29,11 +29,11 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - To implement: add pagination/infinite-scroll and dedicated trending source when backend endpoint is available.
 
 7. `Recommendations` (tab inside `main`) - **Status: Implemented**
-   - Already implemented: recommended books (`/api/books/recommended`) are shown in the top books rail and recommended posts (`/api/posts/recommended`) are shown in the feed; post cards render backend author avatar when present.
+   - Already implemented: recommended books (`/api/books/recommended`) are shown in the top books rail and recommended posts (`/api/posts/recommended`) are shown in the feed; post cards render backend author avatar when present and persist like/unlike via `POST/DELETE /api/posts/{id}/like` and favorite/unfavorite via `POST/DELETE /api/posts/{id}/favorite`.
    - To implement: optional dedicated pagination UX for the top books rail.
 
 8. `Communities` (tab inside `main`) - **Status: Implemented**
-   - Already implemented: subscriptions strip, created-communities strip, communities search, and feed are wired to backend endpoints; feed post cards render backend author avatar when present.
+   - Already implemented: subscriptions strip, created-communities strip, communities search, and feed are wired to backend endpoints; feed post cards render backend author avatar when present and persist like/unlike via `POST/DELETE /api/posts/{id}/like` and favorite/unfavorite via `POST/DELETE /api/posts/{id}/favorite`.
    - To implement: optional server endpoints for direct "my created communities" list (currently derived from `/api/communities` by `ownerUserId`).
 
 9. `Book` (`book`) - **Status: Implemented**
@@ -88,9 +88,9 @@ This order is optimized to replace mock data safely while keeping user flows wor
     - Already implemented: post composer uses backend book search (`GET /api/books/search`), creates published posts via `POST /api/posts` (from `myCommunity`) and suggested posts via `POST /api/posts/suggest` (from `community`), and supports optional media upload through `POST /api/images`.
     - To implement: optional richer error mapping/UX for API validation responses and moderation-specific success states.
 
-22. `PostComments` (`postComments`) - **Status: Mocked**
-    - Already implemented: comments thread UI, input, and local like state.
-    - To implement: comments query, add-comment mutation, and comment-like mutation.
+22. `PostComments` (`postComments`) - **Status: Implemented**
+    - Already implemented: comments thread loads from `GET /api/posts/{id}/comments`, comment creation is persisted via `POST /api/posts/{id}/comments`, and comment like/unlike is persisted via `POST/DELETE /api/comments/{id}/like`.
+    - To implement: optional UX polish for comment-like errors and disabled-state feedback.
 
 23. `AllMySubscriptions` (`allMySubscriptions`) - **Status: Mocked**
     - Already implemented: subscribed-community grid UI.
@@ -176,7 +176,11 @@ This order is optimized to replace mock data safely while keeping user flows wor
 11. **Post and comment lifecycle**
    - Create post from `myCommunity` via `POST /api/posts` and verify it appears in `/api/communities/{id}/posts` feed cards.
    - Suggest post from `community` via `POST /api/posts/suggest` and verify it is not shown in published community feed until moderation approves it.
-   - Open `postComments`, add comment, and verify persisted comments/like state.
+   - Like/unlike post from feed cards and verify persistence via `POST/DELETE /api/posts/{id}/like`.
+   - Favorite/unfavorite post from feed cards and verify persistence via `POST/DELETE /api/posts/{id}/favorite` and profile "Избранное" list update.
+   - Open `postComments`, add comment, and verify persisted comments state in `GET /api/posts/{id}/comments`.
+   - Like/unlike a post comment and verify persistence via `POST/DELETE /api/comments/{id}/like` with updated `likeCount`/`likedByCurrentUser` on refetch.
+   - Full manual checklist for `PostComments`: `app/tests/postComments.integration.checklist.md`.
 
 12. **Moderation flow**
    - `suggestedPosts` publish/delete mutations update queue and downstream community feed correctly.
