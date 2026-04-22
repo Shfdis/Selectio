@@ -181,6 +181,65 @@ class TestGateway:
         data = edit_resp.json()
         assert data["error"]["code"] == "forbidden"
 
+    def test_post_comment_like_via_gateway(self, gateway_base_url, seeded_books):
+        token_a = _create_user_token(gateway_base_url)
+        token_b = _create_user_token(gateway_base_url)
+        h_a = {"Authorization": f"Bearer {token_a}"}
+        h_b = {"Authorization": f"Bearer {token_b}"}
+
+        books = requests.get(f"{gateway_base_url}/api/books", timeout=15).json()
+        assert books, "expected seeded books"
+        book_id = books[0]["id"]
+
+        community_name = f"gw_like_{uuid_lib.uuid4().hex[:8]}"
+        c_resp = requests.post(
+            f"{gateway_base_url}/api/communities",
+            headers=h_a,
+            json={"name": community_name, "description": "test"},
+            timeout=15,
+        )
+        assert c_resp.status_code == 200, c_resp.text
+        community_id = c_resp.json()["id"]
+
+        p_resp = requests.post(
+            f"{gateway_base_url}/api/posts",
+            headers=h_a,
+            json={"communityId": community_id, "bookId": book_id, "content": "post for comment likes"},
+            timeout=15,
+        )
+        assert p_resp.status_code == 200, p_resp.text
+        post_id = p_resp.json()["id"]
+
+        comment_resp = requests.post(
+            f"{gateway_base_url}/api/posts/{post_id}/comments",
+            headers=h_a,
+            json={"content": "comment target"},
+            timeout=15,
+        )
+        assert comment_resp.status_code == 200, comment_resp.text
+        comment_id = comment_resp.json()["id"]
+
+        unauth_like = requests.post(f"{gateway_base_url}/api/comments/{comment_id}/like", timeout=15)
+        assert unauth_like.status_code == 401
+
+        like = requests.post(f"{gateway_base_url}/api/comments/{comment_id}/like", headers=h_b, timeout=15)
+        assert like.status_code == 200, like.text
+
+        liker_view = requests.get(f"{gateway_base_url}/api/posts/{post_id}/comments", headers=h_b, timeout=15)
+        assert liker_view.status_code == 200
+        liker_comment = next(c for c in liker_view.json() if c["id"] == comment_id)
+        assert liker_comment["likeCount"] == 1
+        assert liker_comment["likedByCurrentUser"] is True
+
+        author_view = requests.get(f"{gateway_base_url}/api/posts/{post_id}/comments", headers=h_a, timeout=15)
+        assert author_view.status_code == 200
+        author_comment = next(c for c in author_view.json() if c["id"] == comment_id)
+        assert author_comment["likeCount"] == 1
+        assert author_comment["likedByCurrentUser"] is False
+
+        unlike = requests.delete(f"{gateway_base_url}/api/comments/{comment_id}/like", headers=h_b, timeout=15)
+        assert unlike.status_code == 200, unlike.text
+
     def test_owner_enforcement_book_comments(self, gateway_base_url, seeded_books):
         token_a = _create_user_token(gateway_base_url)
         token_b = _create_user_token(gateway_base_url)

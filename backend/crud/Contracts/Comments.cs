@@ -6,7 +6,9 @@ public sealed record PostCommentDto(
     int AuthorUserId,
     string AuthorUsername,
     string Content,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    int LikeCount,
+    bool LikedByCurrentUser
 );
 
 public sealed record BookCommentDto(

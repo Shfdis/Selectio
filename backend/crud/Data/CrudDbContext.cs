@@ -15,6 +15,7 @@ public class CrudDbContext : DbContext
     public DbSet<Post> Posts => Set<Post>();
     public DbSet<BookComment> BookComments => Set<BookComment>();
     public DbSet<PostComment> PostComments => Set<PostComment>();
+    public DbSet<PostCommentLike> PostCommentLikes => Set<PostCommentLike>();
     public DbSet<PostLike> PostLikes => Set<PostLike>();
     public DbSet<FavoritePost> FavoritePosts => Set<FavoritePost>();
 
@@ -131,6 +132,15 @@ public class CrudDbContext : DbContext
             e.HasOne(x => x.Post).WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.UserId);
             e.HasIndex(x => new { x.UserId, x.PostId });
+        });
+
+        modelBuilder.Entity<PostCommentLike>(e =>
+        {
+            e.HasKey(x => new { x.CommentId, x.UserId });
+            e.Property(x => x.CreatedAt).IsRequired();
+            e.HasOne(x => x.Comment).WithMany().HasForeignKey(x => x.CommentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.UserId);
+            e.HasIndex(x => new { x.UserId, x.CommentId });
         });
 
         modelBuilder.Entity<FavoritePost>(e =>

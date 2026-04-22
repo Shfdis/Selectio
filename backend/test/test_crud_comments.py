@@ -55,6 +55,8 @@ class TestCrudComments:
         assert comment["postId"] == post_id
         assert "authorUsername" in comment
         assert comment["authorUsername"].startswith("user")
+        assert comment["likeCount"] == 0
+        assert comment["likedByCurrentUser"] is False
 
         # list
         r2 = requests.get(f"{crud_base_url}/api/posts/{post_id}/comments", timeout=5)
@@ -63,11 +65,15 @@ class TestCrudComments:
         assert any(c["id"] == comment_id for c in items)
         listed = next(c for c in items if c["id"] == comment_id)
         assert listed["authorUsername"] == comment["authorUsername"]
+        assert listed["likeCount"] == 0
+        assert listed["likedByCurrentUser"] is False
 
         # edit
         r3 = requests.put(f"{crud_base_url}/api/comments/{comment_id}", json={"content": "Edited"}, headers=headers, timeout=5)
         assert r3.status_code == 200
         assert r3.json()["content"] == "Edited"
+        assert "likeCount" in r3.json()
+        assert "likedByCurrentUser" in r3.json()
 
         # delete
         r4 = requests.delete(f"{crud_base_url}/api/comments/{comment_id}", headers=headers, timeout=5)
@@ -111,6 +117,56 @@ class TestCrudComments:
         listed = next(c for c in items if c["id"] == comment_id)
         assert "authorUsername" in listed
         assert listed["authorUsername"].startswith("user")
+
+    def test_post_comment_like_unlike_idempotent_and_flags(self, crud_base_url):
+        author_id = 5201
+        liker_id = 5202
+        h_author = {"X-User-Id": str(author_id)}
+        h_liker = {"X-User-Id": str(liker_id)}
+
+        book_id = self._get_first_book_id(crud_base_url)
+        community_id = self._create_community(crud_base_url, owner_id=author_id)
+        post_id = self._create_post(crud_base_url, author_id=author_id, community_id=community_id, book_id=book_id)
+
+        create = requests.post(
+            f"{crud_base_url}/api/posts/{post_id}/comments",
+            json={"content": "like me"},
+            headers=h_author,
+            timeout=5,
+        )
+        assert create.status_code == 200
+        comment_id = create.json()["id"]
+
+        unauth = requests.post(f"{crud_base_url}/api/comments/{comment_id}/like", timeout=5)
+        assert unauth.status_code == 401
+
+        like1 = requests.post(f"{crud_base_url}/api/comments/{comment_id}/like", headers=h_liker, timeout=5)
+        like2 = requests.post(f"{crud_base_url}/api/comments/{comment_id}/like", headers=h_liker, timeout=5)
+        assert like1.status_code == 200
+        assert like2.status_code == 200
+
+        as_liker = requests.get(f"{crud_base_url}/api/posts/{post_id}/comments", headers=h_liker, timeout=5)
+        assert as_liker.status_code == 200
+        liker_row = next(c for c in as_liker.json() if c["id"] == comment_id)
+        assert liker_row["likeCount"] == 1
+        assert liker_row["likedByCurrentUser"] is True
+
+        as_author = requests.get(f"{crud_base_url}/api/posts/{post_id}/comments", headers=h_author, timeout=5)
+        assert as_author.status_code == 200
+        author_row = next(c for c in as_author.json() if c["id"] == comment_id)
+        assert author_row["likeCount"] == 1
+        assert author_row["likedByCurrentUser"] is False
+
+        unlike1 = requests.delete(f"{crud_base_url}/api/comments/{comment_id}/like", headers=h_liker, timeout=5)
+        unlike2 = requests.delete(f"{crud_base_url}/api/comments/{comment_id}/like", headers=h_liker, timeout=5)
+        assert unlike1.status_code == 200
+        assert unlike2.status_code == 200
+
+        after = requests.get(f"{crud_base_url}/api/posts/{post_id}/comments", headers=h_liker, timeout=5)
+        assert after.status_code == 200
+        after_row = next(c for c in after.json() if c["id"] == comment_id)
+        assert after_row["likeCount"] == 0
+        assert after_row["likedByCurrentUser"] is False
 
     def test_book_comments_edit_delete(self, crud_base_url):
         user_id = 6010

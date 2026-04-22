@@ -14,9 +14,10 @@ public static class CommentEndpoints
 {
     public static IEndpointRouteBuilder MapCommentEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/posts/{id:int}/comments", async (CrudDbContext db, int id, int? page, int? pageSize, CancellationToken cancellationToken) =>
+        app.MapGet("/api/posts/{id:int}/comments", async (HttpContext http, CrudDbContext db, int id, int? page, int? pageSize, CancellationToken cancellationToken) =>
         {
             var (p, ps) = EndpointHelpers.NormalizePagination(page, pageSize, defaultPageSize: 50, maxPageSize: 200);
+            var userId = GatewayIdentity.GetUserId(http);
 
             var exists = await db.Posts.AnyAsync(x => x.Id == id, cancellationToken);
             if (!exists) return Results.NotFound();
@@ -30,7 +31,7 @@ public static class CommentEndpoints
                 .Take(ps)
                 .ToListAsync(cancellationToken);
 
-            var items = await MapPostCommentsAsync(db, rows, cancellationToken);
+            var items = await MapPostCommentsAsync(db, rows, userId, cancellationToken);
             return Results.Ok(items);
         })
         .WithTags("Comments")
@@ -62,7 +63,7 @@ public static class CommentEndpoints
             await db.SaveChangesAsync(cancellationToken);
 
             var names = await CommentAuthorNames.ResolveAsync(db, new[] { userId }, cancellationToken);
-            var dto = new PostCommentDto(comment.Id, comment.PostId, comment.AuthorUserId, names[userId], comment.Content, comment.CreatedAt);
+            var dto = new PostCommentDto(comment.Id, comment.PostId, comment.AuthorUserId, names[userId], comment.Content, comment.CreatedAt, 0, false);
             return Results.Ok(dto);
         })
         .WithTags("Comments")
@@ -75,7 +76,7 @@ public static class CommentEndpoints
 
         app.MapPut("/api/comments/{id:int}", async (HttpContext http, CrudDbContext db, int id, UpdateCommentRequest body, CancellationToken cancellationToken) =>
         {
-            var (_, error) = EndpointHelpers.RequireUserId(http);
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
 
             var contentError = EndpointHelpers.RequireContent(body.Content);
@@ -88,7 +89,17 @@ public static class CommentEndpoints
             await db.SaveChangesAsync(cancellationToken);
 
             var names = await CommentAuthorNames.ResolveAsync(db, new[] { comment.AuthorUserId }, cancellationToken);
-            var dto = new PostCommentDto(comment.Id, comment.PostId, comment.AuthorUserId, names[comment.AuthorUserId], comment.Content, comment.CreatedAt);
+            var likeCount = await db.PostCommentLikes.CountAsync(x => x.CommentId == comment.Id, cancellationToken);
+            var likedByCurrentUser = await db.PostCommentLikes.AnyAsync(x => x.CommentId == comment.Id && x.UserId == userId, cancellationToken);
+            var dto = new PostCommentDto(
+                comment.Id,
+                comment.PostId,
+                comment.AuthorUserId,
+                names[comment.AuthorUserId],
+                comment.Content,
+                comment.CreatedAt,
+                likeCount,
+                likedByCurrentUser);
             return Results.Ok(dto);
         })
         .WithTags("Comments")
@@ -96,6 +107,56 @@ public static class CommentEndpoints
         .WithDescription("Updates comment text for a comment owned by the authenticated user (enforced at gateway).")
         .Produces<PostCommentDto>(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
+
+        app.MapPost("/api/comments/{id:int}/like", async (HttpContext http, CrudDbContext db, int id, CancellationToken cancellationToken) =>
+        {
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
+
+            var exists = await db.PostComments.AnyAsync(c => c.Id == id, cancellationToken);
+            if (!exists) return Results.NotFound();
+
+            var like = await db.PostCommentLikes.FirstOrDefaultAsync(x => x.CommentId == id && x.UserId == userId, cancellationToken);
+            if (like is null)
+            {
+                db.PostCommentLikes.Add(new PostCommentLike
+                {
+                    CommentId = id,
+                    UserId = userId,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await db.SaveChangesAsync(cancellationToken);
+            }
+
+            return Results.Ok(new { commentId = id, userId, liked = true });
+        })
+        .WithTags("Comments")
+        .WithSummary("Like a post comment")
+        .WithDescription("Idempotent: adds like for (comment, current user) if missing.")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
+
+        app.MapDelete("/api/comments/{id:int}/like", async (HttpContext http, CrudDbContext db, int id, CancellationToken cancellationToken) =>
+        {
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
+            if (error is not null) return error;
+
+            var like = await db.PostCommentLikes.FirstOrDefaultAsync(x => x.CommentId == id && x.UserId == userId, cancellationToken);
+            if (like is not null)
+            {
+                db.PostCommentLikes.Remove(like);
+                await db.SaveChangesAsync(cancellationToken);
+            }
+
+            return Results.Ok(new { commentId = id, userId, liked = false });
+        })
+        .WithTags("Comments")
+        .WithSummary("Unlike a post comment")
+        .WithDescription("Idempotent: removes like for (comment, current user) if present.")
+        .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status404NotFound);
 
@@ -284,11 +345,38 @@ public static class CommentEndpoints
     private static async Task<List<PostCommentDto>> MapPostCommentsAsync(
         CrudDbContext db,
         List<PostComment> rows,
+        int? currentUserId,
         CancellationToken cancellationToken)
     {
+        var commentIds = rows.Select(c => c.Id).ToList();
         var names = await CommentAuthorNames.ResolveAsync(db, rows.Select(c => c.AuthorUserId), cancellationToken);
+        var likeCounts = await db.PostCommentLikes
+            .AsNoTracking()
+            .Where(l => commentIds.Contains(l.CommentId))
+            .GroupBy(l => l.CommentId)
+            .Select(g => new { CommentId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CommentId, x => x.Count, cancellationToken);
+
+        HashSet<int> likedByCurrent = new();
+        if (currentUserId is not null)
+        {
+            likedByCurrent = await db.PostCommentLikes
+                .AsNoTracking()
+                .Where(l => l.UserId == currentUserId.Value && commentIds.Contains(l.CommentId))
+                .Select(l => l.CommentId)
+                .ToHashSetAsync(cancellationToken);
+        }
+
         return rows
-            .Select(c => new PostCommentDto(c.Id, c.PostId, c.AuthorUserId, names[c.AuthorUserId], c.Content, c.CreatedAt))
+            .Select(c => new PostCommentDto(
+                c.Id,
+                c.PostId,
+                c.AuthorUserId,
+                names[c.AuthorUserId],
+                c.Content,
+                c.CreatedAt,
+                likeCounts.GetValueOrDefault(c.Id, 0),
+                likedByCurrent.Contains(c.Id)))
             .ToList();
     }
 

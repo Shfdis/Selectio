@@ -43,6 +43,7 @@ public static class GatewayAuthzClassifier
         if (path.Equals("/api/posts", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPost(method)) return AuthzRequirement.User;
         if (path.Equals("/api/posts/suggest", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPost(method)) return AuthzRequirement.User;
         if (path.StartsWith("/api/posts/", StringComparison.OrdinalIgnoreCase) && path.EndsWith("/like", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
+        if (path.StartsWith("/api/comments/", StringComparison.OrdinalIgnoreCase) && path.EndsWith("/like", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
         if (path.StartsWith("/api/posts/", StringComparison.OrdinalIgnoreCase) && path.EndsWith("/favorite", StringComparison.OrdinalIgnoreCase)) return AuthzRequirement.User;
         if (path.StartsWith("/api/posts/", StringComparison.OrdinalIgnoreCase) && path.EndsWith("/comments", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPost(method)) return AuthzRequirement.User;
         if (path.StartsWith("/api/books/", StringComparison.OrdinalIgnoreCase) && path.EndsWith("/comments", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPost(method)) return AuthzRequirement.User;

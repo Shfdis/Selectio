@@ -277,6 +277,26 @@ namespace crud.Migrations
                     b.ToTable("PostComments", "crud");
                 });
 
+            modelBuilder.Entity("crud.Entities.PostCommentLike", b =>
+                {
+                    b.Property<int>("CommentId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("CommentId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "CommentId");
+
+                    b.ToTable("PostCommentLikes", "crud");
+                });
+
             modelBuilder.Entity("crud.Entities.PostLike", b =>
                 {
                     b.Property<int>("PostId")
@@ -419,6 +439,17 @@ namespace crud.Migrations
                         .IsRequired();
 
                     b.Navigation("Post");
+                });
+
+            modelBuilder.Entity("crud.Entities.PostCommentLike", b =>
+                {
+                    b.HasOne("crud.Entities.PostComment", "Comment")
+                        .WithMany()
+                        .HasForeignKey("CommentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Comment");
                 });
 
             modelBuilder.Entity("crud.Entities.UserBook", b =>
