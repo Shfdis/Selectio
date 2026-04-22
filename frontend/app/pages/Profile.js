@@ -275,7 +275,9 @@ export function Profile() {
                   avatarUrl={avatarUrl}
                 />
               ))}
-              {favoritePosts.length === 0 ? <Text style={styles.emptyState}>Пока нет избранного</Text> : null}
+              {favoritePosts.length === 0 ? (
+                <Text style={[styles.emptyState, styles.emptyStateFavorites]}>Пока нет избранного</Text>
+              ) : null}
             </View>
           ) : (
             <Text style={styles.emptyState}>Пока пусто</Text>
@@ -398,5 +400,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Playfair',
     fontWeight: 400,
     textAlign: 'center',
+  },
+  emptyStateFavorites: {
+    marginTop: '6%',
   },
 });
