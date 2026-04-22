@@ -1,6 +1,7 @@
 import { View, StyleSheet, Image, Pressable, ScrollView, Dimensions, Text } from 'react-native';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
 import { mapApiBookGenres } from '../slices/booksSlice';
+import { useGetPostByIdQuery } from '../slices/postsSlice';
 import {
   useGetMyBookCommentsQuery,
   useGetMyFavoritePostsQuery,
@@ -34,6 +35,49 @@ const formatDate = (isoString) => {
   const yy = String(date.getFullYear()).slice(-2);
   return `${dd}.${mm}.${yy}`;
 };
+
+function FavoritePostItem({ favoritePost, avatarUrl }) {
+  const postId = Number(favoritePost?.id);
+  const { data: postDetails } = useGetPostByIdQuery(postId, {
+    skip: !Number.isFinite(postId) || postId <= 0,
+  });
+
+  const { genreFirst, genreSecond } = mapApiBookGenres(postDetails?.book);
+  const resolvedItem = {
+    postId,
+    username: postDetails?.authorUsername || favoritePost?.username || 'Пользователь',
+    dateText: formatDate(postDetails?.createdAt || favoritePost?.dateText),
+    text: postDetails?.content || favoritePost?.text || '',
+    imageUri: postDetails?.photoUrl || undefined,
+    book: {
+      imageUrl: postDetails?.book?.coverUrl || '',
+      title: postDetails?.book?.title || favoritePost?.book?.title || `Пост #${postId}`,
+      author: postDetails?.book?.author || favoritePost?.book?.author || '',
+      genreFirst,
+      genreSecond,
+    },
+    initialLikes: postDetails?.likeCount ?? favoritePost?.initialLikes ?? 0,
+    initialComments: postDetails?.commentCount ?? favoritePost?.initialComments ?? 0,
+    initiallyLiked: Boolean(postDetails?.likedByCurrentUser ?? favoritePost?.initiallyLiked),
+    initiallyBookmarked: Boolean(postDetails?.favoritedByCurrentUser ?? favoritePost?.initiallyBookmarked),
+  };
+
+  return (
+    <PostCard
+      avatarUri={avatarUrl || undefined}
+      postId={resolvedItem.postId}
+      username={resolvedItem.username}
+      dateText={resolvedItem.dateText}
+      text={resolvedItem.text}
+      imageUri={resolvedItem.imageUri}
+      book={resolvedItem.book}
+      initialLikes={resolvedItem.initialLikes}
+      initialComments={resolvedItem.initialComments}
+      initiallyLiked={resolvedItem.initiallyLiked}
+      initiallyBookmarked={resolvedItem.initiallyBookmarked}
+    />
+  );
+}
 
 export function Profile() {
   const { data: currentUser } = useGetCurrentUserQuery();
@@ -105,8 +149,8 @@ export function Profile() {
     [reviewData],
   );
   const favoritePosts = useMemo(
-    () =>
-      favoritePostsData.map((post) => ({
+    () => {
+      return favoritePostsData.map((post) => ({
         id: post.postId,
         username: displayName,
         dateText: formatDate(post.favoritedAt || post.createdAt),
@@ -122,7 +166,8 @@ export function Profile() {
         initialComments: 0,
         initiallyLiked: false,
         initiallyBookmarked: true,
-      })),
+      }));
+    },
     [favoritePostsData, displayName],
   );
 
@@ -221,18 +266,10 @@ export function Profile() {
           ) : activeTab === 'favorites' ? (
             <View style={styles.favorites}>
               {favoritePosts.map((p) => (
-                <PostCard
+                <FavoritePostItem
                   key={p.id}
-                  avatarUri={avatarUrl || undefined}
-                  postId={p.id}
-                  username={p.username}
-                  dateText={p.dateText}
-                  text={p.text}
-                  book={p.book}
-                  initialLikes={p.initialLikes}
-                  initialComments={p.initialComments}
-                  initiallyLiked={p.initiallyLiked}
-                  initiallyBookmarked={p.initiallyBookmarked}
+                  favoritePost={p}
+                  avatarUrl={avatarUrl}
                 />
               ))}
               {favoritePosts.length === 0 ? <Text style={styles.emptyState}>Пока нет избранного</Text> : null}

@@ -49,7 +49,13 @@ export const profileApi = userApi.injectEndpoints({
         url: "/api/users/favorites",
         params: { page, pageSize },
       }),
-      providesTags: ["User"],
+      providesTags: (result = []) => [
+        { type: "FavoritePost", id: "LIST:me" },
+        ...result
+          .map((post) => post?.postId)
+          .filter((id) => id != null)
+          .map((id) => ({ type: "FavoritePost", id })),
+      ],
     }),
   }),
 });

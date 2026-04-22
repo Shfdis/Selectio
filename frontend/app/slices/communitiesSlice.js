@@ -1,5 +1,9 @@
 import { userApi } from "./userSlice";
 
+const communitiesFeedListTag = { type: "Post", id: "LIST:communities-feed" };
+const communityPostsListTag = (communityId) => ({ type: "Post", id: `LIST:community:${communityId}` });
+const postTag = (postId) => ({ type: "Post", id: postId });
+
 export const communitiesApi = userApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
@@ -21,6 +25,13 @@ export const communitiesApi = userApi.injectEndpoints({
         url: "/api/users/me/feed",
         params: { page, pageSize },
       }),
+      providesTags: (result = []) => [
+        communitiesFeedListTag,
+        ...result
+          .map((post) => post?.id)
+          .filter((id) => id != null)
+          .map((id) => postTag(id)),
+      ],
     }),
     getCommunitiesCatalog: builder.query({
       query: ({ page = 1, pageSize = 100 } = {}) => ({
@@ -38,7 +49,13 @@ export const communitiesApi = userApi.injectEndpoints({
         url: `/api/communities/${communityId}/posts`,
         params: { page, pageSize },
       }),
-      providesTags: ["User"],
+      providesTags: (result = [], _error, arg) => [
+        communityPostsListTag(arg?.communityId),
+        ...result
+          .map((post) => post?.id)
+          .filter((id) => id != null)
+          .map((id) => postTag(id)),
+      ],
     }),
     createCommunity: builder.mutation({
       query: (body) => ({

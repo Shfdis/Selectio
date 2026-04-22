@@ -1,12 +1,38 @@
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import { useEffect, useMemo, useState } from 'react';
-import { getThreadCommentsForPostId } from '../data/communityPage';
+import { useCreatePostCommentMutation, useGetPostCommentsQuery } from '../slices/postsSlice';
 
 const defaultAvatar = require('../assets/icons/profile-avatar.png');
 
-function ThreadCommentItem({ username, dateText, text, initialLikes, initiallyLiked, isLast }) {
+const formatDate = (isoString) => {
+  if (!isoString) {
+    return '';
+  }
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yy = String(date.getFullYear()).slice(-2);
+  return `${dd}.${mm}.${yy}`;
+};
+
+function ThreadCommentItem({ username, dateText, text, initialLikes = 0, initiallyLiked = false, isLast }) {
   const [liked, setLiked] = useState(initiallyLiked);
   const [likes, setLikes] = useState(initialLikes);
 
@@ -64,11 +90,46 @@ function ThreadCommentItem({ username, dateText, text, initialLikes, initiallyLi
 export default function PostComments() {
   const navigation = useNavigation();
   const route = useRoute();
-  const postId = route.params?.postId ?? '1';
-  const threadComments = getThreadCommentsForPostId(postId);
+  const postId = Number(route?.params?.postId);
+  const {
+    data: postComments = [],
+    isLoading: isLoadingComments,
+  } = useGetPostCommentsQuery(
+    { postId, page: 1, pageSize: 100 },
+    { skip: !Number.isFinite(postId) || postId <= 0 },
+  );
+  const [createPostComment, { isLoading: isCreatingComment }] = useCreatePostCommentMutation();
   const [draft, setDraft] = useState('');
+  const canSend = draft.trim().length > 0 && !isCreatingComment;
 
-  const onPressSend = () => {
+  const threadComments = useMemo(
+    () =>
+      postComments.map((comment) => ({
+        id: String(comment?.id ?? ''),
+        username: comment?.authorUsername || `user${comment?.authorUserId ?? ''}`,
+        dateText: formatDate(comment?.createdAt),
+        text: comment?.content || '',
+        likes: 0,
+        liked: false,
+      })),
+    [postComments],
+  );
+
+  const onPressSend = async () => {
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      return;
+    }
+    if (!Number.isFinite(postId) || postId <= 0) {
+      Alert.alert('Не удалось отправить', 'Некорректный идентификатор поста.', [{ text: 'Ок' }]);
+      return;
+    }
+    try {
+      await createPostComment({ postId, content: trimmed }).unwrap();
+    } catch (_error) {
+      Alert.alert('Не удалось отправить', 'Попробуйте ещё раз.', [{ text: 'Ок' }]);
+      return;
+    }
     setDraft('');
   };
 
@@ -91,6 +152,14 @@ export default function PostComments() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {isLoadingComments ? (
+            <View style={styles.loaderWrap}>
+              <ActivityIndicator size="large" color="#555C40" />
+            </View>
+          ) : null}
+          {!isLoadingComments && threadComments.length === 0 ? (
+            <Text style={styles.emptyText}>Комментариев пока нет</Text>
+          ) : null}
           {threadComments.map((c, index) => (
             <ThreadCommentItem
               key={c.id}
@@ -114,7 +183,12 @@ export default function PostComments() {
             textAlignVertical="top"
             style={styles.footerInput}
           />
-          <Pressable style={styles.sendButton} onPress={onPressSend} hitSlop={10}>
+          <Pressable
+            style={[styles.sendButton, !canSend ? styles.sendButtonDisabled : null]}
+            onPress={onPressSend}
+            hitSlop={10}
+            disabled={!canSend}
+          >
             <Image source={require('../assets/icons/icon_send.png')} style={styles.sendIcon} resizeMode="contain" />
           </Pressable>
         </View>
@@ -136,6 +210,18 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 8,
+  },
+  loaderWrap: {
+    paddingTop: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    marginTop: 20,
+    textAlign: 'center',
+    color: '#2D2800',
+    fontFamily: 'Playfair',
+    fontSize: 16,
   },
   commentRow: {
     paddingHorizontal: 23,
@@ -252,6 +338,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#81876D',
     justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
   },
   sendIcon: {
     width: 26,

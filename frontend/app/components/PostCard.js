@@ -2,6 +2,12 @@ import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
 import { useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import BookCard from './BookCard';
+import {
+  useFavoritePostMutation,
+  useLikePostMutation,
+  useUnfavoritePostMutation,
+  useUnlikePostMutation,
+} from '../slices/postsSlice';
 
 export default function PostCard({
   avatarSource = require('../assets/icons/profile-avatar.png'),
@@ -24,13 +30,32 @@ export default function PostCard({
   const [liked, setLiked] = useState(initiallyLiked);
   const [bookmarked, setBookmarked] = useState(initiallyBookmarked);
   const [likes, setLikes] = useState(initialLikes);
+  const [likePost] = useLikePostMutation();
+  const [unlikePost] = useUnlikePostMutation();
+  const [favoritePost] = useFavoritePostMutation();
+  const [unfavoritePost] = useUnfavoritePostMutation();
 
-  const onToggleLike = () => {
-    setLiked((v) => {
-      const next = !v;
-      setLikes((c) => (next ? c + 1 : Math.max(0, c - 1)));
-      return next;
-    });
+  const onToggleLike = async () => {
+    if (postId == null || postId === '') {
+      return;
+    }
+    const previousLiked = liked;
+    const previousLikes = likes;
+    const nextLiked = !previousLiked;
+
+    setLiked(nextLiked);
+    setLikes((c) => (nextLiked ? c + 1 : Math.max(0, c - 1)));
+
+    try {
+      if (nextLiked) {
+        await likePost({ postId }).unwrap();
+      } else {
+        await unlikePost({ postId }).unwrap();
+      }
+    } catch (_error) {
+      setLiked(previousLiked);
+      setLikes(previousLikes);
+    }
   };
 
   const likeIcon = useMemo(
@@ -55,6 +80,24 @@ export default function PostCard({
         : require('../assets/icons/icon_bookmark.png'),
     [bookmarked],
   );
+
+  const onToggleBookmark = async () => {
+    if (postId == null || postId === '') {
+      return;
+    }
+    const previousBookmarked = bookmarked;
+    const nextBookmarked = !previousBookmarked;
+    setBookmarked(nextBookmarked);
+    try {
+      if (nextBookmarked) {
+        await favoritePost({ postId }).unwrap();
+      } else {
+        await unfavoritePost({ postId }).unwrap();
+      }
+    } catch (_error) {
+      setBookmarked(previousBookmarked);
+    }
+  };
 
   return (
     <View style={[styles.wrapper, style]}>
@@ -112,7 +155,7 @@ export default function PostCard({
           <Text style={styles.count}>{initialComments}</Text>
         </View>
 
-        <Pressable style={styles.action} onPress={() => setBookmarked((v) => !v)} hitSlop={10}>
+        <Pressable style={styles.action} onPress={onToggleBookmark} hitSlop={10}>
           <Image
             source={bookmarkIcon}
             style={[styles.icon, bookmarked ? styles.iconBookmarked : null]}
