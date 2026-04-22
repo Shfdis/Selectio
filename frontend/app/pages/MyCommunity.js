@@ -85,7 +85,7 @@ export default function MyCommunity() {
     navigation.goBack();
   };
   const onPressSettings = () => {
-    navigation.navigate('editCommunity');
+    navigation.navigate('editCommunity', { communityId });
   };
   const onPressCreatePost = () => {
     navigation.navigate('newPost', { communityId, mode: 'publish' });

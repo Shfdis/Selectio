@@ -1,26 +1,102 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import CommunityEditor from '../components/CommunityEditor';
-import { myCreatedCommunity } from '../data/communityPage';
 import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
+import {
+  useGetCommunitiesCatalogQuery,
+  useGetCommunityByIdQuery,
+  useUpdateCommunityMutation,
+} from '../slices/communitiesSlice';
+import { useGetCurrentUserQuery } from '../slices/userSlice';
+import { useUploadImageMutation } from '../slices/profileSlice';
+
+const isLocalAssetUri = (uri) => typeof uri === 'string' && (uri.startsWith('file://') || uri.startsWith('content://'));
+
+const buildUploadMeta = (uri) => {
+  const normalized = String(uri ?? '');
+  const fallback = { name: 'community-cover.jpg', type: 'image/jpeg' };
+  if (!normalized) {
+    return fallback;
+  }
+  const fileName = normalized.split('/').pop() || fallback.name;
+  const hasJpeg = /\.(jpe?g)$/i.test(fileName);
+  const hasPng = /\.png$/i.test(fileName);
+  const hasWebp = /\.webp$/i.test(fileName);
+  const mimeType = hasPng ? 'image/png' : hasWebp ? 'image/webp' : 'image/jpeg';
+  if (hasJpeg || hasPng || hasWebp) {
+    return { name: fileName, type: mimeType };
+  }
+  return fallback;
+};
 
 export default function EditCommunity() {
   const navigation = useNavigation();
+  const route = useRoute();
+  const { data: currentUser } = useGetCurrentUserQuery();
+  const userId = currentUser?.id;
+  const routeCommunityId = Number(route?.params?.communityId);
+  const { data: communitiesCatalog = [] } = useGetCommunitiesCatalogQuery({ page: 1, pageSize: 200 });
+  const fallbackOwnedCommunityId = useMemo(
+    () => communitiesCatalog.find((community) => community?.ownerUserId === userId)?.id,
+    [communitiesCatalog, userId],
+  );
+  const communityId =
+    Number.isFinite(routeCommunityId) && routeCommunityId > 0 ? routeCommunityId : fallbackOwnedCommunityId;
+  const { data: communityData } = useGetCommunityByIdQuery(communityId, { skip: !communityId });
+
   const [coverUri, setCoverUri] = useState(null);
   const [displayName, setDisplayName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedGenres, setSelectedGenres] = useState([]);
+  const [isFormInitialized, setIsFormInitialized] = useState(false);
+  const [uploadImage, { isLoading: isUploadingImage }] = useUploadImageMutation();
+  const [updateCommunity, { isLoading: isUpdatingCommunity }] = useUpdateCommunityMutation();
 
   useEffect(() => {
-    setDisplayName(myCreatedCommunity?.name ?? '');
-    setDescription(myCreatedCommunity?.description ?? '');
-    setSelectedGenres(Array.isArray(myCreatedCommunity?.genres) ? myCreatedCommunity.genres : []);
-  }, []);
+    if (!communityData || isFormInitialized) {
+      return;
+    }
+    setCoverUri(communityData?.coverUrl || null);
+    setDisplayName(communityData?.name || '');
+    setDescription(communityData?.description || '');
+    setSelectedGenres(communityData?.genre ? [communityData.genre] : []);
+    setIsFormInitialized(true);
+  }, [communityData, isFormInitialized]);
 
-  const onPressSave = () => {
-    navigation.goBack();
+  const onPressSave = async () => {
+    const trimmedName = displayName.trim();
+    if (!communityId) {
+      Alert.alert('Не удалось сохранить', 'Сообщество не найдено.', [{ text: 'Ок' }]);
+      return;
+    }
+    if (!trimmedName) {
+      Alert.alert('Введите название', 'Название сообщества не может быть пустым.', [{ text: 'Ок' }]);
+      return;
+    }
+    try {
+      let resolvedCoverUrl = coverUri || '';
+      if (isLocalAssetUri(resolvedCoverUrl)) {
+        const { name, type } = buildUploadMeta(resolvedCoverUrl);
+        const uploadResponse = await uploadImage({
+          uri: resolvedCoverUrl,
+          name,
+          type,
+        }).unwrap();
+        resolvedCoverUrl = uploadResponse?.url || '';
+      }
+      await updateCommunity({
+        communityId,
+        name: trimmedName,
+        description: description.trim(),
+        coverUrl: resolvedCoverUrl,
+        genre: selectedGenres[0] || '',
+      }).unwrap();
+      navigation.goBack();
+    } catch (_error) {
+      Alert.alert('Не удалось сохранить', 'Попробуйте ещё раз.', [{ text: 'Ок' }]);
+    }
   };
 
   return (
@@ -29,11 +105,12 @@ export default function EditCommunity() {
         headerTitle="Настройки сообщества"
         onPressBack={() => navigation.goBack()}
         onPressConfirm={onPressSave}
+        confirmDisabled={isUpdatingCommunity || isUploadingImage || !isFormInitialized}
       />
 
       <CommunityEditor
         coverImageSource={
-          coverUri ? { uri: coverUri } : { uri: myCreatedCommunity.coverImageUrl }
+          coverUri ? { uri: coverUri } : require('../assets/icons/profile-avatar.png')
         }
         onPressChangeAvatar={async () => {
           const uri = await pickImageFromLibrary();
