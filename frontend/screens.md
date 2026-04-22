@@ -80,9 +80,9 @@ This order is optimized to replace mock data safely while keeping user flows wor
     - Already implemented: create form submits to `POST /api/communities`, uploads local cover image via `POST /api/images`, and opens created `myCommunity` by returned `communityId`.
     - To implement: optional server-side validation messaging mapping for duplicate names and genre constraints.
 
-20. `EditCommunity` (`editCommunity`) - **Status: Mocked**
-    - Already implemented: edit form UX with local prefill.
-    - To implement: community fetch + update mutation.
+20. `EditCommunity` (`editCommunity`) - **Status: Implemented**
+    - Already implemented: edit form fetches current community (`GET /api/communities/{id}`), supports optional cover upload via `POST /api/images`, and persists updates through `PUT /api/communities/{id}`.
+    - To implement: optional field-level validation UX for server-side errors.
 
 21. `NewPost` (`newPost`) - **Status: Implemented**
     - Already implemented: post composer uses backend book search (`GET /api/books/search`), creates published posts via `POST /api/posts` (from `myCommunity`) and suggested posts via `POST /api/posts/suggest` (from `community`), and supports optional media upload through `POST /api/images`.
@@ -164,9 +164,11 @@ This order is optimized to replace mock data safely while keeping user flows wor
    - Join/leave in `community` persists via `/api/communities/{id}/join` and `/api/communities/{id}/leave` and affects memberships.
    - Open `myCommunity` and verify owner-specific community details/posts are loaded from backend by `communityId`.
    - Create community (`newCommunity`) and verify created item opens in `myCommunity` and appears in created/subscribed lists.
+   - Edit community (`editCommunity`) updates name/description/genre/cover and persists after reopening `myCommunity`.
    - Full manual checklist for `Community`: `app/tests/community.integration.checklist.md`.
    - Full manual checklist for `MyCommunity`: `app/tests/myCommunity.integration.checklist.md`.
    - Full manual checklist for `NewCommunity`: `app/tests/newCommunity.integration.checklist.md`.
+   - Full manual checklist for `EditCommunity`: `app/tests/editCommunity.integration.checklist.md`.
 
 10. **Subscriptions and community lists**
    - Subscribe/unsubscribe in `community` updates `allMySubscriptions` and `communities` tab sections.
