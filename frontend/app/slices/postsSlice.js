@@ -150,14 +150,22 @@ export const postsApi = userApi.injectEndpoints({
         url: `/api/posts/${postId}/like`,
         method: "POST",
       }),
-      invalidatesTags: (_result, _error, arg) => [postTag(arg?.postId)],
+      invalidatesTags: (_result, _error, arg) => [
+        postTag(arg?.postId),
+        communitiesFeedListTag,
+        communityPostsListTag(arg?.communityId),
+      ],
     }),
     unlikePost: builder.mutation({
       query: ({ postId }) => ({
         url: `/api/posts/${postId}/like`,
         method: "DELETE",
       }),
-      invalidatesTags: (_result, _error, arg) => [postTag(arg?.postId)],
+      invalidatesTags: (_result, _error, arg) => [
+        postTag(arg?.postId),
+        communitiesFeedListTag,
+        communityPostsListTag(arg?.communityId),
+      ],
     }),
     favoritePost: builder.mutation({
       query: ({ postId }) => ({

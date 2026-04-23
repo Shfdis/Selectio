@@ -1,8 +1,9 @@
 import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import BookCard from './BookCard';
 import { useGetUserProfileQuery } from '../slices/profileSlice';
+import { useGetCommunityByIdQuery } from '../slices/communitiesSlice';
 import {
   useFavoritePostMutation,
   useLikePostMutation,
@@ -13,6 +14,9 @@ import {
 export default function PostCard({
   avatarSource = require('../assets/icons/profile-avatar.png'),
   avatarUri,
+  communityId,
+  communityName,
+  communityAvatarUri,
   authorUserId,
   postId,
   username,
@@ -32,15 +36,30 @@ export default function PostCard({
   const [liked, setLiked] = useState(initiallyLiked);
   const [bookmarked, setBookmarked] = useState(initiallyBookmarked);
   const [likes, setLikes] = useState(initialLikes);
+  const normalizedCommunityId = Number(communityId);
+  const { data: communityData } = useGetCommunityByIdQuery(normalizedCommunityId, {
+    skip: !Number.isFinite(normalizedCommunityId) || normalizedCommunityId <= 0,
+  });
   const normalizedAuthorUserId = Number(authorUserId);
   const { data: authorProfile } = useGetUserProfileQuery(normalizedAuthorUserId, {
     skip: !Number.isFinite(normalizedAuthorUserId) || normalizedAuthorUserId <= 0,
   });
-  const resolvedAvatarUri = authorProfile?.avatarUrl || avatarUri;
+  const resolvedCommunityName = communityData?.name || communityName;
+  const resolvedAvatarUri =
+    communityData?.coverUrl || communityAvatarUri || authorProfile?.avatarUrl || avatarUri;
+  const resolvedTitle = resolvedCommunityName || username || 'Сообщество';
   const [likePost] = useLikePostMutation();
   const [unlikePost] = useUnlikePostMutation();
   const [favoritePost] = useFavoritePostMutation();
   const [unfavoritePost] = useUnfavoritePostMutation();
+
+  useEffect(() => {
+    setLiked(initiallyLiked);
+  }, [initiallyLiked, postId]);
+
+  useEffect(() => {
+    setLikes(initialLikes);
+  }, [initialLikes, postId]);
 
   const onToggleLike = async () => {
     if (postId == null || postId === '') {
@@ -55,9 +74,9 @@ export default function PostCard({
 
     try {
       if (nextLiked) {
-        await likePost({ postId }).unwrap();
+        await likePost({ postId, communityId: normalizedCommunityId }).unwrap();
       } else {
-        await unlikePost({ postId }).unwrap();
+        await unlikePost({ postId, communityId: normalizedCommunityId }).unwrap();
       }
     } catch (_error) {
       setLiked(previousLiked);
@@ -77,6 +96,20 @@ export default function PostCard({
     }
     if (postId != null && postId !== '') {
       navigation.navigate('postComments', { postId: String(postId) });
+    }
+  };
+
+  const onPressCommunity = () => {
+    const normalizedCommunityId = Number(communityId);
+    if (Number.isFinite(normalizedCommunityId) && normalizedCommunityId > 0) {
+      navigation.navigate('community', { communityId: normalizedCommunityId });
+    }
+  };
+
+  const onPressBook = () => {
+    const normalizedBookId = Number(book?.id);
+    if (Number.isFinite(normalizedBookId) && normalizedBookId > 0) {
+      navigation.navigate('book', { bookId: normalizedBookId });
     }
   };
 
@@ -109,7 +142,7 @@ export default function PostCard({
   return (
     <View style={[styles.wrapper, style]}>
       <View style={styles.inner}>
-        <View style={styles.headerRow}>
+        <Pressable style={styles.headerRow} onPress={onPressCommunity} hitSlop={10}>
           <Image
             source={resolvedAvatarUri ? { uri: resolvedAvatarUri } : avatarSource}
             style={styles.avatar}
@@ -117,13 +150,13 @@ export default function PostCard({
           />
           <View style={styles.headerText}>
             <Text style={styles.username} numberOfLines={1}>
-              {username}
+              {resolvedTitle}
             </Text>
             <Text style={styles.date} numberOfLines={1}>
               {dateText}
             </Text>
           </View>
-        </View>
+        </Pressable>
 
         <Text style={styles.postText}>{text}</Text>
 
@@ -140,7 +173,7 @@ export default function PostCard({
             author={book?.author}
             genreFirst={book?.genreFirst}
             genreSecond={book?.genreSecond}
-            onClick={() => {}}
+            onClick={onPressBook}
           />
         </View>
       </View>

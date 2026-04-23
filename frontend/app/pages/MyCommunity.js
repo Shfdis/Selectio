@@ -41,6 +41,7 @@ const mapCommunityPosts = (posts) =>
     return {
       id: post?.id,
       postId: post?.id,
+      communityId: Number(post?.communityId),
       authorUserId: Number(post?.authorUserId),
       username: post?.authorUsername || 'Пользователь',
       dateText: formatDate(post?.createdAt),
@@ -52,6 +53,7 @@ const mapCommunityPosts = (posts) =>
       initiallyLiked: Boolean(post?.likedByCurrentUser),
       initiallyBookmarked: Boolean(post?.favoritedByCurrentUser),
       book: {
+        id: Number(post?.book?.id ?? post?.bookId),
         imageUrl: post?.book?.coverUrl || DEFAULT_BOOK_COVER_URI,
         title: post?.book?.title || 'Без названия',
         author: post?.book?.author || 'Неизвестный автор',

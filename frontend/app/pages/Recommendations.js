@@ -5,7 +5,7 @@ import StickyTitleBar from '../components/StickyTitleBar';
 import HorizontalCoverSection from '../components/HorizontalCoverSection';
 import PostCard from '../components/PostCard';
 import { mapApiBookGenres, useGetPopularBooksQuery, useGetRecommendedBooksQuery } from '../slices/booksSlice';
-import { useGetRecommendedPostsQuery } from '../slices/postsSlice';
+import { useGetCommunitiesFeedQuery } from '../slices/communitiesSlice';
 
 const DEFAULT_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
 
@@ -28,6 +28,7 @@ const toPostCardModel = (post) => {
   return {
     id: post?.id,
     postId: post?.id,
+    communityId: Number(post?.communityId),
     authorUserId: Number(post?.authorUserId),
     username: post?.authorUsername || 'Пользователь',
     dateText: formatDate(post?.createdAt),
@@ -35,6 +36,7 @@ const toPostCardModel = (post) => {
     imageUri: post?.photoUrl || undefined,
     avatarUri: post?.authorAvatarUrl || post?.avatarUrl || undefined,
     book: {
+      id: Number(post?.book?.id ?? post?.bookId),
       imageUrl: post?.book?.coverUrl || DEFAULT_COVER_URI,
       title: post?.book?.title || 'Без названия',
       author: post?.book?.author || 'Неизвестный автор',
@@ -65,7 +67,7 @@ export function RecommendationsMainContent() {
     data: popularBooksPage = [],
     isFetching: isPopularPageFetching,
   } = useGetPopularBooksQuery({ page: booksPage, pageSize });
-  const { data: recommendedPosts = [] } = useGetRecommendedPostsQuery({ page: 1, pageSize: 20 });
+  const { data: feedPostsData = [] } = useGetCommunitiesFeedQuery({ page: 1, pageSize: 20 });
 
   useEffect(() => {
     if (isRecommendedPageFetching || isPopularPageFetching) {
@@ -108,9 +110,20 @@ export function RecommendationsMainContent() {
   };
 
   const recommendedCovers = useMemo(
-    () => booksForRecommendations.slice(0, 8).map((book) => book.coverUrl || DEFAULT_COVER_URI),
+    () => booksForRecommendations.map((book) => book.coverUrl || DEFAULT_COVER_URI),
     [booksForRecommendations],
   );
+
+  const loadMoreBooks = useCallback(() => {
+    if (!hasMoreBooks || isLoadingMoreRef.current) {
+      return;
+    }
+    if (isRecommendedPageFetching || isPopularPageFetching) {
+      return;
+    }
+    isLoadingMoreRef.current = true;
+    setBooksPage((prev) => prev + 1);
+  }, [hasMoreBooks, isRecommendedPageFetching, isPopularPageFetching]);
 
   const handleScroll = useCallback(
     ({ nativeEvent }) => {
@@ -122,16 +135,15 @@ export function RecommendationsMainContent() {
       if (distanceFromBottom > 120) {
         return;
       }
-      if (isRecommendedPageFetching || isPopularPageFetching) {
-        return;
-      }
-      isLoadingMoreRef.current = true;
-      setBooksPage((prev) => prev + 1);
+      loadMoreBooks();
     },
-    [hasMoreBooks, isRecommendedPageFetching, isPopularPageFetching],
+    [hasMoreBooks, loadMoreBooks],
   );
 
-  const feedPosts = useMemo(() => recommendedPosts.map((post) => toPostCardModel(post)), [recommendedPosts]);
+  const feedPosts = useMemo(() => feedPostsData.map((post) => toPostCardModel(post)), [feedPostsData]);
+  const isBooksLoading = isRecommendedPageFetching || isPopularPageFetching;
+  const isLoadingMoreBooks = isBooksLoading && booksPage > 1 && hasMoreBooks;
+  const isInitialBooksLoading = isBooksLoading && booksForRecommendations.length === 0;
 
   return (
     <View style={styles.screen}>
@@ -150,7 +162,13 @@ export function RecommendationsMainContent() {
             subtitle="Книги на основе ваших вкусовых предпочтений"
             covers={recommendedCovers}
             onPressCover={(_, index) => onPressBook(booksForRecommendations[index]?.id)}
+            onHorizontalEndReached={loadMoreBooks}
           />
+          {isInitialBooksLoading || isLoadingMoreBooks ? (
+            <View style={styles.booksLoader}>
+              <ActivityIndicator size="small" color="#555C40" />
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.postsFeed}>
@@ -158,6 +176,7 @@ export function RecommendationsMainContent() {
             <PostCard
               key={`post-${post.id}`}
               postId={post.postId}
+              communityId={post.communityId}
               authorUserId={post.authorUserId}
               avatarUri={post.avatarUri}
               username={post.username}
@@ -171,7 +190,7 @@ export function RecommendationsMainContent() {
               initiallyBookmarked={post.initiallyBookmarked}
             />
           ))}
-          {(isRecommendedPageFetching || isPopularPageFetching) && hasMoreBooks ? (
+          {isLoadingMoreBooks ? (
             <View style={styles.paginationLoader}>
               <ActivityIndicator size="small" color="#555C40" />
             </View>
@@ -207,6 +226,11 @@ const styles = StyleSheet.create({
   },
   paginationLoader: {
     paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  booksLoader: {
+    paddingBottom: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },

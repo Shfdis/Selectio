@@ -31,6 +31,7 @@ const mapSuggestedPost = (post) => {
   return {
     id: post?.id,
     postId: post?.id,
+    communityId: Number(post?.communityId),
     authorUserId: Number(post?.authorUserId),
     username: post?.authorUsername || 'Пользователь',
     dateText: formatDate(post?.createdAt),
@@ -42,6 +43,7 @@ const mapSuggestedPost = (post) => {
     initiallyLiked: Boolean(post?.likedByCurrentUser),
     initiallyBookmarked: Boolean(post?.favoritedByCurrentUser),
     book: {
+      id: Number(post?.book?.id ?? post?.bookId),
       imageUrl: post?.book?.coverUrl || DEFAULT_BOOK_COVER_URI,
       title: post?.book?.title || 'Без названия',
       author: post?.book?.author || 'Неизвестный автор',
@@ -121,6 +123,7 @@ export default function SuggestedPosts() {
               <View key={post.id} style={styles.postWrap}>
                 <PostCard
                   postId={post.postId}
+                  communityId={post.communityId}
                   authorUserId={post.authorUserId}
                   avatarUri={post.avatarUri}
                   username={post.username}

@@ -75,10 +75,19 @@ export function Search() {
   const searchInputRef = useRef(null);
   const [query, setQuery] = useState('');
   const trimmedQuery = query.trim();
+  const [popularPage, setPopularPage] = useState(1);
+  const [popularBooks, setPopularBooks] = useState([]);
+  const [hasMorePopularBooks, setHasMorePopularBooks] = useState(true);
+  const appendedPopularPagesRef = useRef(new Set());
+  const isLoadingMorePopularRef = useRef(false);
   const [resultsSheetDismissed, setResultsSheetDismissed] = useState(false);
   const suppressResultsSheetAutoOpenUntilRef = useRef(0);
   const { data: recommendedBooks = [] } = useGetRecommendedBooksQuery({ page: 1, pageSize: 10 });
-  const { data: popularBooks = [] } = useGetPopularBooksQuery({ page: 1, pageSize: 12 });
+  const popularPageSize = 12;
+  const { data: popularBooksPage = [], isFetching: isPopularBooksFetching } = useGetPopularBooksQuery({
+    page: popularPage,
+    pageSize: popularPageSize,
+  });
   const [triggerPopularByGenre] = useLazyGetPopularBooksByGenreQuery();
   const { data: searchBooks = [] } = useSearchBooksQuery(
     { query: trimmedQuery, page: 1, pageSize: 20 },
@@ -95,13 +104,34 @@ export function Search() {
     [recommendedBooks],
   );
   const popularCovers = useMemo(
-    () => popularBooks.slice(0, 8).map((book) => book.coverUrl || DEFAULT_COVER_URI),
+    () => popularBooks.map((book) => book.coverUrl || DEFAULT_COVER_URI),
     [popularBooks],
   );
   const trendingCovers = useMemo(
     () => popularBooks.slice(4, 12).map((book) => book.coverUrl || DEFAULT_COVER_URI),
     [popularBooks],
   );
+
+  useEffect(() => {
+    if (isPopularBooksFetching) {
+      return;
+    }
+    if (appendedPopularPagesRef.current.has(popularPage)) {
+      return;
+    }
+    appendedPopularPagesRef.current.add(popularPage);
+
+    setPopularBooks((prev) => {
+      const existingIds = new Set(prev.map((book) => book?.id));
+      const incoming = popularBooksPage.filter((book) => !existingIds.has(book?.id));
+      return [...prev, ...incoming];
+    });
+
+    if (popularBooksPage.length < popularPageSize) {
+      setHasMorePopularBooks(false);
+    }
+    isLoadingMorePopularRef.current = false;
+  }, [popularPage, popularPageSize, popularBooksPage, isPopularBooksFetching]);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -140,6 +170,17 @@ export function Search() {
   const onPressGenre = (genreName) => {
     navigation.navigate('genre', { genreName });
   };
+
+  const loadMorePopularBooks = useCallback(() => {
+    if (!hasMorePopularBooks || isLoadingMorePopularRef.current) {
+      return;
+    }
+    if (isPopularBooksFetching) {
+      return;
+    }
+    isLoadingMorePopularRef.current = true;
+    setPopularPage((prev) => prev + 1);
+  }, [hasMorePopularBooks, isPopularBooksFetching]);
 
   useEffect(() => {
     let isMounted = true;
@@ -216,6 +257,7 @@ export function Search() {
           subtitle="Выбор большого числа читателей"
           covers={popularCovers}
           onPressCover={(_, index) => onPressBook(popularBooks[index])}
+          onHorizontalEndReached={loadMorePopularBooks}
           style={styles.sectionAltBg}
         />
 

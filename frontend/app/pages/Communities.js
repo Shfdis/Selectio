@@ -48,6 +48,7 @@ const mapFeedPost = (post) => {
   return {
     id: post?.id,
     postId: post?.id,
+    communityId: Number(post?.communityId),
     authorUserId: Number(post?.authorUserId),
     username: post?.authorUsername || 'Пользователь',
     dateText: formatDate(post?.createdAt),
@@ -55,6 +56,7 @@ const mapFeedPost = (post) => {
     imageUri: post?.photoUrl || undefined,
     avatarUri: post?.authorAvatarUrl || post?.avatarUrl || undefined,
     book: {
+      id: Number(post?.book?.id ?? post?.bookId),
       imageUrl: post?.book?.coverUrl || DEFAULT_COVER_URI,
       title: post?.book?.title || 'Без названия',
       author: post?.book?.author || 'Неизвестный автор',
@@ -220,6 +222,7 @@ export function Communities() {
             <PostCard
               key={p.id}
               postId={p.postId}
+              communityId={p.communityId}
               authorUserId={p.authorUserId}
               avatarUri={p.avatarUri}
               username={p.username}
