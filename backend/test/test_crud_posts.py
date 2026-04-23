@@ -239,9 +239,9 @@ class TestCrudPosts:
         assert row["favoritedByCurrentUser"] is True
         assert row["likeCount"] >= 1
 
-        # Seen posts should be excluded from personalized feed.
+        # Recently seen posts (within 24h) are still shown in personalized feed.
         feed = requests.get(f"{crud_base_url}/api/users/me/feed", headers=headers, timeout=5).json()
-        assert all(p["id"] != post_id for p in feed)
+        assert any(p["id"] == post_id for p in feed)
 
     def test_recommended_posts_excludes_seen_posts(self, crud_base_url):
         user_id = 8101
@@ -310,7 +310,7 @@ class TestCrudPosts:
         seen_ids = {authored_post_id, liked_post_id, favorited_post_id, commented_post_id}
         assert rec_ids.isdisjoint(seen_ids)
 
-    def test_feed_excludes_seen_posts_and_keeps_unseen(self, crud_base_url):
+    def test_feed_keeps_recently_seen_posts(self, crud_base_url):
         user_id = 8201
         author_id = 8202
         user_headers = {"X-User-Id": str(user_id)}
@@ -373,9 +373,9 @@ class TestCrudPosts:
         assert feed.status_code == 200
         feed_ids = {int(p["id"]) for p in feed.json()}
         assert unseen_post_id in feed_ids
-        assert liked_post_id not in feed_ids
-        assert favorited_post_id not in feed_ids
-        assert commented_post_id not in feed_ids
+        assert liked_post_id in feed_ids
+        assert favorited_post_id in feed_ids
+        assert commented_post_id in feed_ids
 
 
 if __name__ == "__main__":

@@ -191,14 +191,14 @@ public static class PostEndpoints
                 .Where(m => m.UserId == userId)
                 .Select(m => m.CommunityId)
                 .ToListAsync(cancellationToken);
-            var seenPostIds = await BuildSeenPostIdsAsync(db, userId, cancellationToken);
+            var staleSeenPostIds = await BuildSeenPostIdsOlderThanAsync(db, userId, TimeSpan.FromDays(1), cancellationToken);
             var postsQuery = db.Posts
                 .AsNoTracking()
                 .Include(x => x.Book)
                 .Where(post => post.Status == PostStatus.Published);
-            if (seenPostIds.Count > 0)
+            if (staleSeenPostIds.Count > 0)
             {
-                postsQuery = postsQuery.Where(post => !seenPostIds.Contains(post.Id));
+                postsQuery = postsQuery.Where(post => !staleSeenPostIds.Contains(post.Id));
             }
             var allPosts = await postsQuery.ToListAsync(cancellationToken);
 
@@ -220,9 +220,10 @@ public static class PostEndpoints
         .WithTags("Posts")
         .WithSummary("Get personalized community feed")
         .WithDescription(
-            "Returns unseen published posts in two tiers: joined communities first, then other communities. " +
+            "Returns published posts in two tiers: joined communities first, then other communities. " +
             "Within each tier, posts are ranked by cosine similarity when a user embedding exists (with recency tie-break), " +
             "and by recency when no user embedding exists. " +
+            "Seen posts are excluded only when the latest seen interaction (author/like/favorite/comment) is older than 24 hours. " +
             "Without a user embedding, ordering is purely by CreatedAt (newest first)."
         )
         .Produces<List<PostFeedItemDto>>(StatusCodes.Status200OK)
@@ -332,6 +333,41 @@ public static class PostEndpoints
             .Concat(favorited)
             .Concat(commented)
             .Distinct()
+            .ToListAsync(cancellationToken);
+    }
+
+    private static async Task<List<int>> BuildSeenPostIdsOlderThanAsync(
+        CrudDbContext db,
+        int userId,
+        TimeSpan age,
+        CancellationToken cancellationToken = default)
+    {
+        var cutoff = DateTime.UtcNow.Subtract(age);
+
+        var authored = db.Posts
+            .AsNoTracking()
+            .Where(post => post.AuthorUserId == userId)
+            .Select(post => new { PostId = post.Id, SeenAt = post.CreatedAt });
+        var liked = db.PostLikes
+            .AsNoTracking()
+            .Where(like => like.UserId == userId)
+            .Select(like => new { PostId = like.PostId, SeenAt = like.CreatedAt });
+        var favorited = db.FavoritePosts
+            .AsNoTracking()
+            .Where(favorite => favorite.UserId == userId)
+            .Select(favorite => new { PostId = favorite.PostId, SeenAt = favorite.CreatedAt });
+        var commented = db.PostComments
+            .AsNoTracking()
+            .Where(comment => comment.AuthorUserId == userId)
+            .Select(comment => new { PostId = comment.PostId, SeenAt = comment.CreatedAt });
+
+        return await authored
+            .Concat(liked)
+            .Concat(favorited)
+            .Concat(commented)
+            .GroupBy(seen => seen.PostId)
+            .Where(group => group.Max(seen => seen.SeenAt) < cutoff)
+            .Select(group => group.Key)
             .ToListAsync(cancellationToken);
     }
 }
