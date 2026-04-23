@@ -165,34 +165,50 @@ class TestCrudPosts:
         r = requests.get(f"{crud_base_url}/api/users/me/feed", timeout=5)
         assert r.status_code == 401
 
-    def test_feed_returns_posts_from_user_communities_only(self, crud_base_url):
+    def test_feed_prioritizes_subscribed_communities_then_other_communities(self, crud_base_url):
         user_id = 8001
         headers = {"X-User-Id": str(user_id)}
         author_id = 8003
+        outsider_author_id = 8005
         book_id = self._get_first_book_id(crud_base_url)
-        community_id = self._create_community(crud_base_url, owner_id=author_id)
+        subscribed_community_id = self._create_community(crud_base_url, owner_id=author_id)
+        other_community_id = self._create_community(crud_base_url, owner_id=outsider_author_id)
         requests.post(
-            f"{crud_base_url}/api/communities/{community_id}/join",
+            f"{crud_base_url}/api/communities/{subscribed_community_id}/join",
             headers=headers,
             timeout=5,
         ).raise_for_status()
-        r = requests.post(
+        subscribed_post = requests.post(
             f"{crud_base_url}/api/posts",
-            json={"communityId": community_id, "bookId": book_id, "content": "Feed test post"},
+            json={"communityId": subscribed_community_id, "bookId": book_id, "content": "Feed test subscribed post"},
             headers={"X-User-Id": str(author_id)},
             timeout=5,
         )
-        assert r.status_code == 200
-        post_id = r.json()["id"]
+        assert subscribed_post.status_code == 200
+        subscribed_post_id = subscribed_post.json()["id"]
+        other_post = requests.post(
+            f"{crud_base_url}/api/posts",
+            json={"communityId": other_community_id, "bookId": book_id, "content": "Feed test non-subscribed post"},
+            headers={"X-User-Id": str(outsider_author_id)},
+            timeout=5,
+        )
+        assert other_post.status_code == 200
+        other_post_id = other_post.json()["id"]
+
         feed = requests.get(f"{crud_base_url}/api/users/me/feed", headers=headers, timeout=5)
         assert feed.status_code == 200
         items = feed.json()
         assert isinstance(items, list)
-        assert any(p["id"] == post_id for p in items)
-        for p in items:
-            if p["id"] == post_id:
-                _assert_post_feed_item(p)
-                break
+        assert any(p["id"] == subscribed_post_id for p in items)
+        assert any(p["id"] == other_post_id for p in items)
+
+        subscribed_idx = next(i for i, post in enumerate(items) if post["id"] == subscribed_post_id)
+        other_idx = next(i for i, post in enumerate(items) if post["id"] == other_post_id)
+        assert subscribed_idx < other_idx
+
+        for post in items:
+            if post["id"] in (subscribed_post_id, other_post_id):
+                _assert_post_feed_item(post)
 
     def test_feed_like_and_favorite_flags(self, crud_base_url):
         user_id = 8002

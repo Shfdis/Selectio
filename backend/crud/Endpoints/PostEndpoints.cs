@@ -195,7 +195,7 @@ public static class PostEndpoints
             var postsQuery = db.Posts
                 .AsNoTracking()
                 .Include(x => x.Book)
-                .Where(post => post.Status == PostStatus.Published && communityIds.Contains(post.CommunityId));
+                .Where(post => post.Status == PostStatus.Published);
             if (seenPostIds.Count > 0)
             {
                 postsQuery = postsQuery.Where(post => !seenPostIds.Contains(post.Id));
@@ -203,16 +203,26 @@ public static class PostEndpoints
             var allPosts = await postsQuery.ToListAsync(cancellationToken);
 
             var userEmb = await EmbeddingService.GetUserEmbeddingAsync(db, userId);
-            var slice = OrderPersonalizedFeed(allPosts, userEmb, p, ps);
+            var subscribedCommunityIds = communityIds.ToHashSet();
+            var subscribedPosts = allPosts
+                .Where(post => subscribedCommunityIds.Contains(post.CommunityId))
+                .ToList();
+            var otherCommunityPosts = allPosts
+                .Where(post => !subscribedCommunityIds.Contains(post.CommunityId))
+                .ToList();
+            var orderedSubscribed = OrderPersonalizedFeed(subscribedPosts, userEmb, page: 1, pageSize: int.MaxValue);
+            var orderedOther = OrderPersonalizedFeed(otherCommunityPosts, userEmb, page: 1, pageSize: int.MaxValue);
+            var combined = orderedSubscribed.Concat(orderedOther).ToList();
+            var slice = combined.Skip((p - 1) * ps).Take(ps).ToList();
             var dtos = await PostFeedMapper.ToFeedItemsAsync(db, slice, userId, cancellationToken);
             return Results.Ok(dtos);
         })
         .WithTags("Posts")
         .WithSummary("Get personalized community feed")
         .WithDescription(
-            "Returns published posts from communities the user has joined. " +
-            "When a user embedding exists (from books in their library), posts with embeddings are ranked by cosine similarity (higher first), " +
-            "then by recency; posts without embeddings follow, ordered by recency. " +
+            "Returns unseen published posts in two tiers: joined communities first, then other communities. " +
+            "Within each tier, posts are ranked by cosine similarity when a user embedding exists (with recency tie-break), " +
+            "and by recency when no user embedding exists. " +
             "Without a user embedding, ordering is purely by CreatedAt (newest first)."
         )
         .Produces<List<PostFeedItemDto>>(StatusCodes.Status200OK)
