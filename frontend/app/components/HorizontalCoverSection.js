@@ -21,6 +21,7 @@ export default function HorizontalCoverSection({
   subtitle,
   covers,
   onPressCover,
+  onHorizontalEndReached,
   style,
   squareCovers = false,
   openAllButton,
@@ -36,6 +37,18 @@ export default function HorizontalCoverSection({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalList}
+        onScroll={
+          onHorizontalEndReached
+            ? ({ nativeEvent }) => {
+                const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+                const distanceFromRight = contentSize.width - (layoutMeasurement.width + contentOffset.x);
+                if (distanceFromRight <= 60) {
+                  onHorizontalEndReached();
+                }
+              }
+            : undefined
+        }
+        scrollEventThrottle={16}
       >
         {covers.map((uri, index) => (
           <CoverTile

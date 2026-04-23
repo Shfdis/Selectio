@@ -45,12 +45,14 @@ function FavoritePostItem({ favoritePost, avatarUrl }) {
   const { genreFirst, genreSecond } = mapApiBookGenres(postDetails?.book);
   const resolvedItem = {
     postId,
+    communityId: Number(postDetails?.communityId ?? favoritePost?.communityId),
     authorUserId: Number(postDetails?.authorUserId ?? favoritePost?.authorUserId),
     username: postDetails?.authorUsername || favoritePost?.username || 'Пользователь',
     dateText: formatDate(postDetails?.createdAt || favoritePost?.dateText),
     text: postDetails?.content || favoritePost?.text || '',
     imageUri: postDetails?.photoUrl || undefined,
     book: {
+      id: Number(postDetails?.book?.id ?? postDetails?.bookId ?? favoritePost?.book?.id ?? favoritePost?.bookId),
       imageUrl: postDetails?.book?.coverUrl || '',
       title: postDetails?.book?.title || favoritePost?.book?.title || `Пост #${postId}`,
       author: postDetails?.book?.author || favoritePost?.book?.author || '',
@@ -68,6 +70,7 @@ function FavoritePostItem({ favoritePost, avatarUrl }) {
       authorUserId={resolvedItem.authorUserId}
       avatarUri={avatarUrl || undefined}
       postId={resolvedItem.postId}
+      communityId={resolvedItem.communityId}
       username={resolvedItem.username}
       dateText={resolvedItem.dateText}
       text={resolvedItem.text}
@@ -154,11 +157,13 @@ export function Profile() {
     () => {
       return favoritePostsData.map((post) => ({
         id: post.postId,
+        communityId: Number(post?.communityId),
         authorUserId: Number(post?.authorUserId),
         username: displayName,
         dateText: formatDate(post.favoritedAt || post.createdAt),
         text: post.content || '',
         book: {
+          id: Number(post?.bookId),
           imageUrl: '',
           title: `Пост #${post.postId}`,
           author: '',
