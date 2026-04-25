@@ -63,10 +63,11 @@ public class CrudDbContext : DbContext
             e.Property(x => x.Name).IsRequired();
             e.Property(x => x.Description).IsRequired().HasDefaultValue(string.Empty);
             e.Property(x => x.CoverUrl).IsRequired().HasDefaultValue(string.Empty);
-            e.Property(x => x.Genre).IsRequired().HasDefaultValue(string.Empty);
+            e.Property(x => x.Genres).IsRequired().HasColumnType("text[]").HasDefaultValueSql("'{}'::text[]");
             e.Property(x => x.Embedding).HasColumnType("vector(72)");
             e.Property(x => x.OwnerUserId).IsRequired();
             e.HasIndex(x => x.Name).IsUnique();
+            e.HasIndex(x => x.Genres).HasMethod("gin");
         });
 
         modelBuilder.Entity<CommunityMember>(e =>

@@ -12,7 +12,12 @@ class TestCrudCommunities:
         member_headers = {"X-User-Id": str(member_id)}
 
         name = f"community_{uuid.uuid4().hex[:8]}"
-        payload = {"name": name, "description": "Test community", "coverUrl": "https://example.com/cover.png", "genre": "Fiction"}
+        payload = {
+            "name": name,
+            "description": "Test community",
+            "coverUrl": "https://example.com/cover.png",
+            "genres": ["Fiction", " Drama ", "Fiction", ""],
+        }
 
         # create
         r = requests.post(f"{crud_base_url}/api/communities", json=payload, headers=owner_headers, timeout=5)
@@ -22,7 +27,7 @@ class TestCrudCommunities:
         assert created["name"] == name
         assert created["ownerUserId"] == owner_id
         assert created.get("coverUrl") == "https://example.com/cover.png"
-        assert created.get("genre") == "Fiction"
+        assert created.get("genres") == ["Fiction", "Drama"]
         assert created.get("subscriberCount") == 0
 
         # get
@@ -82,7 +87,7 @@ class TestCrudCommunities:
         assert isinstance(data, list)
         for c in data:
             assert "coverUrl" in c
-            assert "genre" in c
+            assert "genres" in c
             assert "subscriberCount" in c
 
     def test_owner_can_put_update_community(self, crud_base_url):
@@ -91,7 +96,7 @@ class TestCrudCommunities:
         name = f"put_comm_{uuid.uuid4().hex[:8]}"
         r = requests.post(
             f"{crud_base_url}/api/communities",
-            json={"name": name, "description": "d0", "genre": "A"},
+            json={"name": name, "description": "d0", "genres": ["A"]},
             headers=headers,
             timeout=5,
         )
@@ -99,14 +104,14 @@ class TestCrudCommunities:
         cid = r.json()["id"]
         r2 = requests.put(
             f"{crud_base_url}/api/communities/{cid}",
-            json={"description": "d1", "genre": "B,C"},
+            json={"description": "d1", "genres": ["B", " C ", "B"]},
             headers=headers,
             timeout=5,
         )
         assert r2.status_code == 200
         j = r2.json()
         assert j["description"] == "d1"
-        assert j["genre"] == "B,C"
+        assert j["genres"] == ["B", "C"]
         assert j["name"] == name
 
     def test_non_owner_put_community_forbidden(self, crud_base_url):

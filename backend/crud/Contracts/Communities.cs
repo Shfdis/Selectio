@@ -7,7 +7,7 @@ public sealed record CommunityDto(
     string Name,
     string Description,
     string CoverUrl,
-    string Genre,
+    string[] Genres,
     int OwnerUserId,
     int SubscriberCount
 );
@@ -16,7 +16,7 @@ public sealed record CreateCommunityRequest(
     string Name,
     string? Description,
     string? CoverUrl,
-    string? Genre
+    string[]? Genres
 );
 
 /// <summary>Partial update; null fields leave the existing value unchanged.</summary>
@@ -24,7 +24,7 @@ public sealed record UpdateCommunityRequest(
     string? Name,
     string? Description,
     string? CoverUrl,
-    string? Genre
+    string[]? Genres
 );
 
 public sealed record CommunityMemberDto(

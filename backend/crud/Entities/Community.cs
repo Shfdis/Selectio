@@ -11,7 +11,7 @@ public class Community
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string CoverUrl { get; set; } = string.Empty;
-    public string Genre { get; set; } = string.Empty;
+    public string[] Genres { get; set; } = Array.Empty<string>();
     public int OwnerUserId { get; set; }
     public Vector? Embedding { get; set; }
 }

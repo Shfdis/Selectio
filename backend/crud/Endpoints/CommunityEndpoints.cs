@@ -32,7 +32,7 @@ public static class CommunityEndpoints
             if (!string.IsNullOrWhiteSpace(genre))
             {
                 var g = genre.Trim();
-                q = q.Where(c => EF.Functions.ILike(c.Genre, $"%{g}%"));
+                q = q.Where(c => c.Genres.Contains(g));
             }
 
             var list = await q.OrderBy(c => c.Id).Skip((p - 1) * ps).Take(ps).ToListAsync();
@@ -40,7 +40,7 @@ public static class CommunityEndpoints
             foreach (var c in list)
             {
                 var count = await db.CommunityMembers.CountAsync(m => m.CommunityId == c.Id);
-                items.Add(new CommunityDto(c.Id, c.Name, c.Description, c.CoverUrl, c.Genre, c.OwnerUserId, count));
+                items.Add(new CommunityDto(c.Id, c.Name, c.Description, c.CoverUrl, c.Genres, c.OwnerUserId, count));
             }
             return Results.Ok(items);
         })
@@ -48,7 +48,7 @@ public static class CommunityEndpoints
         .WithDescription(
             "Public list ordered by community id. " +
             "Optional query: case-insensitive substring match on community name (ILIKE). " +
-            "Optional genre: case-insensitive substring match on the community genre field. " +
+            "Optional genre: exact match against one value in the community genres array. " +
             "Pagination: page defaults to 1, pageSize defaults to 20 (max 100). " +
             "Each item includes subscriberCount (CommunityMembers rows for that community)."
         )
@@ -76,26 +76,27 @@ public static class CommunityEndpoints
             }
 
             var coverUrl = (body.CoverUrl ?? string.Empty).Trim();
-            var genre = (body.Genre ?? string.Empty).Trim();
+            var genres = NormalizeGenres(body.Genres);
             var community = new Community
             {
                 Name = name,
                 Description = description,
                 CoverUrl = coverUrl,
-                Genre = genre,
+                Genres = genres,
                 OwnerUserId = userId
             };
 
             db.Communities.Add(community);
             await db.SaveChangesAsync();
 
-            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genre, community.OwnerUserId, 0));
+            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genres, community.OwnerUserId, 0));
         })
         .WithSummary("Create community")
         .WithDescription(
             "Creates a community owned by the authenticated user. " +
             "Name is required and must be unique (trimmed, exact match). " +
-            "Description, coverUrl, and genre are optional strings (trimmed; empty strings allowed)."
+            "Description and coverUrl are optional strings (trimmed; empty strings allowed). " +
+            "Genres is an optional array of strings."
         )
         .Produces<CommunityDto>(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
@@ -106,7 +107,7 @@ public static class CommunityEndpoints
             var community = await db.Communities.FirstOrDefaultAsync(c => c.Id == id);
             if (community is null) return Results.NotFound();
             var subscriberCount = await db.CommunityMembers.CountAsync(m => m.CommunityId == id);
-            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genre, community.OwnerUserId, subscriberCount));
+            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genres, community.OwnerUserId, subscriberCount));
         })
         .WithSummary("Get community by ID")
         .WithDescription(
@@ -162,18 +163,18 @@ public static class CommunityEndpoints
                 community.CoverUrl = body.CoverUrl.Trim();
             }
 
-            if (body.Genre is not null)
+            if (body.Genres is not null)
             {
-                community.Genre = body.Genre.Trim();
+                community.Genres = NormalizeGenres(body.Genres);
             }
 
             await db.SaveChangesAsync();
             var subscriberCount = await db.CommunityMembers.CountAsync(m => m.CommunityId == id);
-            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genre, community.OwnerUserId, subscriberCount));
+            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genres, community.OwnerUserId, subscriberCount));
         })
         .WithSummary("Update community (owner only)")
         .WithDescription(
-            "Owner-only: updates name, description, coverUrl, and/or genre. Null fields are left unchanged. " +
+            "Owner-only: updates name, description, coverUrl, and/or genres. Null fields are left unchanged. " +
             "Name must remain unique among communities (excluding this id)."
         )
         .Produces<CommunityDto>(StatusCodes.Status200OK)
@@ -303,7 +304,7 @@ public static class CommunityEndpoints
             foreach (var x in joined)
             {
                 var count = await db.CommunityMembers.CountAsync(m => m.CommunityId == x.c.Id);
-                items.Add(new CommunityDto(x.c.Id, x.c.Name, x.c.Description, x.c.CoverUrl, x.c.Genre, x.c.OwnerUserId, count));
+                items.Add(new CommunityDto(x.c.Id, x.c.Name, x.c.Description, x.c.CoverUrl, x.c.Genres, x.c.OwnerUserId, count));
             }
             return Results.Ok(items);
         })
@@ -317,6 +318,20 @@ public static class CommunityEndpoints
         .Produces<List<CommunityDto>>(StatusCodes.Status200OK);
 
         return app;
+    }
+
+    private static string[] NormalizeGenres(IEnumerable<string>? rawGenres)
+    {
+        if (rawGenres is null)
+        {
+            return Array.Empty<string>();
+        }
+
+        return rawGenres
+            .Select(genre => (genre ?? string.Empty).Trim())
+            .Where(genre => genre.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 }
 
