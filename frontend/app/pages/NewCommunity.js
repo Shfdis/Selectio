@@ -57,7 +57,7 @@ export default function NewCommunity() {
         name: trimmedName,
         description: description.trim(),
         coverUrl: resolvedCoverUrl,
-        genre: selectedGenres[0] || '',
+        genres: selectedGenres,
       }).unwrap();
       navigation.navigate('myCommunity', { communityId: created?.id });
     } catch (_error) {

@@ -1,6 +1,8 @@
 import { userApi } from "./userSlice";
 
 const normalizeGenre = (value) => String(value ?? "").trim();
+const communitiesFeedListTag = { type: "Post", id: "LIST:communities-feed" };
+const recommendedPostsListTag = { type: "Post", id: "LIST:recommended" };
 
 export const mapApiBookGenres = (book) => ({
   genreFirst: normalizeGenre(book?.genre),
@@ -87,7 +89,7 @@ export const booksApi = userApi.injectEndpoints({
         method: "POST",
         body: { status },
       }),
-      invalidatesTags: ["User", "Books", "RecommendedBooks"],
+      invalidatesTags: ["User", "Books", "RecommendedBooks", communitiesFeedListTag, recommendedPostsListTag],
     }),
     moveBookInLibrary: builder.mutation({
       query: ({ bookId, status }) => ({
@@ -95,14 +97,14 @@ export const booksApi = userApi.injectEndpoints({
         method: "PUT",
         body: { status },
       }),
-      invalidatesTags: ["User", "Books", "RecommendedBooks"],
+      invalidatesTags: ["User", "Books", "RecommendedBooks", communitiesFeedListTag, recommendedPostsListTag],
     }),
     removeBookFromLibrary: builder.mutation({
       query: ({ bookId }) => ({
         url: `/api/books/${bookId}/library`,
         method: "DELETE",
       }),
-      invalidatesTags: ["User", "Books", "RecommendedBooks"],
+      invalidatesTags: ["User", "Books", "RecommendedBooks", communitiesFeedListTag, recommendedPostsListTag],
     }),
   }),
 });

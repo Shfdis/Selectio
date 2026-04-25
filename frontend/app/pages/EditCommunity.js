@@ -31,6 +31,15 @@ const buildUploadMeta = (uri) => {
   }
   return fallback;
 };
+const toCommunityGenres = (community) => {
+  if (Array.isArray(community?.genres)) {
+    return community.genres.filter((genre) => typeof genre === 'string' && genre.trim().length > 0);
+  }
+  if (community?.genre) {
+    return [community.genre];
+  }
+  return [];
+};
 
 export default function EditCommunity() {
   const navigation = useNavigation();
@@ -63,7 +72,7 @@ export default function EditCommunity() {
     setCoverUri(communityData?.coverUrl || null);
     setDisplayName(communityData?.name || '');
     setDescription(communityData?.description || '');
-    setSelectedGenres(communityData?.genre ? [communityData.genre] : []);
+    setSelectedGenres(toCommunityGenres(communityData));
     setIsFormInitialized(true);
   }, [communityData, isFormInitialized]);
 
@@ -93,7 +102,7 @@ export default function EditCommunity() {
         name: trimmedName,
         description: description.trim(),
         coverUrl: resolvedCoverUrl,
-        genre: selectedGenres[0] || '',
+        genres: selectedGenres,
       }).unwrap();
       navigation.goBack();
     } catch (_error) {

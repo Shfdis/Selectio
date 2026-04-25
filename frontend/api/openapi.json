@@ -720,7 +720,7 @@
           "Communities"
         ],
         "summary": "List communities",
-        "description": "Public list ordered by community id. Optional query: case-insensitive substring match on community name (ILIKE). Optional genre: case-insensitive substring match on the community genre field. Pagination: page defaults to 1, pageSize defaults to 20 (max 100). Each item includes subscriberCount (CommunityMembers rows for that community).",
+        "description": "Public list ordered by community id. Optional query: case-insensitive substring match on community name (ILIKE). Optional genre: exact match against one value in the community genres array. Pagination: page defaults to 1, pageSize defaults to 20 (max 100). Each item includes subscriberCount (CommunityMembers rows for that community).",
         "parameters": [
           {
             "name": "query",
@@ -774,7 +774,7 @@
           "Communities"
         ],
         "summary": "Create community",
-        "description": "Creates a community owned by the authenticated user. Name is required and must be unique (trimmed, exact match). Description, coverUrl, and genre are optional strings (trimmed; empty strings allowed).",
+        "description": "Creates a community owned by the authenticated user. Name is required and must be unique (trimmed, exact match). Description and coverUrl are optional strings (trimmed; empty strings allowed). Genres is an optional array of strings.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -844,7 +844,7 @@
           "Communities"
         ],
         "summary": "Update community (owner only)",
-        "description": "Owner-only: updates name, description, coverUrl, and/or genre. Null fields are left unchanged. Name must remain unique among communities (excluding this id).",
+        "description": "Owner-only: updates name, description, coverUrl, and/or genres. Null fields are left unchanged. Name must remain unique among communities (excluding this id).",
         "parameters": [
           {
             "name": "id",
@@ -2100,8 +2100,11 @@
             "type": "string",
             "nullable": true
           },
-          "genre": {
-            "type": "string",
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
             "nullable": true
           },
           "ownerUserId": {
@@ -2180,8 +2183,11 @@
             "type": "string",
             "nullable": true
           },
-          "genre": {
-            "type": "string",
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
             "nullable": true
           }
         },
@@ -2526,8 +2532,11 @@
             "type": "string",
             "nullable": true
           },
-          "genre": {
-            "type": "string",
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
             "nullable": true
           }
         },
