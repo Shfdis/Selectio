@@ -22,11 +22,14 @@ const LIBRARY_STATUS = {
 };
 const DEFAULT_BOOK_COVER = 'https://via.placeholder.com/120x120?text=Book';
 const normalizeGenre = (value) => String(value ?? '').trim();
+const readBooksUiState = {
+  sortId: 'title-asc',
+};
 
 export default function ReadBooks() {
   const navigation = useNavigation();
   const [activeId, setActiveId] = useState(null);
-  const [selectedSortId, setSelectedSortId] = useState('title-asc');
+  const [selectedSortId, setSelectedSortId] = useState(readBooksUiState.sortId);
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [selectedBookId, setSelectedBookId] = useState(null);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
@@ -49,6 +52,7 @@ export default function ReadBooks() {
     () =>
       libraryData.map((book) => ({
         id: book.bookId,
+        addedAt: book.addedAt || null,
         imageUrl: book.coverUrl || DEFAULT_BOOK_COVER,
         title: book.title || 'Без названия',
         author: book.author || 'Неизвестный автор',
@@ -80,14 +84,18 @@ export default function ReadBooks() {
     });
 
     const sorted = [...filtered];
+    const toTime = (value) => {
+      const ts = Date.parse(value ?? '');
+      return Number.isNaN(ts) ? null : ts;
+    };
     sorted.sort((a, b) => {
       switch (selectedSortId) {
         case 'title-desc':
           return String(b.title).localeCompare(String(a.title), 'ru');
         case 'author-asc':
-          return String(a.author).localeCompare(String(b.author), 'ru');
+          return (toTime(b.addedAt) ?? Number.NEGATIVE_INFINITY) - (toTime(a.addedAt) ?? Number.NEGATIVE_INFINITY);
         case 'author-desc':
-          return String(b.author).localeCompare(String(a.author), 'ru');
+          return (toTime(a.addedAt) ?? Number.POSITIVE_INFINITY) - (toTime(b.addedAt) ?? Number.POSITIVE_INFINITY);
         case 'title-asc':
         default:
           return String(a.title).localeCompare(String(b.title), 'ru');
@@ -100,6 +108,8 @@ export default function ReadBooks() {
     () => visibleBooks.find((book) => book.id === selectedBookId) ?? null,
     [selectedBookId, visibleBooks],
   );
+
+  readBooksUiState.sortId = selectedSortId;
 
   const myCommentsByBookId = useMemo(() => {
     const map = new Map();
