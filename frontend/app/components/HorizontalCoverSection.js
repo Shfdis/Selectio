@@ -5,13 +5,25 @@ const cardHeight = 193;
 const squareSize = 136;
 const cardGap = 11;
 
-function CoverTile({ imageUri, onPress, squareCovers }) {
+function CoverTile({ imageUri, title, author, onPress, squareCovers }) {
+  const hasImage = typeof imageUri === 'string' && imageUri.trim().length > 0;
   return (
     <Pressable
       style={[styles.coverTile, squareCovers ? styles.coverTileSquare : null]}
       onPress={onPress}
     >
-      <Image source={{ uri: imageUri }} style={styles.coverImage} resizeMode="cover" />
+      {hasImage ? (
+        <Image source={{ uri: imageUri }} style={styles.coverImage} resizeMode="cover" />
+      ) : (
+        <View style={styles.coverFallback}>
+          <Text style={styles.coverFallbackTitle} numberOfLines={3}>
+            {title || 'Без названия'}
+          </Text>
+          <Text style={styles.coverFallbackAuthor} numberOfLines={2}>
+            {author || 'Неизвестный автор'}
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -50,14 +62,26 @@ export default function HorizontalCoverSection({
         }
         scrollEventThrottle={16}
       >
-        {covers.map((uri, index) => (
-          <CoverTile
-            key={index}
-            imageUri={uri}
-            onPress={() => onPressCover?.(uri, index)}
-            squareCovers={squareCovers}
-          />
-        ))}
+        {covers.map((cover, index) => {
+          const coverItem =
+            typeof cover === 'string'
+              ? { imageUri: cover }
+              : {
+                  imageUri: cover?.imageUri,
+                  title: cover?.title,
+                  author: cover?.author,
+                };
+          return (
+            <CoverTile
+              key={index}
+              imageUri={coverItem.imageUri}
+              title={coverItem.title}
+              author={coverItem.author}
+              onPress={() => onPressCover?.(coverItem.imageUri, index)}
+              squareCovers={squareCovers}
+            />
+          );
+        })}
       </ScrollView>
       {openAllButton || plusButton ? (
         <View style={styles.actionsRow}>
@@ -126,6 +150,29 @@ const styles = StyleSheet.create({
   coverImage: {
     width: '100%',
     height: '100%',
+  },
+  coverFallback: {
+    width: '100%',
+    height: '100%',
+    paddingHorizontal: 8,
+    paddingTop: 10,
+    paddingBottom: 8,
+    justifyContent: 'space-between',
+    backgroundColor: '#CCB985',
+  },
+  coverFallbackTitle: {
+    fontSize: 11,
+    lineHeight: 13,
+    color: '#2D2800',
+    fontFamily: 'Mak',
+    fontWeight: '600',
+  },
+  coverFallbackAuthor: {
+    fontSize: 10,
+    lineHeight: 12,
+    color: '#565d3f',
+    fontFamily: 'Mak',
+    fontWeight: '400',
   },
   actionsRow: {
     marginTop: 13,

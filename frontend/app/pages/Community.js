@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import CommunityScreenLayout from '../components/CommunityScreen';
 import { mapApiBookGenres } from '../slices/booksSlice';
 import {
@@ -96,6 +96,16 @@ export default function Community() {
     [myCommunities, communityId],
   );
   const isBusy = isJoining || isLeaving;
+
+  useEffect(() => {
+    const ownerUserId = Number(communityData?.ownerUserId);
+    if (!communityId || !userId) {
+      return;
+    }
+    if (Number.isFinite(ownerUserId) && ownerUserId === Number(userId)) {
+      navigation.replace('myCommunity', { communityId });
+    }
+  }, [communityData?.ownerUserId, communityId, navigation, userId]);
 
   const onPressBack = () => {
     navigation.goBack();

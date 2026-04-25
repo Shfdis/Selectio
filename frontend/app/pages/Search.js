@@ -2,13 +2,13 @@ import { View, Text, StyleSheet, Image, Pressable, ScrollView, Keyboard } from '
 import { useNavigation } from '@react-navigation/native';
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import HorizontalCoverSection from '../components/HorizontalCoverSection';
+import RecommendedBooksSection from '../components/RecommendedBooksSection';
 import SearchHeader, { searchHeaderHeight } from '../components/SearchHeader';
 import BookRowCard from '../components/BookRowCard';
 import SearchResultsSheet from '../components/SearchResults';
 import {
   mapApiBookGenres,
   useGetPopularBooksQuery,
-  useGetRecommendedBooksQuery,
   useLazyGetPopularBooksByGenreQuery,
   useSearchBooksQuery,
 } from '../slices/booksSlice';
@@ -82,7 +82,6 @@ export function Search() {
   const isLoadingMorePopularRef = useRef(false);
   const [resultsSheetDismissed, setResultsSheetDismissed] = useState(false);
   const suppressResultsSheetAutoOpenUntilRef = useRef(0);
-  const { data: recommendedBooks = [] } = useGetRecommendedBooksQuery({ page: 1, pageSize: 10 });
   const popularPageSize = 12;
   const { data: popularBooksPage = [], isFetching: isPopularBooksFetching } = useGetPopularBooksQuery({
     page: popularPage,
@@ -99,16 +98,22 @@ export function Search() {
     return initial;
   });
 
-  const recommendedCovers = useMemo(
-    () => recommendedBooks.slice(0, 8).map((book) => book.coverUrl || DEFAULT_COVER_URI),
-    [recommendedBooks],
-  );
   const popularCovers = useMemo(
-    () => popularBooks.map((book) => book.coverUrl || DEFAULT_COVER_URI),
+    () =>
+      popularBooks.map((book) => ({
+        imageUri: book?.coverUrl || null,
+        title: book?.title || 'Без названия',
+        author: book?.author || 'Неизвестный автор',
+      })),
     [popularBooks],
   );
   const trendingCovers = useMemo(
-    () => popularBooks.slice(4, 12).map((book) => book.coverUrl || DEFAULT_COVER_URI),
+    () =>
+      popularBooks.slice(4, 12).map((book) => ({
+        imageUri: book?.coverUrl || null,
+        title: book?.title || 'Без названия',
+        author: book?.author || 'Неизвестный автор',
+      })),
     [popularBooks],
   );
 
@@ -245,11 +250,10 @@ export function Search() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <HorizontalCoverSection
+        <RecommendedBooksSection
           title="Рекомендованные"
           subtitle="Книги на основе ваших вкусовых предпочтений"
-          covers={recommendedCovers}
-          onPressCover={(_, index) => onPressBook(recommendedBooks[index])}
+          onPressBook={onPressBook}
         />
 
         <HorizontalCoverSection

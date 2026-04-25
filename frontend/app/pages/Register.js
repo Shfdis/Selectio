@@ -1,28 +1,17 @@
 import { View, Text, StyleSheet, Alert } from 'react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import LoginRegisterHeader from '../components/LoginRegisterHeader';
 import InputComponent from '../components/InputComponent';
 import GreenRoundedButton from '../components/GreenRoundedButton';
 import { useRegisterUserMutation } from '../slices/userSlice';
 import { useNavigation } from '@react-navigation/native';
+import { buildAuthErrorAlert } from '../utils/authErrorAlert';
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [registerUser, { isLoading, error: registerError }] = useRegisterUserMutation();
+  const [registerUser, { isLoading }] = useRegisterUserMutation();
   const navigation = useNavigation();
-  const lastAlertKeyRef = useRef(null);
-
-  useEffect(() => {
-    if (!registerError) return;
-    const alertKey = JSON.stringify({
-      status: registerError?.status,
-      data: registerError?.data,
-    });
-    if (lastAlertKeyRef.current === alertKey) return;
-    lastAlertKeyRef.current = alertKey;
-    Alert.alert("Не удалось зарегистрироваться", "Проверьте введенные данные", [{ text: 'Ок' }]);
-  }, [registerError]);
 
   return (
     <View style={styles.container}>
@@ -35,14 +24,24 @@ export default function Register() {
       <View style={styles.buttonContainer}>
       <GreenRoundedButton text="Зарегистрироваться" onPress={() => {
         (async () => {
-          if (!email || !password || !username) {
+          const normalizedEmail = email.trim();
+          const normalizedPassword = password.trim();
+          const normalizedUsername = username.trim();
+          if (!normalizedEmail || !normalizedPassword || !normalizedUsername) {
             Alert.alert("Заполните поля", "Введите имя, email и пароль", [{ text: 'Ок' }]);
             return;
           }
           try {
-            await registerUser({ email, password, username, description: '' }).unwrap();
+            await registerUser({
+              email: normalizedEmail,
+              password: normalizedPassword,
+              username: normalizedUsername,
+              description: '',
+            }).unwrap();
             navigation.navigate('login');
           } catch (e) {
+            const alert = buildAuthErrorAlert(e, 'register');
+            Alert.alert(alert.title, alert.message, [{ text: 'Ок' }]);
           }
         })();
         }} />
