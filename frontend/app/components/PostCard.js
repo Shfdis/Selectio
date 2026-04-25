@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import BookCard from './BookCard';
 import { useGetUserProfileQuery } from '../slices/profileSlice';
 import { useGetCommunityByIdQuery } from '../slices/communitiesSlice';
+import { useGetCurrentUserQuery } from '../slices/userSlice';
 import {
   useFavoritePostMutation,
   useLikePostMutation,
@@ -36,6 +37,7 @@ export default function PostCard({
   const [liked, setLiked] = useState(initiallyLiked);
   const [bookmarked, setBookmarked] = useState(initiallyBookmarked);
   const [likes, setLikes] = useState(initialLikes);
+  const { data: currentUser } = useGetCurrentUserQuery();
   const normalizedCommunityId = Number(communityId);
   const { data: communityData } = useGetCommunityByIdQuery(normalizedCommunityId, {
     skip: !Number.isFinite(normalizedCommunityId) || normalizedCommunityId <= 0,
@@ -102,7 +104,15 @@ export default function PostCard({
   const onPressCommunity = () => {
     const normalizedCommunityId = Number(communityId);
     if (Number.isFinite(normalizedCommunityId) && normalizedCommunityId > 0) {
-      navigation.navigate('community', { communityId: normalizedCommunityId });
+      const ownerUserId = Number(communityData?.ownerUserId);
+      const currentUserId = Number(currentUser?.id);
+      const targetRoute =
+        Number.isFinite(ownerUserId) &&
+        Number.isFinite(currentUserId) &&
+        ownerUserId === currentUserId
+          ? 'myCommunity'
+          : 'community';
+      navigation.navigate(targetRoute, { communityId: normalizedCommunityId });
     }
   };
 
