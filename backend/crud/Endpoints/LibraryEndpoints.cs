@@ -31,13 +31,14 @@ public static class LibraryEndpoints
                 {
                     UserId = userId,
                     BookId = id,
-                    Status = body?.Status ?? LibraryStatus.WantToRead
+                    Status = body?.Status ?? LibraryStatus.WantToRead,
+                    AddedAt = DateTime.UtcNow
                 };
                 db.UserBooks.Add(userBook);
                 await db.SaveChangesAsync();
             }
 
-            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status));
+            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status, userBook.AddedAt));
         })
         .WithTags("Library")
         .WithSummary("Add book to my library")
@@ -63,7 +64,7 @@ public static class LibraryEndpoints
             userBook.Status = body.Status;
             await db.SaveChangesAsync();
 
-            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status));
+            return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status, userBook.AddedAt));
         })
         .WithTags("Library")
         .WithSummary("Update library status for a book")
@@ -119,7 +120,8 @@ public static class LibraryEndpoints
                     x.b.Description,
                     x.b.Genre,
                     x.b.CoverUrl,
-                    x.ub.Status
+                    x.ub.Status,
+                    x.ub.AddedAt
                 ))
                 .ToListAsync();
 

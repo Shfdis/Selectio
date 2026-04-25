@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 
+from datetime import datetime
+
 import requests
 
 
 class TestCrudLibrary:
+    @staticmethod
+    def _parse_utc(ts: str) -> datetime:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
     def _get_first_book_id(self, crud_base_url: str) -> int:
         r = requests.get(f"{crud_base_url}/api/books", timeout=5)
         r.raise_for_status()
@@ -19,6 +25,9 @@ class TestCrudLibrary:
         # add
         r = requests.post(f"{crud_base_url}/api/books/{book_id}/library", json={"status": "WantToRead"}, headers=headers, timeout=5)
         assert r.status_code == 200
+        added = r.json()
+        assert "addedAt" in added
+        initial_added_at = added["addedAt"]
 
         # update status
         r = requests.put(
@@ -28,13 +37,22 @@ class TestCrudLibrary:
             timeout=5,
         )
         assert r.status_code == 200
-        assert r.json()["status"] == "Reading"
+        updated = r.json()
+        assert updated["status"] == "Reading"
+        assert "addedAt" in updated
+        updated_dt = self._parse_utc(updated["addedAt"])
+        initial_dt = self._parse_utc(initial_added_at)
+        assert abs((updated_dt - initial_dt).total_seconds()) < 1
 
         # list user books
         r = requests.get(f"{crud_base_url}/api/users/{user_id}/books", timeout=5)
         assert r.status_code == 200
         items = r.json()
         assert any(i["bookId"] == book_id for i in items)
+        found = next(i for i in items if i["bookId"] == book_id)
+        assert "addedAt" in found
+        found_dt = self._parse_utc(found["addedAt"])
+        assert abs((found_dt - initial_dt).total_seconds()) < 1
 
         # list filtered by status
         r = requests.get(f"{crud_base_url}/api/users/{user_id}/books", params={"status": "Reading"}, timeout=5)

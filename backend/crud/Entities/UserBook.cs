@@ -13,6 +13,7 @@ public class UserBook
     public int BookId { get; set; }
 
     public LibraryStatus Status { get; set; } = LibraryStatus.WantToRead;
+    public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 
     public Book? Book { get; set; }
 }

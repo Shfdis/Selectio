@@ -17,14 +17,16 @@ public sealed record UserLibraryItemDto(
     string Description,
     string Genre,
     string CoverUrl,
-    LibraryStatus Status
+    LibraryStatus Status,
+    DateTime AddedAt
 );
 
 /// <summary>State of a book in the current user's library after add/update/remove.</summary>
 public sealed record UserLibraryStateDto(
     int UserId,
     int BookId,
-    LibraryStatus Status
+    LibraryStatus Status,
+    DateTime AddedAt
 );
 
 public sealed record LibraryRemovedDto(string Message);
