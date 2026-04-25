@@ -28,17 +28,22 @@ export default function RecommendedBooksSection({
     if (isRecommendedPageFetching || isPopularPageFetching) {
       return;
     }
-    if (appendedPageNumbersRef.current.has(booksPage)) {
-      return;
-    }
-    appendedPageNumbersRef.current.add(booksPage);
-
     const pageBooks = recommendedBooksPage.length > 0 ? recommendedBooksPage : popularBooksPage;
-    setBooksForRecommendations((prev) => {
-      const existingIds = new Set(prev.map((book) => book?.id));
-      const incoming = pageBooks.filter((book) => !existingIds.has(book?.id));
-      return [...prev, ...incoming];
-    });
+    if (booksPage === 1) {
+      // Always refresh the first page so tag invalidation is reflected in UI.
+      appendedPageNumbersRef.current = new Set([1]);
+      setBooksForRecommendations(pageBooks);
+    } else {
+      if (appendedPageNumbersRef.current.has(booksPage)) {
+        return;
+      }
+      appendedPageNumbersRef.current.add(booksPage);
+      setBooksForRecommendations((prev) => {
+        const existingIds = new Set(prev.map((book) => book?.id));
+        const incoming = pageBooks.filter((book) => !existingIds.has(book?.id));
+        return [...prev, ...incoming];
+      });
+    }
 
     const recommendedHasMore = recommendedBooksPage.length >= pageSize;
     const popularHasMore = popularBooksPage.length >= pageSize;

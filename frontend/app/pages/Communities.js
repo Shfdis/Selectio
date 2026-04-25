@@ -17,6 +17,15 @@ import {
 
 const MY_COMMUNITIES_STRIP_COUNT = 6;
 const DEFAULT_COVER_URI = 'https://via.placeholder.com/136x136?text=Community';
+const toCommunityGenres = (community) => {
+  if (Array.isArray(community?.genres)) {
+    return community.genres.filter((genre) => typeof genre === 'string' && genre.trim().length > 0);
+  }
+  if (community?.genre) {
+    return [community.genre];
+  }
+  return [];
+};
 
 const formatDate = (isoString) => {
   if (!isoString) {
@@ -37,7 +46,7 @@ const mapCommunitySearchItem = (community, navigateTo = 'community') => ({
   name: community?.name || 'Сообщество',
   subscribersCount:
     typeof community?.subscriberCount === 'number' ? `${community.subscriberCount}` : '0',
-  genres: community?.genre ? [community.genre] : [],
+  genres: toCommunityGenres(community),
   description: community?.description || '',
   coverImageUrl: community?.coverUrl || DEFAULT_COVER_URI,
   navigateTo,

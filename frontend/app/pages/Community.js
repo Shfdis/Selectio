@@ -15,6 +15,15 @@ import { useGetCurrentUserQuery } from '../slices/userSlice';
 
 const DEFAULT_COVER_URI = 'https://via.placeholder.com/156x156?text=Community';
 const DEFAULT_BOOK_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
+const toCommunityGenres = (community) => {
+  if (Array.isArray(community?.genres)) {
+    return community.genres.filter((genre) => typeof genre === 'string' && genre.trim().length > 0);
+  }
+  if (community?.genre) {
+    return [community.genre];
+  }
+  return [];
+};
 
 const formatDate = (isoString) => {
   if (!isoString) {
@@ -34,7 +43,7 @@ const mapCommunityModel = (community) => ({
   coverImageUrl: community?.coverUrl || DEFAULT_COVER_URI,
   subscribersCount: `${community?.subscriberCount ?? 0}`,
   name: community?.name || 'Сообщество',
-  genres: community?.genre ? [community.genre] : [],
+  genres: toCommunityGenres(community),
   description: community?.description || '',
 });
 
