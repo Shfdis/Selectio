@@ -774,7 +774,7 @@
           "Communities"
         ],
         "summary": "Create community",
-        "description": "Creates a community owned by the authenticated user, then inserts an owner membership row so the creator is subscribed immediately. Name is required and must be unique (trimmed, exact match). Description, coverUrl, and genre are optional strings (trimmed; empty strings allowed).",
+        "description": "Creates a community owned by the authenticated user. Name is required and must be unique (trimmed, exact match). Description, coverUrl, and genre are optional strings (trimmed; empty strings allowed).",
         "requestBody": {
           "content": {
             "application/json": {
@@ -930,7 +930,7 @@
           "Communities"
         ],
         "summary": "Join a community",
-        "description": "Idempotent subscribe: if the user is not a member yet, creates a row with role Member. If already a member (including Owner from create), returns the existing membership without error.",
+        "description": "Idempotent subscribe: if the user is not a member yet, creates a row with role Member. If already a member, returns the existing membership without error. Owners cannot join their own community.",
         "parameters": [
           {
             "name": "id",
@@ -952,6 +952,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request"
           },
           "401": {
             "description": "Unauthorized"
@@ -1663,7 +1666,7 @@
           "Posts"
         ],
         "summary": "Get personalized community feed",
-        "description": "Returns published posts from communities the user has joined. When a user embedding exists (from books in their library), posts with embeddings are ranked by cosine similarity (higher first), then by recency; posts without embeddings follow, ordered by recency. Without a user embedding, ordering is purely by CreatedAt (newest first).",
+        "description": "Returns published posts in two tiers: joined communities first, then other communities. Within each tier, posts are ranked by cosine similarity when a user embedding exists (with recency tie-break), and by recency when no user embedding exists. Seen posts are excluded only when the latest seen interaction (author/like/favorite/comment) is older than 24 hours. Without a user embedding, ordering is purely by CreatedAt (newest first).",
         "parameters": [
           {
             "name": "page",
@@ -2600,6 +2603,10 @@
           },
           "status": {
             "$ref": "#/components/schemas/LibraryStatus"
+          },
+          "addedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "additionalProperties": false
@@ -2617,6 +2624,10 @@
           },
           "status": {
             "$ref": "#/components/schemas/LibraryStatus"
+          },
+          "addedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "additionalProperties": false
