@@ -85,9 +85,9 @@ export default function ReadBooks() {
         case 'title-desc':
           return String(b.title).localeCompare(String(a.title), 'ru');
         case 'author-asc':
-          return Number(b.id || 0) - Number(a.id || 0);
+          return String(a.author).localeCompare(String(b.author), 'ru');
         case 'author-desc':
-          return Number(a.id || 0) - Number(b.id || 0);
+          return String(b.author).localeCompare(String(a.author), 'ru');
         case 'title-asc':
         default:
           return String(a.title).localeCompare(String(b.title), 'ru');
