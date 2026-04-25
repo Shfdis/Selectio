@@ -83,7 +83,26 @@ public static class InternalAuthzEndpoints
                 })
                 .FirstOrDefaultAsync();
 
-            return member is null ? Results.NotFound() : Results.Ok(member);
+            if (member is not null)
+            {
+                return Results.Ok(member);
+            }
+
+            // Owners are treated as moderators for gateway authz checks even when
+            // owner membership rows are intentionally absent.
+            var isOwner = await db.Communities
+                .AnyAsync(c => c.Id == communityId && c.OwnerUserId == userId);
+            if (isOwner)
+            {
+                return Results.Ok(new
+                {
+                    communityId,
+                    userId,
+                    role = "Owner"
+                });
+            }
+
+            return Results.NotFound();
         });
 
         return app;

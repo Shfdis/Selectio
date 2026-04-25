@@ -89,20 +89,11 @@ public static class CommunityEndpoints
             db.Communities.Add(community);
             await db.SaveChangesAsync();
 
-            var ownerMember = new CommunityMember
-            {
-                CommunityId = community.Id,
-                UserId = userId,
-                Role = CommunityRole.Owner
-            };
-            db.CommunityMembers.Add(ownerMember);
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genre, community.OwnerUserId, 1));
+            return Results.Ok(new CommunityDto(community.Id, community.Name, community.Description, community.CoverUrl, community.Genre, community.OwnerUserId, 0));
         })
         .WithSummary("Create community")
         .WithDescription(
-            "Creates a community owned by the authenticated user, then inserts an owner membership row so the creator is subscribed immediately. " +
+            "Creates a community owned by the authenticated user. " +
             "Name is required and must be unique (trimmed, exact match). " +
             "Description, coverUrl, and genre are optional strings (trimmed; empty strings allowed)."
         )
@@ -235,6 +226,11 @@ public static class CommunityEndpoints
             {
                 return Results.NotFound();
             }
+            var isOwner = await db.Communities.AnyAsync(c => c.Id == id && c.OwnerUserId == userId);
+            if (isOwner)
+            {
+                return Results.BadRequest(new { message = "owner cannot join own community" });
+            }
 
             var member = await db.CommunityMembers.FirstOrDefaultAsync(m => m.CommunityId == id && m.UserId == userId);
             if (member is null)
@@ -254,9 +250,11 @@ public static class CommunityEndpoints
         .WithSummary("Join a community")
         .WithDescription(
             "Idempotent subscribe: if the user is not a member yet, creates a row with role Member. " +
-            "If already a member (including Owner from create), returns the existing membership without error."
+            "If already a member, returns the existing membership without error. " +
+            "Owners cannot join their own community."
         )
         .Produces<CommunityMemberDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status404NotFound);
 

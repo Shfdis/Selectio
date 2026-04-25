@@ -23,12 +23,12 @@ class TestCrudCommunities:
         assert created["ownerUserId"] == owner_id
         assert created.get("coverUrl") == "https://example.com/cover.png"
         assert created.get("genre") == "Fiction"
-        assert "subscriberCount" in created
+        assert created.get("subscriberCount") == 0
 
         # get
         r2 = requests.get(f"{crud_base_url}/api/communities/{community_id}", timeout=5)
         assert r2.status_code == 200
-        assert r2.json().get("subscriberCount") is not None
+        assert r2.json().get("subscriberCount") == 0
 
         # member joins
         r3 = requests.post(f"{crud_base_url}/api/communities/{community_id}/join", headers=member_headers, timeout=5)
@@ -53,6 +53,27 @@ class TestCrudCommunities:
         assert r6.status_code == 200
         items2 = r6.json()
         assert all(c["id"] != community_id for c in items2)
+
+    def test_owner_cannot_join_own_community(self, crud_base_url):
+        owner_id = 1010
+        owner_headers = {"X-User-Id": str(owner_id)}
+        name = f"community_owner_join_{uuid.uuid4().hex[:8]}"
+        created = requests.post(
+            f"{crud_base_url}/api/communities",
+            json={"name": name, "description": "owner join check"},
+            headers=owner_headers,
+            timeout=5,
+        )
+        assert created.status_code == 200
+        community_id = int(created.json()["id"])
+
+        joined = requests.post(
+            f"{crud_base_url}/api/communities/{community_id}/join",
+            headers=owner_headers,
+            timeout=5,
+        )
+        assert joined.status_code == 400
+        assert "owner cannot join own community" in joined.text
 
     def test_communities_list_genre_filter(self, crud_base_url):
         r = requests.get(f"{crud_base_url}/api/communities", params={"genre": "Fiction", "pageSize": 5}, timeout=5)
