@@ -3,8 +3,6 @@ import { useMemo } from 'react';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
 import { useGetCommunitiesCatalogQuery } from '../slices/communitiesSlice';
 
-const DEFAULT_COVER_URI = 'https://via.placeholder.com/136x136?text=Community';
-
 export default function AllMyCreatedCommunities() {
   const { data: currentUser } = useGetCurrentUserQuery();
   const userId = currentUser?.id;
@@ -18,7 +16,11 @@ export default function AllMyCreatedCommunities() {
     [communitiesCatalog, userId],
   );
   const coverImageUrls = useMemo(
-    () => myCreatedCommunities.map((community) => community?.coverUrl || DEFAULT_COVER_URI),
+    () => myCreatedCommunities.map((community) => community?.coverUrl),
+    [myCreatedCommunities],
+  );
+  const coverNames = useMemo(
+    () => myCreatedCommunities.map((community) => community?.name || 'Сообщество'),
     [myCreatedCommunities],
   );
   const coverPressParamsByIndex = useMemo(
@@ -31,6 +33,7 @@ export default function AllMyCreatedCommunities() {
       headerTitle="Мои сообщества"
       headerSubtitle="Отсортировано по последним созданным"
       coverImageUrls={coverImageUrls}
+      coverNames={coverNames}
       coverPressRoute="myCommunity"
       coverPressParamsByIndex={coverPressParamsByIndex}
     />

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import CommunityEditor from '../components/CommunityEditor';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
 import { useUploadImageMutation } from '../slices/profileSlice';
 import { useCreateCommunityMutation } from '../slices/communitiesSlice';
@@ -33,13 +33,14 @@ export default function NewCommunity() {
   const [displayName, setDisplayName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedGenres, setSelectedGenres] = useState([]);
+  const [nameRequiredDialogVisible, setNameRequiredDialogVisible] = useState(false);
   const [uploadImage, { isLoading: isUploadingImage }] = useUploadImageMutation();
   const [createCommunity, { isLoading: isCreatingCommunity }] = useCreateCommunityMutation();
 
   const onPressSave = async () => {
     const trimmedName = displayName.trim();
     if (!trimmedName) {
-      Alert.alert('Введите название', 'Название сообщества не может быть пустым.', [{ text: 'Ок' }]);
+      setNameRequiredDialogVisible(true);
       return;
     }
     try {
@@ -59,7 +60,7 @@ export default function NewCommunity() {
         coverUrl: resolvedCoverUrl,
         genres: selectedGenres,
       }).unwrap();
-      navigation.navigate('myCommunity', { communityId: created?.id });
+      navigation.replace('myCommunity', { communityId: created?.id });
     } catch (_error) {
       Alert.alert('Не удалось создать сообщество', 'Попробуйте ещё раз.', [{ text: 'Ок' }]);
     }
@@ -89,6 +90,17 @@ export default function NewCommunity() {
         selectedGenres={selectedGenres}
         onSelectedGenresChange={setSelectedGenres}
         addGenresWhenEmpty
+      />
+
+      <DeleteConfirmDialog
+        visible={nameRequiredDialogVisible}
+        onCancel={() => setNameRequiredDialogVisible(false)}
+        onConfirm={() => setNameRequiredDialogVisible(false)}
+        title="Введите название"
+        message="Название сообщества не может быть пустым."
+        confirmLabel="Ок"
+        hideCancel
+        cardTone="green"
       />
     </View>
   );

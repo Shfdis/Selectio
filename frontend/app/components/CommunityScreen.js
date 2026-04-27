@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
 import { useRef, useCallback } from 'react';
 import GreenHeaderStrip from './GreenHeader';
 import PostCard from './PostCard';
+import { getCommunityCoverImageSource } from '../utils/communityCover';
 
 function GenrePill({ label }) {
   return (
@@ -43,7 +44,7 @@ export default function CommunityScreenLayout({
         <View style={styles.headerGreenBlock}>
           <View style={styles.coverWrap}>
             <Image
-              source={{ uri: community.coverImageUrl }}
+              source={getCommunityCoverImageSource(community.coverImageUrl)}
               style={styles.cover}
               resizeMode="cover"
             />

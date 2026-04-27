@@ -3,8 +3,6 @@ import { useMemo } from 'react';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
 import { useGetUserCommunitiesQuery } from '../slices/communitiesSlice';
 
-const DEFAULT_COVER_URI = 'https://via.placeholder.com/136x136?text=Community';
-
 export default function MySubscriptions() {
   const { data: currentUser } = useGetCurrentUserQuery();
   const userId = currentUser?.id;
@@ -13,7 +11,11 @@ export default function MySubscriptions() {
     { skip: !userId },
   );
   const coverImageUrls = useMemo(
-    () => subscribedCommunities.map((community) => community?.coverUrl || DEFAULT_COVER_URI),
+    () => subscribedCommunities.map((community) => community?.coverUrl),
+    [subscribedCommunities],
+  );
+  const coverNames = useMemo(
+    () => subscribedCommunities.map((community) => community?.name || 'Сообщество'),
     [subscribedCommunities],
   );
   const coverPressParamsByIndex = useMemo(
@@ -26,6 +28,7 @@ export default function MySubscriptions() {
       headerTitle="Мои подписки"
       headerSubtitle="Отсортировано по последним добавленным"
       coverImageUrls={coverImageUrls}
+      coverNames={coverNames}
       coverPressRoute="community"
       coverPressParamsByIndex={coverPressParamsByIndex}
     />

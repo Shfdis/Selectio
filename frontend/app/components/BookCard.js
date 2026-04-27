@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
 import GenrePill from './GenrePill';
 export default function BookCard({
     imageUrl,
@@ -12,10 +13,36 @@ export default function BookCard({
     onPressAddReview = () => {},
   }) {
     const genres = [genreFirst, genreSecond].map((g) => String(g ?? '').trim()).filter(Boolean);
-  
+    const normalizedImageUrl = useMemo(
+      () => (typeof imageUrl === 'string' ? imageUrl.trim() : ''),
+      [imageUrl],
+    );
+    const [imageLoadFailed, setImageLoadFailed] = useState(false);
+    const hasImage = Boolean(normalizedImageUrl) && !imageLoadFailed;
+
+    useEffect(() => {
+      setImageLoadFailed(false);
+    }, [normalizedImageUrl]);
+
     return (
       <Pressable style={styles.card} onPress={onClick}>
-        <Image source={{ uri : imageUrl}} style={styles.avatar} />
+        {hasImage ? (
+          <Image
+            source={{ uri: normalizedImageUrl }}
+            style={styles.avatar}
+            resizeMode="cover"
+            onError={() => setImageLoadFailed(true)}
+          />
+        ) : (
+          <View style={styles.avatarFallback}>
+            <Text style={styles.avatarFallbackTitle} numberOfLines={3}>
+              {title || 'Без названия'}
+            </Text>
+            <Text style={styles.avatarFallbackAuthor} numberOfLines={2}>
+              {author || 'Неизвестный автор'}
+            </Text>
+          </View>
+        )}
         <View style={styles.topRow}>
           <View style={styles.titleBlock}>
             <Text style={styles.title} numberOfLines={2}>
@@ -55,6 +82,31 @@ const styles = StyleSheet.create({
         width: '28%',
         aspectRatio: 1,
         borderRadius: 8,
+      },
+    avatarFallback: {
+        width: '28%',
+        aspectRatio: 1,
+        borderRadius: 8,
+        backgroundColor: '#CCB985',
+        borderWidth: 1,
+        borderColor: '#CAC7B9',
+        paddingHorizontal: 6,
+        paddingVertical: 6,
+        justifyContent: 'space-between',
+      },
+    avatarFallbackTitle: {
+        fontSize: 10,
+        lineHeight: 12,
+        color: '#2D2800',
+        fontFamily: 'Mak',
+        fontWeight: 600,
+      },
+    avatarFallbackAuthor: {
+        fontSize: 9,
+        lineHeight: 11,
+        color: '#565d3f',
+        fontFamily: 'Playfair',
+        fontWeight: 400,
       },
     card: {
         flexDirection: 'row',

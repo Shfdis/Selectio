@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIsFocused } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 import HorizontalCoverSection from './HorizontalCoverSection';
 import { useGetPopularBooksQuery, useGetRecommendedBooksQuery } from '../slices/booksSlice';
+import { selectLibraryChangeVersion } from '../slices/librarySyncSlice';
 
 export default function RecommendedBooksSection({
   title = 'Рекомендованные книги',
@@ -9,20 +12,64 @@ export default function RecommendedBooksSection({
   style,
   pageSize = 20,
 }) {
+  const isFocused = useIsFocused();
+  const libraryChangeVersion = useSelector(selectLibraryChangeVersion);
   const [booksPage, setBooksPage] = useState(1);
   const [booksForRecommendations, setBooksForRecommendations] = useState([]);
   const [hasMoreBooks, setHasMoreBooks] = useState(true);
   const appendedPageNumbersRef = useRef(new Set());
   const isLoadingMoreRef = useRef(false);
+  const [forceRefetchOnPageOne, setForceRefetchOnPageOne] = useState(false);
+  const [scrollResetSignal, setScrollResetSignal] = useState(0);
 
-  const { data: recommendedBooksPage = [], isFetching: isRecommendedPageFetching } = useGetRecommendedBooksQuery({
+  const {
+    data: recommendedBooksPage = [],
+    isFetching: isRecommendedPageFetching,
+    refetch: refetchRecommendedBooksPage,
+  } = useGetRecommendedBooksQuery({
     page: booksPage,
     pageSize,
   });
-  const { data: popularBooksPage = [], isFetching: isPopularPageFetching } = useGetPopularBooksQuery({
+  const {
+    data: popularBooksPage = [],
+    isFetching: isPopularPageFetching,
+    refetch: refetchPopularBooksPage,
+  } = useGetPopularBooksQuery({
     page: booksPage,
     pageSize,
   });
+
+  useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+    setBooksPage(1);
+    setHasMoreBooks(true);
+    appendedPageNumbersRef.current = new Set();
+    isLoadingMoreRef.current = false;
+  }, [isFocused]);
+
+  useEffect(() => {
+    if (libraryChangeVersion <= 0) {
+      return;
+    }
+    setBooksPage(1);
+    setBooksForRecommendations([]);
+    setHasMoreBooks(true);
+    appendedPageNumbersRef.current = new Set();
+    isLoadingMoreRef.current = false;
+    setForceRefetchOnPageOne(true);
+    setScrollResetSignal((prev) => prev + 1);
+  }, [libraryChangeVersion]);
+
+  useEffect(() => {
+    if (!forceRefetchOnPageOne || booksPage !== 1) {
+      return;
+    }
+    refetchRecommendedBooksPage();
+    refetchPopularBooksPage();
+    setForceRefetchOnPageOne(false);
+  }, [booksPage, forceRefetchOnPageOne, refetchPopularBooksPage, refetchRecommendedBooksPage]);
 
   useEffect(() => {
     if (isRecommendedPageFetching || isPopularPageFetching) {
@@ -30,7 +77,6 @@ export default function RecommendedBooksSection({
     }
     const pageBooks = recommendedBooksPage.length > 0 ? recommendedBooksPage : popularBooksPage;
     if (booksPage === 1) {
-      // Always refresh the first page so tag invalidation is reflected in UI.
       appendedPageNumbersRef.current = new Set([1]);
       setBooksForRecommendations(pageBooks);
     } else {
@@ -50,6 +96,8 @@ export default function RecommendedBooksSection({
     const noDataOnThisPage = recommendedBooksPage.length === 0 && popularBooksPage.length === 0;
     if ((!recommendedHasMore && !popularHasMore) || noDataOnThisPage) {
       setHasMoreBooks(false);
+    } else if (booksPage === 1) {
+      setHasMoreBooks(true);
     }
     isLoadingMoreRef.current = false;
   }, [
@@ -90,6 +138,7 @@ export default function RecommendedBooksSection({
       onPressCover={(_, index) => onPressBook?.(booksForRecommendations[index])}
       onHorizontalEndReached={loadMoreBooks}
       style={style}
+      resetScrollSignal={scrollResetSignal}
     />
   );
 }

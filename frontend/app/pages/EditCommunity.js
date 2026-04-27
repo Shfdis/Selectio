@@ -3,6 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import CommunityEditor from '../components/CommunityEditor';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
 import {
   useDeleteCommunityMutation,
@@ -61,6 +62,7 @@ export default function EditCommunity() {
   const [description, setDescription] = useState('');
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [isFormInitialized, setIsFormInitialized] = useState(false);
+  const [nameRequiredDialogVisible, setNameRequiredDialogVisible] = useState(false);
   const [uploadImage, { isLoading: isUploadingImage }] = useUploadImageMutation();
   const [updateCommunity, { isLoading: isUpdatingCommunity }] = useUpdateCommunityMutation();
   const [deleteCommunity, { isLoading: isDeletingCommunity }] = useDeleteCommunityMutation();
@@ -83,7 +85,7 @@ export default function EditCommunity() {
       return;
     }
     if (!trimmedName) {
-      Alert.alert('Введите название', 'Название сообщества не может быть пустым.', [{ text: 'Ок' }]);
+      setNameRequiredDialogVisible(true);
       return;
     }
     try {
@@ -158,6 +160,17 @@ export default function EditCommunity() {
           <Text style={styles.deleteText}>Удалить сообщество</Text>
         </Pressable>
       </View>
+
+      <DeleteConfirmDialog
+        visible={nameRequiredDialogVisible}
+        onCancel={() => setNameRequiredDialogVisible(false)}
+        onConfirm={() => setNameRequiredDialogVisible(false)}
+        title="Введите название"
+        message="Название сообщества не может быть пустым."
+        confirmLabel="Ок"
+        hideCancel
+        cardTone="green"
+      />
     </View>
   );
 }

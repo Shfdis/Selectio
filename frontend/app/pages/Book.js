@@ -34,8 +34,6 @@ const LIBRARY_STATUS_REVERSE = {
   1: 'inProgress',
   2: 'read',
 };
-const DEFAULT_BOOK_COVER = 'https://via.placeholder.com/220x330?text=Book';
-
 const formatDate = (isoString) => {
   if (!isoString) {
     return '';
@@ -87,6 +85,7 @@ export default function Book() {
   const [addSheetVisible, setAddSheetVisible] = useState(false);
   const [moveSheetVisible, setMoveSheetVisible] = useState(false);
   const [libraryShelfLocal, setLibraryShelfLocal] = useState(null);
+  const [coverLoadFailed, setCoverLoadFailed] = useState(false);
 
   const libraryShelfFromApi = useMemo(
     () => resolveShelfFromUserStatus(bookData?.userStatus),
@@ -97,11 +96,16 @@ export default function Book() {
   useEffect(() => {
     setLibraryShelfLocal(libraryShelfFromApi);
   }, [libraryShelfFromApi, resolvedBookId]);
+
+  useEffect(() => {
+    setCoverLoadFailed(false);
+  }, [resolvedBookId, bookData?.coverUrl]);
+
   const book = useMemo(() => {
     const { genreFirst, genreSecond } = mapApiBookGenres(bookData);
     return {
       id: bookData?.id,
-      imageUrl: bookData?.coverUrl || DEFAULT_BOOK_COVER,
+      imageUrl: typeof bookData?.coverUrl === 'string' ? bookData.coverUrl.trim() : '',
       averageRating: typeof bookData?.averageRating === 'number' ? bookData.averageRating.toFixed(1) : '0.0',
       title: bookData?.title || 'Без названия',
       author: bookData?.author || 'Неизвестный автор',
@@ -149,6 +153,7 @@ export default function Book() {
   const onPressBack = () => {
     navigation.goBack();
   };
+  const shouldShowCoverImage = Boolean(book.imageUrl) && !coverLoadFailed;
 
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -198,7 +203,23 @@ export default function Book() {
       >
         <View style={styles.headerGreenBlock}>
           <View style={styles.coverWrap}>
-            <Image source={{ uri: book.imageUrl }} style={styles.cover} resizeMode="cover" />
+            {shouldShowCoverImage ? (
+              <Image
+                source={{ uri: book.imageUrl }}
+                style={styles.cover}
+                resizeMode="cover"
+                onError={() => setCoverLoadFailed(true)}
+              />
+            ) : (
+              <View style={styles.fallbackCover}>
+                <Text style={styles.fallbackCoverTitle} numberOfLines={5}>
+                  {book.title}
+                </Text>
+                <Text style={styles.fallbackCoverAuthor} numberOfLines={2}>
+                  {book.author}
+                </Text>
+              </View>
+            )}
           </View>
           <View style={styles.ratingOval}>
             <Image
@@ -363,6 +384,31 @@ const styles = StyleSheet.create({
   cover: {
     width: '100%',
     height: '100%',
+  },
+  fallbackCover: {
+    width: '100%',
+    height: '100%',
+    paddingHorizontal: '9%',
+    paddingVertical: '11%',
+    justifyContent: 'space-between',
+    backgroundColor: '#CCB985',
+    borderWidth: 1,
+    borderColor: '#CAC7B9',
+  },
+  fallbackCoverTitle: {
+    fontSize: 20,
+    lineHeight: 20,
+    color: '#2D2800',
+    fontFamily: 'Mak',
+    fontWeight: 400,
+  },
+  fallbackCoverAuthor: {
+    fontSize: 16, 
+    lineHeight: 19,
+    color: '#565d3f',
+    fontFamily: 'Playfair',
+    fontWeight: 400,
+    opacity: 0.9,
   },
   ratingOval: {
     flexDirection: 'row',
