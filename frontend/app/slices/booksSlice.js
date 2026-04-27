@@ -1,4 +1,5 @@
 import { userApi } from "./userSlice";
+import { touchLibraryChange } from './librarySyncSlice';
 
 const normalizeGenre = (value) => String(value ?? "").trim();
 const communitiesFeedListTag = { type: "Post", id: "LIST:communities-feed" };
@@ -90,6 +91,13 @@ export const booksApi = userApi.injectEndpoints({
         body: { status },
       }),
       invalidatesTags: ["User", "Books", "RecommendedBooks", communitiesFeedListTag, recommendedPostsListTag],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(touchLibraryChange());
+        } catch {
+        }
+      },
     }),
     moveBookInLibrary: builder.mutation({
       query: ({ bookId, status }) => ({
@@ -98,6 +106,13 @@ export const booksApi = userApi.injectEndpoints({
         body: { status },
       }),
       invalidatesTags: ["User", "Books", "RecommendedBooks", communitiesFeedListTag, recommendedPostsListTag],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(touchLibraryChange());
+        } catch {
+        }
+      },
     }),
     removeBookFromLibrary: builder.mutation({
       query: ({ bookId }) => ({
@@ -105,6 +120,13 @@ export const booksApi = userApi.injectEndpoints({
         method: "DELETE",
       }),
       invalidatesTags: ["User", "Books", "RecommendedBooks", communitiesFeedListTag, recommendedPostsListTag],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(touchLibraryChange());
+        } catch {
+        }
+      },
     }),
   }),
 });

@@ -79,7 +79,6 @@ export default function SuggestedPosts() {
     try {
       await approveSuggestedPost({ postId, communityId }).unwrap();
     } catch (_error) {
-      // Keep UI stable; queue will remain unchanged on failed mutation.
     }
   };
 
@@ -90,7 +89,6 @@ export default function SuggestedPosts() {
     try {
       await rejectSuggestedPost({ postId, communityId }).unwrap();
     } catch (_error) {
-      // Keep UI stable; queue will remain unchanged on failed mutation.
     }
   };
 

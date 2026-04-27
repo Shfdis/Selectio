@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Image, Pressable, ScrollView, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import HorizontalCoverSection from '../components/HorizontalCoverSection';
 import RecommendedBooksSection from '../components/RecommendedBooksSection';
@@ -12,6 +13,7 @@ import {
   useLazyGetPopularBooksByGenreQuery,
   useSearchBooksQuery,
 } from '../slices/booksSlice';
+import { selectLibraryChangeVersion } from '../slices/librarySyncSlice';
 
 const GENRES_PER_COLUMN = 2;
 const DEFAULT_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
@@ -71,6 +73,8 @@ function GenreCard({ label, coverUri, onPressGenre }) {
 
 export function Search() {
   const navigation = useNavigation();
+  const libraryChangeVersion = useSelector(selectLibraryChangeVersion);
+  const prevLibraryVersionRef = useRef(0);
   const scrollRef = useRef(null);
   const searchInputRef = useRef(null);
   const [query, setQuery] = useState('');
@@ -143,6 +147,23 @@ export function Search() {
       setResultsSheetDismissed(false);
     }
   }, [query]);
+
+  useEffect(() => {
+    if (libraryChangeVersion <= 0) {
+      return;
+    }
+    if (libraryChangeVersion === prevLibraryVersionRef.current) {
+      return;
+    }
+    prevLibraryVersionRef.current = libraryChangeVersion;
+    setResultsSheetDismissed(true);
+    Keyboard.dismiss();
+    setPopularPage(1);
+    setPopularBooks([]);
+    setHasMorePopularBooks(true);
+    appendedPopularPagesRef.current = new Set();
+    isLoadingMorePopularRef.current = false;
+  }, [libraryChangeVersion]);
 
   const showResultsSheet = trimmedQuery.length > 0 && !resultsSheetDismissed;
 

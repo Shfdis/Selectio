@@ -16,7 +16,7 @@ import {
 } from '../slices/communitiesSlice';
 
 const MY_COMMUNITIES_STRIP_COUNT = 6;
-const DEFAULT_COVER_URI = 'https://via.placeholder.com/136x136?text=Community';
+const DEFAULT_BOOK_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
 const toCommunityGenres = (community) => {
   if (Array.isArray(community?.genres)) {
     return community.genres.filter((genre) => typeof genre === 'string' && genre.trim().length > 0);
@@ -48,7 +48,7 @@ const mapCommunitySearchItem = (community, navigateTo = 'community') => ({
     typeof community?.subscriberCount === 'number' ? `${community.subscriberCount}` : '0',
   genres: toCommunityGenres(community),
   description: community?.description || '',
-  coverImageUrl: community?.coverUrl || DEFAULT_COVER_URI,
+  coverImageUrl: community?.coverUrl ?? '',
   navigateTo,
 });
 
@@ -66,7 +66,7 @@ const mapFeedPost = (post) => {
     avatarUri: post?.authorAvatarUrl || post?.avatarUrl || undefined,
     book: {
       id: Number(post?.book?.id ?? post?.bookId),
-      imageUrl: post?.book?.coverUrl || DEFAULT_COVER_URI,
+      imageUrl: post?.book?.coverUrl || DEFAULT_BOOK_COVER_URI,
       title: post?.book?.title || 'Без названия',
       author: post?.book?.author || 'Неизвестный автор',
       genreFirst,
@@ -108,7 +108,11 @@ export function Communities() {
     () =>
       subscribedCommunities
         .slice(0, MY_COMMUNITIES_STRIP_COUNT)
-        .map((community) => community?.coverUrl || DEFAULT_COVER_URI),
+        .map((community) => ({
+          imageUri: community?.coverUrl ?? '',
+          title: community?.name || 'Сообщество',
+          defaultCoverWhenEmpty: true,
+        })),
     [subscribedCommunities],
   );
   const myCreatedCommunities = useMemo(
@@ -119,7 +123,11 @@ export function Communities() {
     () =>
       myCreatedCommunities
         .slice(0, MY_COMMUNITIES_STRIP_COUNT)
-        .map((community) => community?.coverUrl || DEFAULT_COVER_URI),
+        .map((community) => ({
+          imageUri: community?.coverUrl ?? '',
+          title: community?.name || 'Сообщество',
+          defaultCoverWhenEmpty: true,
+        })),
     [myCreatedCommunities],
   );
   const feedPosts = useMemo(() => communitiesFeed.map((post) => mapFeedPost(post)), [communitiesFeed]);

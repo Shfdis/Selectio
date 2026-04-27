@@ -20,7 +20,6 @@ const LIBRARY_STATUS = {
   inProgress: 1,
   read: 2,
 };
-const DEFAULT_BOOK_COVER = 'https://via.placeholder.com/120x120?text=Book';
 const normalizeGenre = (value) => String(value ?? '').trim();
 const wantToReadUiState = {
   sortId: 'title-asc',
@@ -52,7 +51,7 @@ export default function WantToRead() {
       libraryData.map((book) => ({
         id: book.bookId,
         addedAt: book.addedAt || null,
-        imageUrl: book.coverUrl || DEFAULT_BOOK_COVER,
+        imageUrl: typeof book.coverUrl === 'string' ? book.coverUrl.trim() : '',
         title: book.title || 'Без названия',
         author: book.author || 'Неизвестный автор',
         ...mapApiBookGenres({ genre: book.genre, secondGenre: '' }),

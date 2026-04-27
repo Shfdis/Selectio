@@ -1,5 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import GenrePill from './GenrePill';
+import { getCommunityCoverImageSource } from '../utils/communityCover';
 
 const MAX_GENRES = 4;
 
@@ -13,7 +14,11 @@ export default function CommunitySearchRowCard({
   return (
     <View style={styles.rowOuter}>
       <Pressable style={styles.row} onPress={onPress}>
-        <Image source={{ uri: community.coverImageUrl }} style={styles.cover} resizeMode="cover" />
+        <Image
+          source={getCommunityCoverImageSource(community.coverImageUrl)}
+          style={styles.cover}
+          resizeMode="cover"
+        />
         <View style={styles.body}>
           <Text style={styles.name} numberOfLines={2}>
             {community.name}

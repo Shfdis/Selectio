@@ -11,6 +11,7 @@ import {
   useUnfavoritePostMutation,
   useUnlikePostMutation,
 } from '../slices/postsSlice';
+import { getCommunityCoverImageSource } from '../utils/communityCover';
 
 export default function PostCard({
   avatarSource = require('../assets/icons/profile-avatar.png'),
@@ -47,8 +48,33 @@ export default function PostCard({
     skip: !Number.isFinite(normalizedAuthorUserId) || normalizedAuthorUserId <= 0,
   });
   const resolvedCommunityName = communityData?.name || communityName;
-  const resolvedAvatarUri =
-    communityData?.coverUrl || communityAvatarUri || authorProfile?.avatarUrl || avatarUri;
+  const headerAvatarSource = useMemo(() => {
+    const fromApi = communityData?.coverUrl;
+    if (typeof fromApi === 'string' && fromApi.trim().length > 0) {
+      return { uri: fromApi.trim() };
+    }
+    const fromPost = communityAvatarUri;
+    if (typeof fromPost === 'string' && fromPost.trim().length > 0) {
+      return { uri: fromPost.trim() };
+    }
+    if (Number.isFinite(normalizedCommunityId) && normalizedCommunityId > 0) {
+      return getCommunityCoverImageSource('');
+    }
+    if (authorProfile?.avatarUrl) {
+      return { uri: authorProfile.avatarUrl };
+    }
+    if (typeof avatarUri === 'string' && avatarUri.trim().length > 0) {
+      return { uri: avatarUri.trim() };
+    }
+    return avatarSource;
+  }, [
+    communityData?.coverUrl,
+    communityAvatarUri,
+    normalizedCommunityId,
+    authorProfile?.avatarUrl,
+    avatarUri,
+    avatarSource,
+  ]);
   const resolvedTitle = resolvedCommunityName || username || 'Сообщество';
   const [likePost] = useLikePostMutation();
   const [unlikePost] = useUnlikePostMutation();
@@ -154,7 +180,7 @@ export default function PostCard({
       <View style={styles.inner}>
         <Pressable style={styles.headerRow} onPress={onPressCommunity} hitSlop={10}>
           <Image
-            source={resolvedAvatarUri ? { uri: resolvedAvatarUri } : avatarSource}
+            source={headerAvatarSource}
             style={styles.avatar}
             resizeMode="cover"
           />

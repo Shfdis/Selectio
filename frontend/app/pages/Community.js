@@ -13,7 +13,6 @@ import {
 } from '../slices/communitiesSlice';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
 
-const DEFAULT_COVER_URI = 'https://via.placeholder.com/156x156?text=Community';
 const DEFAULT_BOOK_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
 const toCommunityGenres = (community) => {
   if (Array.isArray(community?.genres)) {
@@ -40,7 +39,7 @@ const formatDate = (isoString) => {
 };
 
 const mapCommunityModel = (community) => ({
-  coverImageUrl: community?.coverUrl || DEFAULT_COVER_URI,
+  coverImageUrl: community?.coverUrl ?? '',
   subscribersCount: `${community?.subscriberCount ?? 0}`,
   name: community?.name || 'Сообщество',
   genres: toCommunityGenres(community),

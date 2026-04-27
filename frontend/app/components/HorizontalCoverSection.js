@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-native';
 
 const cardWidth = 136;
@@ -5,25 +6,47 @@ const cardHeight = 193;
 const squareSize = 136;
 const cardGap = 11;
 
-function CoverTile({ imageUri, title, author, onPress, squareCovers }) {
-  const hasImage = typeof imageUri === 'string' && imageUri.trim().length > 0;
+function CoverTile({ imageUri, imageSource, title, author, onPress, squareCovers, defaultCoverWhenEmpty }) {
+  const resolvedFromUri = typeof imageUri === 'string' && imageUri.trim().length > 0 ? { uri: imageUri.trim() } : null;
+  const isCommunityWithoutCover = Boolean(defaultCoverWhenEmpty) && !resolvedFromUri && !imageSource;
+  const resolvedSource = imageSource ?? resolvedFromUri;
+  const hasImage = Boolean(resolvedSource) && !isCommunityWithoutCover;
+  const [imageReady, setImageReady] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageReady(false);
+    setImageFailed(false);
+  }, [imageUri, imageSource, defaultCoverWhenEmpty]);
+
+  const showImage = hasImage && imageReady && !imageFailed;
   return (
     <Pressable
       style={[styles.coverTile, squareCovers ? styles.coverTileSquare : null]}
       onPress={onPress}
     >
-      {hasImage ? (
-        <Image source={{ uri: imageUri }} style={styles.coverImage} resizeMode="cover" />
-      ) : (
-        <View style={styles.coverFallback}>
-          <Text style={styles.coverFallbackTitle} numberOfLines={3}>
-            {title || 'Без названия'}
-          </Text>
+      <View style={styles.coverFallback}>
+        <Text style={styles.coverFallbackTitle} numberOfLines={5}>
+          {title || 'Без названия'}
+        </Text>
+        {isCommunityWithoutCover ? null : (
           <Text style={styles.coverFallbackAuthor} numberOfLines={2}>
             {author || 'Неизвестный автор'}
           </Text>
-        </View>
-      )}
+        )}
+      </View>
+      {hasImage ? (
+        <Image
+          source={resolvedSource}
+          style={[styles.coverImage, showImage ? styles.coverImageVisible : styles.coverImageHidden]}
+          resizeMode="cover"
+          onLoad={() => setImageReady(true)}
+          onError={() => {
+            setImageFailed(true);
+            setImageReady(false);
+          }}
+        />
+      ) : null}
     </Pressable>
   );
 }
@@ -40,12 +63,23 @@ export default function HorizontalCoverSection({
   plusButton,
   titleStyle,
   subtitleStyle,
+  resetScrollSignal,
 }) {
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (resetScrollSignal == null) {
+      return;
+    }
+    scrollRef.current?.scrollTo({ x: 0, animated: false });
+  }, [resetScrollSignal]);
+
   return (
     <View style={[styles.section, style]}>
       <Text style={[styles.sectionTitle, titleStyle]}>{title}</Text>
       <Text style={[styles.sectionSubtitle, subtitleStyle]}>{subtitle}</Text>
       <ScrollView
+        ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalList}
@@ -68,15 +102,19 @@ export default function HorizontalCoverSection({
               ? { imageUri: cover }
               : {
                   imageUri: cover?.imageUri,
+                  imageSource: cover?.imageSource,
                   title: cover?.title,
                   author: cover?.author,
+                  defaultCoverWhenEmpty: cover?.defaultCoverWhenEmpty,
                 };
           return (
             <CoverTile
               key={index}
               imageUri={coverItem.imageUri}
+              imageSource={coverItem.imageSource}
               title={coverItem.title}
               author={coverItem.author}
+              defaultCoverWhenEmpty={Boolean(coverItem.defaultCoverWhenEmpty)}
               onPress={() => onPressCover?.(coverItem.imageUri, index)}
               squareCovers={squareCovers}
             />
@@ -148,8 +186,13 @@ const styles = StyleSheet.create({
     height: squareSize,
   },
   coverImage: {
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFillObject,
+  },
+  coverImageVisible: {
+    opacity: 1,
+  },
+  coverImageHidden: {
+    opacity: 0,
   },
   coverFallback: {
     width: '100%',
@@ -161,14 +204,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#CCB985',
   },
   coverFallbackTitle: {
-    fontSize: 11,
+    fontSize: 18,
     lineHeight: 13,
     color: '#2D2800',
     fontFamily: 'Mak',
     fontWeight: '600',
   },
   coverFallbackAuthor: {
-    fontSize: 10,
+    fontSize: 12,
     lineHeight: 12,
     color: '#565d3f',
     fontFamily: 'Mak',
