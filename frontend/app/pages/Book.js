@@ -215,7 +215,7 @@ export default function Book() {
                 <Text style={styles.fallbackCoverTitle} numberOfLines={5}>
                   {book.title}
                 </Text>
-                <Text style={styles.fallbackCoverAuthor} numberOfLines={2}>
+                <Text style={styles.fallbackCoverAuthor} numberOfLines={5}>
                   {book.author}
                 </Text>
               </View>
@@ -280,12 +280,15 @@ export default function Book() {
             </Pressable>
           </View>
           <View style={styles.rowDivider} />
-          <View style={styles.descriptionSection}>
-            <Text style={styles.descriptionLabel}>Описание:</Text>
-            <Text style={styles.descriptionText}>{book.description}</Text>
-          </View>
-
-          <View style={styles.divider} />
+          {book.description && String(book.description).trim().length > 0 ? (
+            <>
+              <View style={styles.descriptionSection}>
+                <Text style={styles.descriptionLabel}>Описание:</Text>
+                <Text style={styles.descriptionText}>{book.description}</Text>
+              </View>
+              <View style={styles.divider} />
+            </>
+          ) : null}
 
           <View style={styles.reviewsSection}>
             {reviews.map((r) => (

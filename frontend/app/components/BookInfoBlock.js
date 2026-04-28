@@ -5,10 +5,10 @@ export default function BookInfoBlock({ title, author, genreFirst, genreSecond }
 
   return (
     <View style={styles.block}>
-      <Text style={styles.title} numberOfLines={2}>
+      <Text style={styles.title} numberOfLines={5}>
         {title}
       </Text>
-      <Text style={styles.author} numberOfLines={1}>
+      <Text style={styles.author} numberOfLines={5}>
         {author}
       </Text>
       {genres.length > 0 ? (
@@ -30,20 +30,24 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   title: {
+    alignSelf: 'stretch',
+    width: '100%',
     marginTop: '3%',
     fontSize: 32,
     color: '#2D2800',
     fontFamily: 'Mak',
     fontWeight: 400,
-    lineHeight: 32,
+    lineHeight: 38,
   },
   author: {
+    alignSelf: 'stretch',
+    width: '100%',
     marginTop: '2%',
     fontSize: 20,
     color: '#868158',
     fontFamily: 'Playfair',
     fontWeight: 400,
-    lineHeight: 22,
+    lineHeight: 26,
     marginBottom: '4%',
   },
   genreBox: {

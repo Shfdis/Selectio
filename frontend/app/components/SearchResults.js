@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef } from 'react';
 import { Animated, Dimensions, InteractionManager, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const windowHeight = Dimensions.get('window').height;
 const defaultSearchTopOffset = 103;
@@ -13,6 +14,7 @@ export default function SearchResultsSheet({
   keyExtractor,
   renderItem,
 }) {
+  const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(0)).current;
   const onDismissRef = useRef(onDismiss);
   useEffect(() => {
@@ -78,7 +80,7 @@ export default function SearchResultsSheet({
 
         <ScrollView
           style={styles.list}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 24 + insets.bottom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled
@@ -138,7 +140,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingBottom: 24,
     flexGrow: 1,
   },
   emptyText: {

@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function NavItem({ iconSource, label, active = false, disabled = true, onPress }) {
   const Container = disabled ? View : Pressable;
@@ -20,8 +21,9 @@ export default function BottomNavBar({
   onPressKey,
   icons,
 }) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: 8 + insets.bottom }]}>
       <NavItem
         iconSource={icons?.home}
         label="Рекомендации"
@@ -54,9 +56,10 @@ export default function BottomNavBar({
   );
 }
 
+const ICON_SIZE = 32;
+
 const styles = StyleSheet.create({
   container: {
-    height: '10%',
     width: '100%',
     backgroundColor: '#ECE8DD',
     borderTopWidth: 1,
@@ -64,22 +67,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: '0%',
-    paddingTop: '2%',
-    paddingBottom: '2%',
+    paddingTop: 12,
+    // Высота: paddingTop + иконки + paddingBottom (8 + insets в компоненте) — не проценты экрана
     flexShrink: 0,
   },
   item: {
     flex: 1,
-    marginBottom: '7%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   icon: {
-    width: '10%',
-    aspectRatio: 1,
-    maxHeight: '70%',
-    marginBottom: 4,
+    width: ICON_SIZE,
+    height: ICON_SIZE,
     tintColor: '#2D2800',
   },
   iconActive: {

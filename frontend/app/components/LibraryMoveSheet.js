@@ -1,4 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const libraryShelfIds = ['wantToRead', 'inProgress', 'read'];
 
@@ -26,6 +27,7 @@ export default function LibraryMoveSheet({
   onDelete,
   onClose,
 }) {
+  const insets = useSafeAreaInsets();
   if (!visible) return null;
 
   const targets = otherShelves(list);
@@ -34,7 +36,7 @@ export default function LibraryMoveSheet({
     <View style={styles.overlay}>
       <Pressable style={styles.dismissArea} onPress={onClose} />
 
-      <Pressable style={styles.sheet} onPress={() => {}}>
+      <Pressable style={[styles.sheet, { paddingBottom: 50 + insets.bottom }]} onPress={() => {}}>
         <Text style={styles.title} numberOfLines={2}>
           {bookTitle}
         </Text>
@@ -89,7 +91,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 50,
     gap: 12,
   },
   title: {

@@ -26,6 +26,8 @@ export default function CommunityScreenLayout({
   }, []);
 
   const headerGenres = Array.isArray(community.genres) ? community.genres.slice(0, 6) : [];
+  const hasDescription =
+    typeof community.description === 'string' && community.description.trim().length > 0;
 
   return (
     <View style={styles.screen}>
@@ -74,14 +76,16 @@ export default function CommunityScreenLayout({
           {renderActionArea ? renderActionArea() : null}
         </View>
 
-        <View style={styles.scrollContentInner}>
-          <Text style={styles.descriptionLabel}>Описание:</Text>
-          <Text style={styles.descriptionText}>{community.description}</Text>
-        </View>
+        {hasDescription ? (
+          <View style={styles.scrollContentInner}>
+            <Text style={styles.descriptionLabel}>Описание:</Text>
+            <Text style={styles.descriptionText}>{community.description}</Text>
+          </View>
+        ) : null}
 
-        <View style={styles.divider} />
+        {hasDescription ? <View style={styles.divider} /> : null}
 
-        <View style={styles.postsSection}>
+        <View style={[styles.postsSection, hasDescription ? null : styles.postsSectionNoDescription]}>
           {posts.map((p) => (
             <PostCard
               key={p.id}
@@ -229,5 +233,8 @@ const styles = StyleSheet.create({
   },
   postsSection: {
     width: '100%',
+  },
+  postsSectionNoDescription: {
+    marginTop: '5%',
   },
 });

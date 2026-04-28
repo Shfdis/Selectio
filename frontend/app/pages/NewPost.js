@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Alert } from 'react-native';
 import NewPostEditor from '../components/NewPostEditor';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
 import { mapApiBookToUi, useSearchBooksQuery } from '../slices/booksSlice';
 import { useUploadImageMutation } from '../slices/profileSlice';
@@ -14,6 +15,11 @@ export default function NewPost() {
   const [selectedBook, setSelectedBook] = useState(null);
   const [comment, setComment] = useState('');
   const [attachedPhotoUri, setAttachedPhotoUri] = useState(null);
+  const [validationDialog, setValidationDialog] = useState({
+    visible: false,
+    title: '',
+    message: '',
+  });
   const trimmedQuery = bookSearchQuery.trim();
   const { data: searchBooksData = [] } = useSearchBooksQuery(
     { query: trimmedQuery, page: 1, pageSize: 20 },
@@ -45,11 +51,19 @@ export default function NewPost() {
       return;
     }
     if (!Number.isFinite(bookId) || bookId <= 0) {
-      Alert.alert('Выберите книгу', 'Для публикации нужно выбрать книгу.', [{ text: 'Ок' }]);
+      setValidationDialog({
+        visible: true,
+        title: 'Выберите книгу',
+        message: 'Для публикации нужно выбрать книгу.',
+      });
       return;
     }
     if (!content) {
-      Alert.alert('Добавьте текст', 'Комментарий к посту не может быть пустым.', [{ text: 'Ок' }]);
+      setValidationDialog({
+        visible: true,
+        title: 'Добавьте текст',
+        message: 'Комментарий к посту не может быть пустым.',
+      });
       return;
     }
 
@@ -81,19 +95,31 @@ export default function NewPost() {
   };
 
   return (
-    <NewPostEditor
-      onPressBack={() => navigation.goBack()}
-      onPressConfirm={onPressConfirm}
-      confirmDisabled={isCreatingPost || isSuggestingPost}
-      bookSearchQuery={bookSearchQuery}
-      onChangeBookSearchQuery={setBookSearchQuery}
-      selectedBook={selectedBook}
-      onSelectBook={setSelectedBook}
-      searchBooksCatalog={searchBooksCatalog}
-      comment={comment}
-      onChangeComment={setComment}
-      attachedPhotoUri={attachedPhotoUri}
-      onPressAttachPhoto={onPressAttachPhoto}
-    />
+    <>
+      <NewPostEditor
+        onPressBack={() => navigation.goBack()}
+        onPressConfirm={onPressConfirm}
+        confirmDisabled={isCreatingPost || isSuggestingPost}
+        bookSearchQuery={bookSearchQuery}
+        onChangeBookSearchQuery={setBookSearchQuery}
+        selectedBook={selectedBook}
+        onSelectBook={setSelectedBook}
+        searchBooksCatalog={searchBooksCatalog}
+        comment={comment}
+        onChangeComment={setComment}
+        attachedPhotoUri={attachedPhotoUri}
+        onPressAttachPhoto={onPressAttachPhoto}
+      />
+      <DeleteConfirmDialog
+        visible={validationDialog.visible}
+        onCancel={() => setValidationDialog((prev) => ({ ...prev, visible: false }))}
+        onConfirm={() => setValidationDialog((prev) => ({ ...prev, visible: false }))}
+        title={validationDialog.title}
+        message={validationDialog.message}
+        confirmLabel="Ок"
+        hideCancel
+        cardTone="green"
+      />
+    </>
   );
 }

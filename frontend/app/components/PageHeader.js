@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, useWindowDimensions } from 'react-native';
 
 const defaultPageHeaderSubtitle = 'Отсортировано по популярности';
 
@@ -9,15 +9,28 @@ export default function PageHeader({
   onPressStrip,
   headerStyle,
 }) {
+  const { height: windowHeight } = useWindowDimensions();
+  const minHeaderHeight = Math.max(108, Math.round(windowHeight * 0.13));
+  const paddingTop = Math.max(40, Math.round(windowHeight * 0.055));
+  const paddingBottom = Math.max(8, Math.round(windowHeight * 0.012));
+
   const titleBlock = (
     <>
       <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
+      <Text style={styles.subtitle} numberOfLines={2}>
+        {subtitle}
+      </Text>
     </>
   );
 
   return (
-    <View style={[styles.header, headerStyle]}>
+    <View
+      style={[
+        styles.header,
+        { minHeight: minHeaderHeight, paddingTop, paddingBottom },
+        headerStyle,
+      ]}
+    >
       {onPressStrip ? (
         <Pressable
           style={styles.stripHit}
@@ -58,7 +71,6 @@ export default function PageHeader({
 
 const styles = StyleSheet.create({
   header: {
-    height: 103,
     backgroundColor: '#ECE8DD',
     borderBottomWidth: 1,
     borderBottomColor: '#CAC7B9',
@@ -70,7 +82,6 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingTop: 45,
   },
   headerRowLayer: {
     zIndex: 1,

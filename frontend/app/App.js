@@ -1,5 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -53,6 +54,7 @@ export default function App() {
 
   return (
     <Provider store={store}>
+      <SafeAreaProvider>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="home">
           <Stack.Screen 
@@ -162,6 +164,7 @@ export default function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
+      </SafeAreaProvider>
     </Provider>
   );
 }

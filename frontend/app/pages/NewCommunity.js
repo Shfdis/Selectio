@@ -3,6 +3,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import CommunityEditor from '../components/CommunityEditor';
+import KeyboardAvoidingBox from '../components/KeyboardAvoidingBox';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
 import { useUploadImageMutation } from '../slices/profileSlice';
@@ -75,22 +76,24 @@ export default function NewCommunity() {
         confirmDisabled={isCreatingCommunity || isUploadingImage}
       />
 
-      <CommunityEditor
-        coverImageSource={
-          coverUri ? { uri: coverUri } : require('../assets/icons/profile-avatar.png')
-        }
-        onPressChangeAvatar={async () => {
-          const uri = await pickImageFromLibrary();
-          if (uri) setCoverUri(uri);
-        }}
-        displayName={displayName}
-        onChangeDisplayName={setDisplayName}
-        description={description}
-        onChangeDescription={setDescription}
-        selectedGenres={selectedGenres}
-        onSelectedGenresChange={setSelectedGenres}
-        addGenresWhenEmpty
-      />
+      <KeyboardAvoidingBox style={styles.fill} enabled useBottomInset keyboardVerticalOffset={0}>
+        <CommunityEditor
+          coverImageSource={
+            coverUri ? { uri: coverUri } : require('../assets/icons/profile-avatar.png')
+          }
+          onPressChangeAvatar={async () => {
+            const uri = await pickImageFromLibrary();
+            if (uri) setCoverUri(uri);
+          }}
+          displayName={displayName}
+          onChangeDisplayName={setDisplayName}
+          description={description}
+          onChangeDescription={setDescription}
+          selectedGenres={selectedGenres}
+          onSelectedGenresChange={setSelectedGenres}
+          addGenresWhenEmpty
+        />
+      </KeyboardAvoidingBox>
 
       <DeleteConfirmDialog
         visible={nameRequiredDialogVisible}
@@ -110,5 +113,8 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#ECE8DD',
+  },
+  fill: {
+    flex: 1,
   },
 });

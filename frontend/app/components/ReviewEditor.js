@@ -1,6 +1,7 @@
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import BookRowCard from './BookRowCard';
 import ScreenHeader from './ScreenHeader';
+import KeyboardAvoidingBox from './KeyboardAvoidingBox';
 import StarRatingInput from './StarRatingInput';
 
 export default function ReviewEditor({
@@ -29,7 +30,7 @@ export default function ReviewEditor({
         confirmDisabled={confirmDisabled}
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+      <KeyboardAvoidingBox enabled useBottomInset style={styles.flex} keyboardVerticalOffset={0}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
@@ -74,7 +75,7 @@ export default function ReviewEditor({
             </View>
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingBox>
     </View>
   );
 }
@@ -141,9 +142,9 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#A03A3A',
+    backgroundColor: '#784C2F',
     borderWidth: 1,
-    borderColor: '#8B7B4E',
+    borderColor: '#2D2800',
     alignItems: 'center',
     justifyContent: 'center',
   },

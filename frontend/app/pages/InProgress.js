@@ -143,7 +143,7 @@ export default function InProgress() {
   return (
     <View style={styles.screen}>
       <LibraryHeader
-        title={'В\nпроцессе'}
+        title="В процессе"
         titleIcon={require('../assets/icons/icon_open_book.png')}
         onPressBack={() => navigation.goBack()}
         onPressAdd={() => navigation.navigate('main', { mainTab: 'search' })}

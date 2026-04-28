@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import BookRowCard from './BookRowCard';
 import SearchResultsSheet from './SearchResults';
 import SearchInput, { defaultSearchPlaceholder } from './SearchInput';
 import ScreenHeader from './ScreenHeader';
+import KeyboardAvoidingBox from './KeyboardAvoidingBox';
 
 const newPostSearchSheetTopOffset = 205;
 
@@ -85,7 +86,7 @@ export default function NewPostEditor({
         confirmDisabled={confirmDisabled}
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+      <KeyboardAvoidingBox enabled useBottomInset style={styles.flex} keyboardVerticalOffset={0}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -145,7 +146,7 @@ export default function NewPostEditor({
             <Image source={{ uri: attachedPhotoUri }} style={styles.attachedPreview} resizeMode="cover" />
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingBox>
 
       <SearchResultsSheet
         visible={showResultsSheet}

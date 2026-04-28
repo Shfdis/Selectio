@@ -2,6 +2,7 @@ import { View, StyleSheet } from 'react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRoute } from '@react-navigation/native';
 import BottomNavBar from '../components/BottomNavBar';
+import KeyboardAvoidingBox from '../components/KeyboardAvoidingBox';
 import { RecommendationsMainContent } from './Recommendations';
 import { Communities } from './Communities';
 import { Search } from './Search';
@@ -57,7 +58,7 @@ export default function MainScreen() {
   }, []);
 
   return (
-    <View style={styles.screen}>
+    <KeyboardAvoidingBox style={styles.screen} keyboardVerticalOffset={0}>
       <View style={styles.content}>
         <View
           style={[styles.layer, tab === 'home' ? styles.layerVisible : styles.layerHidden]}
@@ -85,7 +86,7 @@ export default function MainScreen() {
         </View>
       </View>
       <BottomNavBar activeKey={tab} disabled={false} onPressKey={onPressKey} icons={icons} />
-    </View>
+    </KeyboardAvoidingBox>
   );
 }
 
