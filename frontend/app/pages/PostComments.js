@@ -421,7 +421,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Playfair',
     fontWeight: '400',
     lineHeight: 17,
-    alignSelf: 'flex-start',
+    width: '100%',
+    flexShrink: 1,
   },
   inlineEditWrap: {
     marginTop: 12,

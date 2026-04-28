@@ -27,7 +27,7 @@ const formatDate = (isoString) => {
 };
 
 const mapSuggestedPost = (post) => {
-  const { genreFirst, genreSecond } = mapApiBookGenres(post?.book);
+  const { genreFirst, genreSecond } = mapApiBookGenres(post);
   return {
     id: post?.id,
     postId: post?.id,

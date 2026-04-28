@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Alert } from 'react-native';
 import NewPostEditor from '../components/NewPostEditor';
@@ -20,6 +20,8 @@ export default function NewPost() {
     title: '',
     message: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const trimmedQuery = bookSearchQuery.trim();
   const { data: searchBooksData = [] } = useSearchBooksQuery(
     { query: trimmedQuery, page: 1, pageSize: 20 },
@@ -43,11 +45,19 @@ export default function NewPost() {
   const [suggestPost, { isLoading: isSuggestingPost }] = useSuggestPostMutation();
 
   const onPressConfirm = async () => {
+    if (isSubmittingRef.current) {
+      return;
+    }
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+
     const communityId = Number.isFinite(routeCommunityId) && routeCommunityId > 0 ? routeCommunityId : null;
     const bookId = Number(selectedBook?.id);
     const content = comment.trim();
     if (!communityId) {
       Alert.alert('Не удалось создать пост', 'Не найдено сообщество для публикации.', [{ text: 'Ок' }]);
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
       return;
     }
     if (!Number.isFinite(bookId) || bookId <= 0) {
@@ -56,6 +66,8 @@ export default function NewPost() {
         title: 'Выберите книгу',
         message: 'Для публикации нужно выбрать книгу.',
       });
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
       return;
     }
     if (!content) {
@@ -64,6 +76,8 @@ export default function NewPost() {
         title: 'Добавьте текст',
         message: 'Комментарий к посту не может быть пустым.',
       });
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
       return;
     }
 
@@ -86,6 +100,9 @@ export default function NewPost() {
       navigation.goBack();
     } catch (error) {
       Alert.alert('Не удалось создать пост', 'Попробуйте ещё раз.', [{ text: 'Ок' }]);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -99,7 +116,7 @@ export default function NewPost() {
       <NewPostEditor
         onPressBack={() => navigation.goBack()}
         onPressConfirm={onPressConfirm}
-        confirmDisabled={isCreatingPost || isSuggestingPost}
+        confirmDisabled={isSubmitting || isCreatingPost || isSuggestingPost}
         bookSearchQuery={bookSearchQuery}
         onChangeBookSearchQuery={setBookSearchQuery}
         selectedBook={selectedBook}

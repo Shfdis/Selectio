@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function DeleteConfirmDialog({
   visible,
@@ -23,31 +23,39 @@ export default function DeleteConfirmDialog({
     : [styles.actionButton, styles.confirmButton];
 
   return (
-    <View style={styles.overlay}>
-      <Pressable style={styles.backdrop} onPress={onCancel} />
+    <Modal transparent visible={visible} animationType="fade" statusBarTranslucent onRequestClose={onCancel}>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onCancel} />
 
-      <View style={dialogStyle}>
-        <Text style={styles.title}>{title}</Text>
-        {message ? <Text style={styles.message}>{message}</Text> : null}
+        <View style={dialogStyle}>
+          <Text style={styles.title} android_hyphenationFrequency="none" textBreakStrategy="simple">
+            {title}
+          </Text>
+          {message ? (
+            <Text style={styles.message} android_hyphenationFrequency="none" textBreakStrategy="simple">
+              {message}
+            </Text>
+          ) : null}
 
-        {hideCancel ? (
-          <View style={styles.actionsSingle}>
-            <Pressable style={singleConfirmStyle} onPress={onConfirm} hitSlop={8}>
-              <Text style={isGreen ? styles.confirmTextOnGreen : styles.confirmText}>{confirmLabel}</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.actions}>
-            <Pressable style={[styles.actionButton, styles.cancelButton]} onPress={onCancel} hitSlop={8}>
-              <Text style={styles.cancelText}>{cancelLabel}</Text>
-            </Pressable>
-            <Pressable style={rowConfirmStyle} onPress={onConfirm} hitSlop={8}>
-              <Text style={isGreen ? styles.confirmTextOnGreen : styles.confirmText}>{confirmLabel}</Text>
-            </Pressable>
-          </View>
-        )}
+          {hideCancel ? (
+            <View style={styles.actionsSingle}>
+              <Pressable style={singleConfirmStyle} onPress={onConfirm} hitSlop={8}>
+                <Text style={isGreen ? styles.confirmTextOnGreen : styles.confirmText}>{confirmLabel}</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.actions}>
+              <Pressable style={[styles.actionButton, styles.cancelButton]} onPress={onCancel} hitSlop={8}>
+                <Text style={styles.cancelText}>{cancelLabel}</Text>
+              </Pressable>
+              <Pressable style={rowConfirmStyle} onPress={onConfirm} hitSlop={8}>
+                <Text style={isGreen ? styles.confirmTextOnGreen : styles.confirmText}>{confirmLabel}</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 }
 
@@ -62,7 +70,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
   },
   dialog: {
-    width: '72%',
+    width: '86%',
+    maxWidth: 420,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#CAC7B9',
