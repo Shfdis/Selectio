@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import ReviewEditorScreen from '../components/ReviewEditor';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import {
   useCreateBookCommentMutation,
   useDeleteBookCommentMutation,
@@ -22,6 +23,7 @@ export default function EditReview({ route }) {
 
   const [rating, setRating] = useState(initialRating);
   const [text, setText] = useState(initialText);
+  const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
 
   const onSubmit = async () => {
     if (!Number.isFinite(bookId) || bookId <= 0) {
@@ -49,26 +51,42 @@ export default function EditReview({ route }) {
       return;
     }
     await deleteBookComment({ commentId }).unwrap();
+    setIsDeleteConfirmVisible(false);
     navigation.goBack();
   };
 
   const isBusy = isCreatingComment || isUpdatingComment || isDeletingComment;
 
   return (
-    <ReviewEditorScreen
-      headerTitle="Редактирование отзыва"
-      book={book}
-      rating={rating}
-      onChangeRating={setRating}
-      text={text}
-      onChangeText={setText}
-      onPressBack={() => navigation.goBack()}
-      onPressConfirm={onSubmit}
-      inputsDisabled={isBusy}
-      confirmDisabled={rating < 1 || isBusy}
-      showDelete={typeof commentId === 'number'}
-      onPressDelete={onDelete}
-      deleteDisabled={isBusy}
-    />
+    <>
+      <ReviewEditorScreen
+        headerTitle="Редактирование отзыва"
+        book={book}
+        rating={rating}
+        onChangeRating={setRating}
+        text={text}
+        onChangeText={setText}
+        onPressBack={() => navigation.goBack()}
+        onPressConfirm={onSubmit}
+        inputsDisabled={isBusy}
+        confirmDisabled={rating < 1 || isBusy}
+        showDelete={typeof commentId === 'number'}
+        onPressDelete={() => setIsDeleteConfirmVisible(true)}
+        deleteDisabled={isBusy}
+      />
+      <DeleteConfirmDialog
+        visible={isDeleteConfirmVisible}
+        title="Удалить отзыв?"
+        message="Это действие нельзя отменить."
+        cancelLabel="Нет"
+        confirmLabel="Да"
+        onCancel={() => {
+          if (!isBusy) {
+            setIsDeleteConfirmVisible(false);
+          }
+        }}
+        onConfirm={onDelete}
+      />
+    </>
   );
 }

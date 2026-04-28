@@ -1,18 +1,8 @@
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenHeader from '../components/ScreenHeader';
+import KeyboardAvoidingBox from '../components/KeyboardAvoidingBox';
 import { useEffect, useMemo, useState } from 'react';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
 import { useGetUserProfileQuery } from '../slices/profileSlice';
@@ -187,6 +177,7 @@ function ThreadCommentItem({
 }
 
 export default function PostComments() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const route = useRoute();
   const postId = Number(route?.params?.postId);
@@ -280,11 +271,7 @@ export default function PostComments() {
         showConfirmButton={false}
       />
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-      >
+      <KeyboardAvoidingBox style={styles.flex} enabled keyboardVerticalOffset={0}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -322,7 +309,7 @@ export default function PostComments() {
           ))}
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: 20 + insets.bottom }]}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -342,7 +329,7 @@ export default function PostComments() {
             <Image source={require('../assets/icons/icon_send.png')} style={styles.sendIcon} resizeMode="contain" />
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingBox>
     </View>
   );
 }
@@ -509,7 +496,6 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     paddingTop: 8,
-    paddingBottom: 20,
     paddingHorizontal: 24,
     minHeight: 73,
     backgroundColor: '#ECE8DD',

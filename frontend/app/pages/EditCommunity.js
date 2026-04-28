@@ -4,6 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import CommunityEditor from '../components/CommunityEditor';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+import KeyboardAvoidingBox from '../components/KeyboardAvoidingBox';
 import { pickImageFromLibrary } from '../utils/pickImageFromLibrary';
 import {
   useDeleteCommunityMutation,
@@ -135,31 +136,33 @@ export default function EditCommunity() {
         confirmDisabled={isBusy || !isFormInitialized}
       />
 
-      <CommunityEditor
-        coverImageSource={
-          coverUri ? { uri: coverUri } : require('../assets/icons/profile-avatar.png')
-        }
-        onPressChangeAvatar={async () => {
-          const uri = await pickImageFromLibrary();
-          if (uri) setCoverUri(uri);
-        }}
-        displayName={displayName}
-        onChangeDisplayName={setDisplayName}
-        description={description}
-        onChangeDescription={setDescription}
-        selectedGenres={selectedGenres}
-        onSelectedGenresChange={setSelectedGenres}
-      />
+      <KeyboardAvoidingBox style={styles.fill} enabled useBottomInset keyboardVerticalOffset={0}>
+        <CommunityEditor
+          coverImageSource={
+            coverUri ? { uri: coverUri } : require('../assets/icons/profile-avatar.png')
+          }
+          onPressChangeAvatar={async () => {
+            const uri = await pickImageFromLibrary();
+            if (uri) setCoverUri(uri);
+          }}
+          displayName={displayName}
+          onChangeDisplayName={setDisplayName}
+          description={description}
+          onChangeDescription={setDescription}
+          selectedGenres={selectedGenres}
+          onSelectedGenresChange={setSelectedGenres}
+        />
 
-      <View style={styles.deleteWrap}>
-        <Pressable
-          style={[styles.deleteButton, isBusy ? styles.deleteButtonDisabled : null]}
-          onPress={onPressDelete}
-          disabled={isBusy || !isFormInitialized}
-        >
-          <Text style={styles.deleteText}>Удалить сообщество</Text>
-        </Pressable>
-      </View>
+        <View style={styles.deleteWrap}>
+          <Pressable
+            style={[styles.deleteButton, isBusy ? styles.deleteButtonDisabled : null]}
+            onPress={onPressDelete}
+            disabled={isBusy || !isFormInitialized}
+          >
+            <Text style={styles.deleteText}>Удалить сообщество</Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingBox>
 
       <DeleteConfirmDialog
         visible={nameRequiredDialogVisible}
@@ -179,6 +182,9 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#ECE8DD',
+  },
+  fill: {
+    flex: 1,
   },
   deleteWrap: {
     paddingHorizontal: '6%',

@@ -113,7 +113,6 @@ export default function AllCommunities({
 
 const styles = StyleSheet.create({
   pageHeaderTall: {
-    height: 119,
     paddingBottom: 5,
   },
   screen: {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { removeToken } from '../utils/secureStore';
@@ -8,6 +8,7 @@ import { userApi, useGetCurrentUserQuery } from '../slices/userSlice';
 import { useGetUserProfileQuery, useUpdateProfileMutation, useUploadImageMutation } from '../slices/profileSlice';
 import ScreenHeader from '../components/ScreenHeader';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+import KeyboardAvoidingBox from '../components/KeyboardAvoidingBox';
 
 const isLocalAssetUri = (uri) => typeof uri === 'string' && (uri.startsWith('file://') || uri.startsWith('content://'));
 
@@ -97,47 +98,56 @@ export default function EditProfile() {
         confirmDisabled={isLoading || isUploadingImage}
       />
 
-      <View style={styles.avatarSection}>
-        <Image
-          source={avatarUri ? { uri: avatarUri } : require('../assets/icons/profile-avatar.png')}
-          style={styles.avatar}
-          resizeMode="cover"
-        />
-        <Pressable style={styles.changeAvatarButton} onPress={onPressChangeAvatar} hitSlop={10}>
-          <Image
-            source={require('../assets/icons/icon_photo-add.png')}
-            style={styles.changeAvatarIcon}
-            resizeMode="contain"
-          />
-          <Text style={styles.changeAvatarText}>Изменить фото</Text>
-        </Pressable>
-      </View>
+      <KeyboardAvoidingBox style={styles.fill} enabled useBottomInset keyboardVerticalOffset={0}>
+        <ScrollView
+          style={styles.fill}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.avatarSection}>
+            <Image
+              source={avatarUri ? { uri: avatarUri } : require('../assets/icons/profile-avatar.png')}
+              style={styles.avatar}
+              resizeMode="cover"
+            />
+            <Pressable style={styles.changeAvatarButton} onPress={onPressChangeAvatar} hitSlop={10}>
+              <Image
+                source={require('../assets/icons/icon_photo-add.png')}
+                style={styles.changeAvatarIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.changeAvatarText}>Изменить фото</Text>
+            </Pressable>
+          </View>
 
-      <View style={styles.form}>
-        <Text style={styles.label}>Отображаемое имя</Text>
-        <TextInput
-          value={username}
-          onChangeText={setUsername}
-          style={styles.input}
-          placeholder=""
-          placeholderTextColor="#81876D"
-        />
+          <View style={styles.form}>
+            <Text style={styles.label}>Отображаемое имя</Text>
+            <TextInput
+              value={username}
+              onChangeText={setUsername}
+              style={styles.input}
+              placeholder=""
+              placeholderTextColor="#81876D"
+            />
 
-        <Text style={[styles.label, styles.labelSpacing]}>Описание</Text>
-        <TextInput
-          value={description}
-          onChangeText={setDescription}
-          style={[styles.input, styles.textArea]}
-          multiline
-          textAlignVertical="top"
-          placeholder=""
-          placeholderTextColor="#81876D"
-        />
+            <Text style={[styles.label, styles.labelSpacing]}>Описание</Text>
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              style={[styles.input, styles.textArea]}
+              multiline
+              textAlignVertical="top"
+              placeholder=""
+              placeholderTextColor="#81876D"
+            />
 
-        <Pressable style={styles.logoutButton} onPress={() => setLogoutDialogVisible(true)}>
-          <Text style={styles.logoutText}>Выйти из профиля</Text>
-        </Pressable>
-      </View>
+            <Pressable style={styles.logoutButton} onPress={() => setLogoutDialogVisible(true)}>
+              <Text style={styles.logoutText}>Выйти из профиля</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingBox>
 
       <DeleteConfirmDialog
         visible={logoutDialogVisible}
@@ -156,6 +166,13 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#ECE8DD',
+  },
+  fill: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 24,
   },
   avatarSection: {
     width: '100%',
@@ -219,6 +236,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: '5%',
     paddingVertical: '4%',
     backgroundColor: '#ECE8DD',
+    color: '#2D2800',
   },
   textArea: {
     minHeight: 110,

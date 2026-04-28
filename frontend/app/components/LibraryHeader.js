@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     flexShrink: 1,
-    fontSize: 36,
+    fontSize: 30,
     color: '#2D2800',
     fontFamily: 'Mak',
     fontWeight: 300,
