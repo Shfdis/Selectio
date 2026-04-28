@@ -5,7 +5,7 @@ import StickyTitleBar from '../components/StickyTitleBar';
 import RecommendedBooksSection from '../components/RecommendedBooksSection';
 import PostCard from '../components/PostCard';
 import { mapApiBookGenres } from '../slices/booksSlice';
-import { useGetCommunitiesFeedQuery } from '../slices/communitiesSlice';
+import { useGetRecommendedPostsQuery } from '../slices/postsSlice';
 
 const DEFAULT_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
 
@@ -53,7 +53,7 @@ const toPostCardModel = (post) => {
 export function RecommendationsMainContent() {
   const navigation = useNavigation();
   const scrollRef = useRef(null);
-  const { data: feedPostsData = [] } = useGetCommunitiesFeedQuery({ page: 1, pageSize: 20 });
+  const { data: feedPostsData = [] } = useGetRecommendedPostsQuery({ page: 1, pageSize: 20 });
 
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: true });

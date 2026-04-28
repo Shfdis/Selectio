@@ -103,6 +103,10 @@ export default function PostCard({
     setLikes(initialLikes);
   }, [initialLikes, postId]);
 
+  useEffect(() => {
+    setBookmarked(initiallyBookmarked);
+  }, [initiallyBookmarked, postId]);
+
   const onToggleLike = async () => {
     if (postId == null || postId === '') {
       return;

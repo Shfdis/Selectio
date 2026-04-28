@@ -2,7 +2,6 @@ import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Tex
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenHeader from '../components/ScreenHeader';
-import KeyboardAvoidingBox from '../components/KeyboardAvoidingBox';
 import { useEffect, useMemo, useState } from 'react';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
 import { useGetUserProfileQuery } from '../slices/profileSlice';
@@ -271,7 +270,7 @@ export default function PostComments() {
         showConfirmButton={false}
       />
 
-      <KeyboardAvoidingBox style={styles.flex} enabled keyboardVerticalOffset={0}>
+      <View style={styles.flex}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -309,7 +308,7 @@ export default function PostComments() {
           ))}
         </ScrollView>
 
-        <View style={[styles.footer, { paddingBottom: 20 + insets.bottom }]}>
+        <View style={[styles.footer, { paddingBottom: 8 + insets.bottom }]}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -329,7 +328,7 @@ export default function PostComments() {
             <Image source={require('../assets/icons/icon_send.png')} style={styles.sendIcon} resizeMode="contain" />
           </Pressable>
         </View>
-      </KeyboardAvoidingBox>
+      </View>
     </View>
   );
 }

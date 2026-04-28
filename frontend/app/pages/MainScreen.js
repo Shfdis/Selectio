@@ -2,7 +2,6 @@ import { Animated, PanResponder, StyleSheet, View } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRoute } from '@react-navigation/native';
 import BottomNavBar from '../components/BottomNavBar';
-import KeyboardAvoidingBox from '../components/KeyboardAvoidingBox';
 import { RecommendationsMainContent } from './Recommendations';
 import { Communities } from './Communities';
 import { Search } from './Search';
@@ -24,22 +23,24 @@ export default function MainScreen() {
     paramTab && validTabs.has(paramTab) ? paramTab : defaultMainTab,
   );
   const [containerWidth, setContainerWidth] = useState(0);
-  const transition = useRef(new Animated.Value(1)).current;
+  const lastScrollTabRef = useRef(tab);
+  const translateX = useRef(new Animated.Value(0)).current;
+  const dragStartTranslateXRef = useRef(0);
+  const dragCurrentTranslateXRef = useRef(0);
 
   useEffect(() => {
     if (paramTab && validTabs.has(paramTab)) {
+      const index = orderedTabs.indexOf(paramTab);
+      lastScrollTabRef.current = paramTab;
       setTab(paramTab);
+      if (containerWidth && index >= 0) {
+        const x = -index * containerWidth;
+        translateX.setValue(x);
+        dragStartTranslateXRef.current = x;
+        dragCurrentTranslateXRef.current = x;
+      }
     }
-  }, [paramTab]);
-
-  useEffect(() => {
-    transition.setValue(0.95);
-    Animated.timing(transition, {
-      toValue: 1,
-      duration: 160,
-      useNativeDriver: true,
-    }).start();
-  }, [tab, transition]);
+  }, [containerWidth, paramTab, translateX]);
 
   const icons = useMemo(
     () => ({
@@ -64,49 +65,110 @@ export default function MainScreen() {
   );
 
   const onPressKey = useCallback((key) => {
-    if (validTabs.has(key) && key !== tab) {
-      setTab(key);
+    if (!validTabs.has(key) || key === tab) {
+      return;
     }
+    if (!containerWidth) {
+      return;
+    }
+    const nextIndex = orderedTabs.indexOf(key);
+    if (nextIndex < 0) {
+      return;
+    }
+    const nextTranslateX = -nextIndex * containerWidth;
+    lastScrollTabRef.current = key;
+    translateX.setValue(nextTranslateX);
+    dragStartTranslateXRef.current = nextTranslateX;
+    dragCurrentTranslateXRef.current = nextTranslateX;
+    setTab(key);
+  }, [containerWidth, tab, translateX]);
+
+  useEffect(() => {
+    if (!containerWidth) {
+      return;
+    }
+    const index = orderedTabs.indexOf(lastScrollTabRef.current);
+    if (index < 0) {
+      return;
+    }
+    const x = -index * containerWidth;
+    translateX.setValue(x);
+    dragStartTranslateXRef.current = x;
+    dragCurrentTranslateXRef.current = x;
+  }, [containerWidth, translateX]);
+
+  useEffect(() => {
+    lastScrollTabRef.current = tab;
   }, [tab]);
-
-  const tabOrderIndex = orderedTabs.indexOf(tab);
-
-  const resolveNeighborTab = useCallback(
-    (delta) => {
-      const nextIndex = tabOrderIndex + delta;
-      if (nextIndex < 0 || nextIndex >= orderedTabs.length) {
-        return null;
-      }
-      return orderedTabs[nextIndex];
-    },
-    [tabOrderIndex],
-  );
 
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_evt, gestureState) =>
-          Math.abs(gestureState.dx) > 12 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
-        onPanResponderRelease: (_evt, gestureState) => {
-          if (!containerWidth) return;
-          const distance = Math.abs(gestureState.dx);
-          const speed = Math.abs(gestureState.vx);
-          const shouldSwitch = distance > containerWidth * 0.18 || speed > 0.3;
-          if (!shouldSwitch) {
+        onMoveShouldSetPanResponderCapture: (_evt, gestureState) =>
+          Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
+        onPanResponderGrant: () => {
+          if (!containerWidth) {
             return;
           }
-          const direction = gestureState.dx < 0 ? 1 : -1;
-          const target = resolveNeighborTab(direction);
-          if (target) {
-            setTab(target);
+          const currentIndex = orderedTabs.indexOf(tab);
+          const startX = -Math.max(0, currentIndex) * containerWidth;
+          dragStartTranslateXRef.current = startX;
+          dragCurrentTranslateXRef.current = startX;
+        },
+        onPanResponderMove: (_evt, gestureState) => {
+          if (!containerWidth) {
+            return;
           }
+          const minX = -(orderedTabs.length - 1) * containerWidth;
+          const maxX = 0;
+          const nextX = Math.max(
+            minX,
+            Math.min(maxX, dragStartTranslateXRef.current + gestureState.dx),
+          );
+          dragCurrentTranslateXRef.current = nextX;
+          translateX.setValue(nextX);
+        },
+        onPanResponderRelease: (_evt, gestureState) => {
+          if (!containerWidth) {
+            return;
+          }
+          const currentIndex = orderedTabs.indexOf(tab);
+          let nextIndex = Math.round(-dragCurrentTranslateXRef.current / containerWidth);
+          if (Math.abs(gestureState.vx) > 0.35) {
+            nextIndex = gestureState.vx < 0 ? currentIndex + 1 : currentIndex - 1;
+          }
+          nextIndex = Math.max(0, Math.min(orderedTabs.length - 1, nextIndex));
+          const nextTab = orderedTabs[nextIndex];
+          const nextX = -nextIndex * containerWidth;
+          dragStartTranslateXRef.current = nextX;
+          dragCurrentTranslateXRef.current = nextX;
+          lastScrollTabRef.current = nextTab;
+          setTab(nextTab);
+          Animated.spring(translateX, {
+            toValue: nextX,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 220,
+            mass: 0.8,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          const index = orderedTabs.indexOf(tab);
+          const x = -Math.max(0, index) * containerWidth;
+          Animated.spring(translateX, {
+            toValue: x,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 220,
+            mass: 0.8,
+          }).start();
         },
       }),
-    [containerWidth, resolveNeighborTab],
+    [containerWidth, tab, translateX],
   );
 
   return (
-    <KeyboardAvoidingBox style={styles.screen} keyboardVerticalOffset={0}>
+    <View style={styles.screen}>
       <View
         style={styles.content}
         onLayout={(event) => setContainerWidth(event.nativeEvent.layout.width)}
@@ -114,47 +176,29 @@ export default function MainScreen() {
       >
         <Animated.View
           style={[
-            styles.layer,
-            tab === 'home' ? styles.layerVisible : styles.layerHidden,
-            tab === 'home' ? { opacity: transition, zIndex: 2 } : { zIndex: 0 },
+            styles.pagerTrack,
+            {
+              width: containerWidth ? containerWidth * orderedTabs.length : '100%',
+              transform: [{ translateX }],
+            },
           ]}
-          pointerEvents={tab === 'home' ? 'auto' : 'none'}
         >
-          <SafeRecommendations />
-        </Animated.View>
-        <Animated.View
-          style={[
-            styles.layer,
-            tab === 'groups' ? styles.layerVisible : styles.layerHidden,
-            tab === 'groups' ? { opacity: transition, zIndex: 2 } : { zIndex: 0 },
-          ]}
-          pointerEvents={tab === 'groups' ? 'auto' : 'none'}
-        >
-          <SafeCommunities />
-        </Animated.View>
-        <Animated.View
-          style={[
-            styles.layer,
-            tab === 'search' ? styles.layerVisible : styles.layerHidden,
-            tab === 'search' ? { opacity: transition, zIndex: 2 } : { zIndex: 0 },
-          ]}
-          pointerEvents={tab === 'search' ? 'auto' : 'none'}
-        >
-          <SafeSearch />
-        </Animated.View>
-        <Animated.View
-          style={[
-            styles.layer,
-            tab === 'profile' ? styles.layerVisible : styles.layerHidden,
-            tab === 'profile' ? { opacity: transition, zIndex: 2 } : { zIndex: 0 },
-          ]}
-          pointerEvents={tab === 'profile' ? 'auto' : 'none'}
-        >
-          <SafeProfile />
+          <View style={[styles.page, { width: containerWidth || '100%' }]}>
+            <SafeRecommendations />
+          </View>
+          <View style={[styles.page, { width: containerWidth || '100%' }]}>
+            <SafeCommunities />
+          </View>
+          <View style={[styles.page, { width: containerWidth || '100%' }]}>
+            <SafeSearch />
+          </View>
+          <View style={[styles.page, { width: containerWidth || '100%' }]}>
+            <SafeProfile />
+          </View>
         </Animated.View>
       </View>
       <BottomNavBar activeKey={tab} disabled={false} onPressKey={onPressKey} icons={icons} />
-    </KeyboardAvoidingBox>
+    </View>
   );
 }
 
@@ -165,14 +209,16 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    overflow: 'hidden',
   },
-  layer: {
-    ...StyleSheet.absoluteFillObject,
+  pager: {
+    flex: 1,
   },
-  layerVisible: {
-    opacity: 1,
+  pagerTrack: {
+    flex: 1,
+    flexDirection: 'row',
   },
-  layerHidden: {
-    opacity: 0,
+  page: {
+    flex: 1,
   },
 });

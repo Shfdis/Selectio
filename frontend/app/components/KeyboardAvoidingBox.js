@@ -5,11 +5,14 @@ export default function KeyboardAvoidingBox({
   children,
   style,
   keyboardVerticalOffset = 0,
+  behavior,
   enabled: enabledProp,
   useBottomInset = false,
 }) {
   const insets = useSafeAreaInsets();
-  const enabled = enabledProp === undefined ? Platform.OS === 'ios' : enabledProp;
+  const resolvedBehavior =
+    behavior ?? (Platform.OS === 'ios' ? 'padding' : 'height');
+  const enabled = enabledProp ?? true;
   const content = useBottomInset ? (
     <View style={[styles.flex, { paddingBottom: insets.bottom }]}>{children}</View>
   ) : (
@@ -18,7 +21,7 @@ export default function KeyboardAvoidingBox({
   return (
     <KeyboardAvoidingView
       style={[styles.flex, style]}
-      behavior={enabled ? 'padding' : undefined}
+      behavior={enabled ? resolvedBehavior : undefined}
       keyboardVerticalOffset={keyboardVerticalOffset}
       enabled={enabled}
     >
