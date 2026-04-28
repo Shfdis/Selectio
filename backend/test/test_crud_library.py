@@ -51,6 +51,7 @@ class TestCrudLibrary:
         assert any(i["bookId"] == book_id for i in items)
         found = next(i for i in items if i["bookId"] == book_id)
         assert "addedAt" in found
+        assert "secondGenre" in found
         found_dt = self._parse_utc(found["addedAt"])
         assert abs((found_dt - initial_dt).total_seconds()) < 1
 

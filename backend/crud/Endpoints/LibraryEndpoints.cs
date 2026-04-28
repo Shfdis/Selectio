@@ -119,6 +119,7 @@ public static class LibraryEndpoints
                     x.b.Author,
                     x.b.Description,
                     x.b.Genre,
+                    x.b.SecondGenre,
                     x.b.CoverUrl,
                     x.ub.Status,
                     x.ub.AddedAt

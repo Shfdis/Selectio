@@ -16,6 +16,7 @@ public sealed record UserLibraryItemDto(
     string Author,
     string Description,
     string Genre,
+    string SecondGenre,
     string CoverUrl,
     LibraryStatus Status,
     DateTime AddedAt
