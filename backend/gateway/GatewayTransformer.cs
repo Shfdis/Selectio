@@ -63,10 +63,6 @@ public sealed class GatewayTransformer : HttpTransformer
             {
                 proxyRequest.Headers.TryAddWithoutValidation(GatewayHeaders.UserEmail, _identity.Email);
             }
-            if (!string.IsNullOrWhiteSpace(_identity.Name))
-            {
-                proxyRequest.Headers.TryAddWithoutValidation(GatewayHeaders.UserName, _identity.Name);
-            }
         }
 
         if (_http.Items.TryGetValue(GatewayHeaders.AllowSuggested, out var allowSuggested) && allowSuggested is string allowSuggestedValue)

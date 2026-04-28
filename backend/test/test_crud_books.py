@@ -33,9 +33,9 @@ class TestCrudBooks:
         cmd = [
             "docker", "exec", "selectio_postgres",
             "psql", "-U", "postgres", "-d", "selectio_main", "-c",
-            f'INSERT INTO crud."UserBooks" ("UserId","BookId","Status") '
-            f"VALUES ({user_id},{book_id},{status}) "
-            f'ON CONFLICT ("UserId","BookId") DO UPDATE SET "Status"=EXCLUDED."Status";'
+            f'INSERT INTO crud."UserBooks" ("UserId","BookId","Status","AddedAt") '
+            f"VALUES ({user_id},{book_id},{status},NOW() AT TIME ZONE 'UTC') "
+            f'ON CONFLICT ("UserId","BookId") DO UPDATE SET "Status"=EXCLUDED."Status", "AddedAt"=COALESCE(crud."UserBooks"."AddedAt", EXCLUDED."AddedAt");'
         ]
         subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
 
