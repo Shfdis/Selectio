@@ -8,6 +8,68 @@ const postTag = (postId) => ({ type: "Post", id: postId });
 const postCommentsListTag = (postId) => ({ type: "PostComment", id: `LIST:post:${postId}` });
 const postCommentTag = (commentId) => ({ type: "PostComment", id: commentId });
 const favoritePostsListTag = { type: "FavoritePost", id: "LIST:me" };
+const defaultFeedArgs = { page: 1, pageSize: 20 };
+const updateFavoritedFlagInList = (draft, postId, nextValue) => {
+  if (!Array.isArray(draft)) {
+    return;
+  }
+  const idNum = Number(postId);
+  const item = draft.find((post) => Number(post?.id) === idNum);
+  if (item) {
+    item.favoritedByCurrentUser = nextValue;
+  }
+};
+const applyFavoriteStateToCaches = (dispatch, { postId, communityId, nextValue }) => {
+  const patches = [];
+  patches.push(
+    dispatch(
+      userApi.util.updateQueryData("getCommunitiesFeed", defaultFeedArgs, (draft) => {
+        updateFavoritedFlagInList(draft, postId, nextValue);
+      }),
+    ),
+  );
+  patches.push(
+    dispatch(
+      userApi.util.updateQueryData("getRecommendedPosts", defaultFeedArgs, (draft) => {
+        updateFavoritedFlagInList(draft, postId, nextValue);
+      }),
+    ),
+  );
+  if (communityId != null) {
+    patches.push(
+      dispatch(
+        userApi.util.updateQueryData(
+          "getCommunityPosts",
+          { communityId, page: 1, pageSize: 20 },
+          (draft) => {
+            updateFavoritedFlagInList(draft, postId, nextValue);
+          },
+        ),
+      ),
+    );
+    patches.push(
+      dispatch(
+        userApi.util.updateQueryData(
+          "getSuggestedPosts",
+          { communityId, page: 1, pageSize: 20 },
+          (draft) => {
+            updateFavoritedFlagInList(draft, postId, nextValue);
+          },
+        ),
+      ),
+    );
+  }
+  patches.push(
+    dispatch(
+      userApi.util.updateQueryData("getPostById", postId, (draft) => {
+        if (draft && typeof draft === "object") {
+          draft.favoritedByCurrentUser = nextValue;
+        }
+      }),
+    ),
+  );
+  return patches;
+};
 
 export const postsApi = userApi.injectEndpoints({
   overrideExisting: true,
@@ -172,14 +234,38 @@ export const postsApi = userApi.injectEndpoints({
         url: `/api/posts/${postId}/favorite`,
         method: "POST",
       }),
-      invalidatesTags: (_result, _error, arg) => [postTag(arg?.postId), favoritePostsListTag],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        const patches = applyFavoriteStateToCaches(dispatch, {
+          postId: arg?.postId,
+          communityId: arg?.communityId,
+          nextValue: true,
+        });
+        try {
+          await queryFulfilled;
+        } catch (_error) {
+          patches.forEach((patch) => patch?.undo?.());
+        }
+      },
+      invalidatesTags: () => [favoritePostsListTag],
     }),
     unfavoritePost: builder.mutation({
       query: ({ postId }) => ({
         url: `/api/posts/${postId}/favorite`,
         method: "DELETE",
       }),
-      invalidatesTags: (_result, _error, arg) => [postTag(arg?.postId), favoritePostsListTag],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        const patches = applyFavoriteStateToCaches(dispatch, {
+          postId: arg?.postId,
+          communityId: arg?.communityId,
+          nextValue: false,
+        });
+        try {
+          await queryFulfilled;
+        } catch (_error) {
+          patches.forEach((patch) => patch?.undo?.());
+        }
+      },
+      invalidatesTags: () => [favoritePostsListTag],
     }),
   }),
 });

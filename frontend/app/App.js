@@ -1,6 +1,7 @@
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { CardStyleInterpolators, createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider } from 'react-redux';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -31,7 +32,15 @@ import NewPost from './pages/NewPost';
 import SuggestedPosts from './pages/SuggestedPosts';
 SplashScreen.preventAutoHideAsync();
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
+const navigationTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: '#ECE8DD',
+    card: '#ECE8DD',
+  },
+};
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -53,29 +62,44 @@ export default function App() {
   }
 
   return (
-    <Provider store={store}>
-      <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator initialRouteName="home">
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#ECE8DD' }}>
+      <Provider store={store}>
+        <SafeAreaProvider>
+        <NavigationContainer theme={navigationTheme}>
+        <Stack.Navigator
+          initialRouteName="home"
+          screenOptions={{
+            headerShown: false,
+            gestureEnabled: true,
+            gestureDirection: 'horizontal',
+            cardStyle: { backgroundColor: '#ECE8DD' },
+            gestureResponseDistance: 220,
+            cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+            transitionSpec: {
+              open: { animation: 'timing', config: { duration: 260 } },
+              close: { animation: 'timing', config: { duration: 220 } },
+            },
+          }}
+        >
           <Stack.Screen 
             name="home" 
             component={Home}
-            options={{ headerShown: false }}
+            options={{ gestureEnabled: false }}
           />
           <Stack.Screen 
             name="login"
             component={Login}
-            options={{ headerShown: false }}
+            options={{ gestureEnabled: false }}
           />
           <Stack.Screen
             name="register"
             component={Register}
-            options={{ headerShown: false }}
+            options={{ gestureEnabled: false }}
           />
           <Stack.Screen
             name="main"
             component={MainScreen}
-            options={{ headerShown: false }}
+            options={{ gestureEnabled: false }}
           />
           <Stack.Screen
             name="editProfile"
@@ -163,8 +187,9 @@ export default function App() {
             options={{ headerShown: false }}
           />
         </Stack.Navigator>
-      </NavigationContainer>
-      </SafeAreaProvider>
-    </Provider>
+        </NavigationContainer>
+        </SafeAreaProvider>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }

@@ -23,7 +23,7 @@ export default function BottomNavBar({
 }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.container, { paddingBottom: 8 + insets.bottom }]}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 35) }]}>
       <NavItem
         iconSource={icons?.home}
         label="Рекомендации"
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingTop: 12,
+    paddingTop: 8,
     
     flexShrink: 0,
   },
