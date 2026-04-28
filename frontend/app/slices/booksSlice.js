@@ -5,9 +5,16 @@ const normalizeGenre = (value) => String(value ?? "").trim();
 const communitiesFeedListTag = { type: "Post", id: "LIST:communities-feed" };
 const recommendedPostsListTag = { type: "Post", id: "LIST:recommended" };
 
-export const mapApiBookGenres = (book) => ({
-  genreFirst: normalizeGenre(book?.genre),
-  genreSecond: normalizeGenre(book?.secondGenre),
+export const mapApiBookGenres = (entity) => ({
+  genreFirst: normalizeGenre(
+    entity?.genre ?? entity?.genreFirst ?? entity?.book?.genre ?? entity?.book?.genreFirst,
+  ),
+  genreSecond: normalizeGenre(
+    entity?.secondGenre ??
+      entity?.genreSecond ??
+      entity?.book?.secondGenre ??
+      entity?.book?.genreSecond,
+  ),
 });
 
 export const mapApiBookToUi = (book) => {

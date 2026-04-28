@@ -48,6 +48,17 @@ function isRussianText(value) {
   return typeof value === 'string' && /[А-Яа-яЁё]/.test(value);
 }
 
+function isUnconfirmedEmailMessage(value) {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  const normalized = value.toLowerCase();
+  return (
+    /подтверж|не подтверж|подтвердите|почт/.test(normalized) ||
+    /unconfirm|not confirm|confirm your email|verify email|email not verified/.test(normalized)
+  );
+}
+
 function statusCode(error) {
   if (typeof error?.status === 'number') {
     return error.status;
@@ -63,6 +74,8 @@ export function buildAuthErrorAlert(error, mode = 'login') {
   const status = statusCode(error);
   const statusRaw = error?.status;
   const transportError = typeof error?.error === 'string' ? error.error : '';
+  const hasUnconfirmedEmailHint =
+    isUnconfirmedEmailMessage(backendMessage) || isUnconfirmedEmailMessage(transportError);
 
   if (
     statusRaw === 'FETCH_ERROR' ||
@@ -76,6 +89,12 @@ export function buildAuthErrorAlert(error, mode = 'login') {
   }
 
   if (mode === 'login') {
+    if (hasUnconfirmedEmailHint) {
+      return {
+        title: 'Почта не подтверждена',
+        message: 'Подтвердите email по ссылке из письма и попробуйте войти снова.',
+      };
+    }
     if (status === 400 || status === 401 || status === 403 || status === 422 || status === 503) {
       return {
         title: 'Не удалось войти',
@@ -98,6 +117,12 @@ export function buildAuthErrorAlert(error, mode = 'login') {
     return {
       title: 'Регистрация отклонена',
       message: isRussianText(backendMessage) ? backendMessage : 'Пользователь с таким email уже существует.',
+    };
+  }
+  if (hasUnconfirmedEmailHint) {
+    return {
+      title: 'Почта не подтверждена',
+      message: 'Проверьте почту и подтвердите email по ссылке из письма.',
     };
   }
   if (status === 400 || status === 401 || status === 403 || status === 422 || status === 503) {

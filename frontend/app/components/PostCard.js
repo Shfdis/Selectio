@@ -11,6 +11,7 @@ import {
   useUnfavoritePostMutation,
   useUnlikePostMutation,
 } from '../slices/postsSlice';
+import { mapApiBookGenres, useGetBookByIdQuery } from '../slices/booksSlice';
 import { getCommunityCoverImageSource } from '../utils/communityCover';
 
 export default function PostCard({
@@ -76,6 +77,19 @@ export default function PostCard({
     avatarSource,
   ]);
   const resolvedTitle = resolvedCommunityName || username || 'Сообщество';
+  const normalizedBookId = Number(book?.id);
+  const { data: fullBook } = useGetBookByIdQuery(normalizedBookId, {
+    skip: !Number.isFinite(normalizedBookId) || normalizedBookId <= 0,
+  });
+  const fullBookGenres = useMemo(() => mapApiBookGenres(fullBook), [fullBook]);
+  const resolvedBook = useMemo(
+    () => ({
+      ...book,
+      genreFirst: fullBookGenres.genreFirst || book?.genreFirst,
+      genreSecond: fullBookGenres.genreSecond || book?.genreSecond,
+    }),
+    [book, fullBookGenres.genreFirst, fullBookGenres.genreSecond],
+  );
   const [likePost] = useLikePostMutation();
   const [unlikePost] = useUnlikePostMutation();
   const [favoritePost] = useFavoritePostMutation();
@@ -143,7 +157,6 @@ export default function PostCard({
   };
 
   const onPressBook = () => {
-    const normalizedBookId = Number(book?.id);
     if (Number.isFinite(normalizedBookId) && normalizedBookId > 0) {
       navigation.navigate('book', { bookId: normalizedBookId });
     }
@@ -204,11 +217,11 @@ export default function PostCard({
 
         <View style={styles.bookFrame}>
           <BookCard
-            imageUrl={book?.imageUrl}
-            title={book?.title}
-            author={book?.author}
-            genreFirst={book?.genreFirst}
-            genreSecond={book?.genreSecond}
+            imageUrl={resolvedBook?.imageUrl}
+            title={resolvedBook?.title}
+            author={resolvedBook?.author}
+            genreFirst={resolvedBook?.genreFirst}
+            genreSecond={resolvedBook?.genreSecond}
             onClick={onPressBook}
           />
         </View>

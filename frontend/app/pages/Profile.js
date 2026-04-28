@@ -42,7 +42,7 @@ function FavoritePostItem({ favoritePost, avatarUrl }) {
     skip: !Number.isFinite(postId) || postId <= 0,
   });
 
-  const { genreFirst, genreSecond } = mapApiBookGenres(postDetails?.book);
+  const { genreFirst, genreSecond } = mapApiBookGenres(postDetails ?? favoritePost);
   const resolvedItem = {
     postId,
     communityId: Number(postDetails?.communityId ?? favoritePost?.communityId),

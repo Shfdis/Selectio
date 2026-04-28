@@ -46,8 +46,7 @@ export const userApi = createApi({
             await saveToken(data.token);
             dispatch(userApi.util.invalidateTags(["User"]));
           }
-        } catch (error) {
-          console.error("Login failed:", error);
+        } catch {
         }
       },
     }),

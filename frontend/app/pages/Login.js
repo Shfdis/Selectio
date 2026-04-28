@@ -1,10 +1,11 @@
-import { View, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LoginRegisterHeader from '../components/LoginRegisterHeader';
 import InputComponent from '../components/InputComponent';
 import GreenRoundedButton from '../components/GreenRoundedButton';
 import KeyboardAvoidingBox from '../components/KeyboardAvoidingBox';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import { useGetCurrentUserQuery, useLoginUserMutation } from '../slices/userSlice';
 import { useNavigation } from '@react-navigation/native';
 import { buildAuthErrorAlert } from '../utils/authErrorAlert';
@@ -16,6 +17,11 @@ export default function Login() {
   const { data: currentUser } = useGetCurrentUserQuery();
   const navigation = useNavigation();
   const hasNavigatedRef = useRef(false);
+  const [authNotice, setAuthNotice] = useState({
+    visible: false,
+    title: '',
+    message: '',
+  });
 
   useEffect(() => {
     if (!currentUser || hasNavigatedRef.current) return;
@@ -55,20 +61,38 @@ export default function Login() {
                 const normalizedEmail = email.trim();
                 const normalizedPassword = password.trim();
                 if (!normalizedEmail || !normalizedPassword) {
-                  Alert.alert('Заполните поля', 'Введите email и пароль', [{ text: 'Ок' }]);
+                  setAuthNotice({
+                    visible: true,
+                    title: 'Заполните поля',
+                    message: 'Введите email и пароль.',
+                  });
                   return;
                 }
                 try {
                   await loginUser({ email: normalizedEmail, password: normalizedPassword }).unwrap();
                 } catch (e) {
                   const alert = buildAuthErrorAlert(e, 'login');
-                  Alert.alert(alert.title, alert.message, [{ text: 'Ок' }]);
+                  setAuthNotice({
+                    visible: true,
+                    title: alert.title,
+                    message: alert.message,
+                  });
                 }
               })();
             }}
           />
         </View>
       </ScrollView>
+      <DeleteConfirmDialog
+        visible={authNotice.visible}
+        title={authNotice.title}
+        message={authNotice.message}
+        confirmLabel="Ок"
+        hideCancel
+        cardTone="green"
+        onConfirm={() => setAuthNotice((prev) => ({ ...prev, visible: false }))}
+        onCancel={() => setAuthNotice((prev) => ({ ...prev, visible: false }))}
+      />
     </KeyboardAvoidingBox>
   );
 }

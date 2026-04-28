@@ -97,7 +97,9 @@ export default function NewPostEditor({
             <Text style={styles.bookHint}>Выберите книгу по тематике поста</Text>
             {selectedBook && !bookPickerOpen ? (
               <View style={styles.selectedBookCardWrap}>
-                <BookRowCard book={selectedBook} showMoreButton={false} showDivider={false} />
+                <View style={styles.selectedBookCardContent}>
+                  <BookRowCard book={selectedBook} showMoreButton={false} showDivider={false} />
+                </View>
                 <Pressable style={styles.swapButton} onPress={openBookPicker} hitSlop={10}>
                   <Image
                     source={require('../assets/icons/icon_swap.png')}
@@ -259,6 +261,9 @@ const styles = StyleSheet.create({
   selectedBookCardWrap: {
     position: 'relative',
     marginHorizontal: '-6%',
+  },
+  selectedBookCardContent: {
+    paddingRight: 56,
   },
   swapButton: {
     position: 'absolute',

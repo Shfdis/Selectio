@@ -54,7 +54,7 @@ export default function InProgress() {
         imageUrl: typeof book.coverUrl === 'string' ? book.coverUrl.trim() : '',
         title: book.title || 'Без названия',
         author: book.author || 'Неизвестный автор',
-        ...mapApiBookGenres({ genre: book.genre, secondGenre: '' }),
+        ...mapApiBookGenres(book),
       })),
     [libraryData],
   );

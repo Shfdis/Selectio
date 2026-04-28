@@ -56,7 +56,7 @@ export default function ReadBooks() {
         title: book.title || 'Без названия',
         author: book.author || 'Неизвестный автор',
         userRating: typeof book.rating === 'number' ? book.rating : null,
-        ...mapApiBookGenres({ genre: book.genre, secondGenre: '' }),
+        ...mapApiBookGenres(book),
       })),
     [libraryData],
   );
