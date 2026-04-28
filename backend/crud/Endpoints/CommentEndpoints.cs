@@ -209,9 +209,6 @@ public static class CommentEndpoints
             var (userId, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
 
-            var contentError = EndpointHelpers.RequireContent(body.Content);
-            if (contentError is not null) return contentError;
-
             if (body.Rating is < 1 or > 5)
             {
                 return Results.BadRequest(new { message = "rating must be between 1 and 5" });
@@ -224,7 +221,7 @@ public static class CommentEndpoints
             {
                 BookId = id,
                 AuthorUserId = userId,
-                Content = body.Content!.Trim(),
+                Content = (body.Content ?? string.Empty).Trim(),
                 Rating = body.Rating,
                 CreatedAt = DateTime.UtcNow
             };
@@ -249,9 +246,6 @@ public static class CommentEndpoints
             var (_, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
 
-            var contentError = EndpointHelpers.RequireContent(body.Content);
-            if (contentError is not null) return contentError;
-
             if (body.Rating is < 1 or > 5)
             {
                 return Results.BadRequest(new { message = "rating must be between 1 and 5" });
@@ -260,7 +254,7 @@ public static class CommentEndpoints
             var comment = await db.BookComments.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
             if (comment is null) return Results.NotFound();
 
-            comment.Content = body.Content!.Trim();
+            comment.Content = (body.Content ?? string.Empty).Trim();
             comment.Rating = body.Rating;
             await db.SaveChangesAsync(cancellationToken);
 

@@ -204,6 +204,57 @@ class TestCrudComments:
         assert r_list.status_code == 200
         assert all(c["id"] != comment_id for c in r_list.json())
 
+    def test_book_comments_allow_missing_and_empty_content(self, crud_base_url):
+        user_id = 6011
+        headers = {"X-User-Id": str(user_id)}
+        book_id = self._get_first_book_id(crud_base_url)
+
+        # create without content
+        r_missing = requests.post(
+            f"{crud_base_url}/api/books/{book_id}/comments",
+            json={"rating": 5},
+            headers=headers,
+            timeout=5,
+        )
+        assert r_missing.status_code == 200, r_missing.text
+        created_missing = r_missing.json()
+        assert created_missing["content"] == ""
+        missing_id = created_missing["id"]
+
+        # create with whitespace content
+        r_whitespace = requests.post(
+            f"{crud_base_url}/api/books/{book_id}/comments",
+            json={"content": "   ", "rating": 4},
+            headers=headers,
+            timeout=5,
+        )
+        assert r_whitespace.status_code == 200, r_whitespace.text
+        created_whitespace = r_whitespace.json()
+        assert created_whitespace["content"] == ""
+        whitespace_id = created_whitespace["id"]
+
+        # update with missing content
+        r_edit_missing = requests.put(
+            f"{crud_base_url}/api/book-comments/{whitespace_id}",
+            json={"rating": 3},
+            headers=headers,
+            timeout=5,
+        )
+        assert r_edit_missing.status_code == 200, r_edit_missing.text
+        assert r_edit_missing.json()["content"] == ""
+        assert r_edit_missing.json()["rating"] == 3
+
+        # update with whitespace content
+        r_edit_whitespace = requests.put(
+            f"{crud_base_url}/api/book-comments/{missing_id}",
+            json={"content": " \t ", "rating": 2},
+            headers=headers,
+            timeout=5,
+        )
+        assert r_edit_whitespace.status_code == 200, r_edit_whitespace.text
+        assert r_edit_whitespace.json()["content"] == ""
+        assert r_edit_whitespace.json()["rating"] == 2
+
     def test_my_book_comments_filters_and_paginates(self, crud_base_url):
         book_id = self._get_first_book_id(crud_base_url)
 

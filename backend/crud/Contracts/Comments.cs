@@ -47,7 +47,7 @@ public sealed record CreateCommentRequest(
 );
 
 public sealed record CreateBookCommentRequest(
-    string Content,
+    string? Content,
     int Rating
 );
 
