@@ -6,7 +6,6 @@ export default function KeyboardAvoidingBox({
   style,
   keyboardVerticalOffset = 0,
   enabled: enabledProp,
-  /** Добавить отступ снизу под системную панель Android (и home indicator на iOS). */
   useBottomInset = false,
 }) {
   const insets = useSafeAreaInsets();

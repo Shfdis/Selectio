@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingTop: 12,
-    // Высота: paddingTop + иконки + paddingBottom (8 + insets в компоненте) — не проценты экрана
+    
     flexShrink: 0,
   },
   item: {

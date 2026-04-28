@@ -1,4 +1,5 @@
-import { View, StyleSheet, Image, Pressable, ScrollView, Dimensions, Text } from 'react-native';
+import { View, StyleSheet, Image, Pressable, ScrollView, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
 import { mapApiBookGenres } from '../slices/booksSlice';
 import { useGetPostByIdQuery } from '../slices/postsSlice';
@@ -14,8 +15,6 @@ import { useMemo, useState } from 'react';
 import PostCard from '../components/PostCard';
 import { useNavigation } from '@react-navigation/native';
 
-const windowHeight = Dimensions.get('window').height;
-const paddedHeight = windowHeight * 0.24;
 const LIBRARY_STATUS = {
   wantToRead: 0,
   inProgress: 1,
@@ -85,6 +84,7 @@ function FavoritePostItem({ favoritePost, avatarUrl }) {
 }
 
 export function Profile() {
+  const insets = useSafeAreaInsets();
   const { data: currentUser } = useGetCurrentUserQuery();
   const userId = currentUser?.id;
   const { data: profile } = useGetUserProfileQuery(userId, { skip: !userId });
@@ -192,15 +192,15 @@ export function Profile() {
   const onPressReadBooks = () => {
     navigation.navigate('readBooks');
   };
-
   return (
     <View style={styles.screen}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]}
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[1]}
       >
-        <View style={[styles.padded, { height: paddedHeight }]}>
+        <View style={styles.padded}>
           <View style={styles.headerRow}>
             <Image
               source={avatarUrl ? { uri: avatarUrl } : require('../assets/icons/profile-avatar.png')}
@@ -217,13 +217,15 @@ export function Profile() {
         </View>
 
         <View style={styles.tabs}>
-          {tabItems.map((t) => (
-            <Pressable key={t.key} onPress={() => setActiveTab(t.key)} hitSlop={10}>
-              <Text style={[styles.tabText, t.key === activeTab ? styles.tabTextActive : null]}>
-                {t.label}
-              </Text>
-            </Pressable>
-          ))}
+          <View style={styles.tabsRow}>
+            {tabItems.map((t) => (
+              <Pressable key={t.key} style={styles.tabButton} onPress={() => setActiveTab(t.key)} hitSlop={10}>
+                <Text numberOfLines={1} style={[styles.tabText, t.key === activeTab ? styles.tabTextActive : null]}>
+                  {t.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         <View
@@ -304,12 +306,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: '12%',
     paddingBottom: 0,
     backgroundColor: '#ECE8DD',
   },
   padded: {
     paddingHorizontal: '6%',
+    paddingTop: '2%',
+    paddingBottom: '4%',
   },
   headerRow: {
     flexDirection: 'row',
@@ -353,16 +356,29 @@ const styles = StyleSheet.create({
     width: '100%'
   },
   tabs: {
-    marginTop: '20%',
+    marginTop: 4,
     width: '100%',
+    backgroundColor: '#ECE8DD',
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: '#CAC7B9',
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
     paddingHorizontal: '2%',
-    paddingVertical: '3%',
+    paddingTop: 12,
+    paddingBottom: 18,
+    zIndex: 10,
+  },
+  tabsRow: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabText: {
     fontSize: 16,
@@ -370,6 +386,7 @@ const styles = StyleSheet.create({
     fontWeight: 500,
     color: '#81876D',
     lineHeight: 19,
+    textAlign: 'center',
   },
   tabTextActive: {
     color: '#2D2800',

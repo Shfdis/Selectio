@@ -37,6 +37,7 @@ export default function ReviewCard({
   style,
 }) {
   const EditContainer = disabled ? View : Pressable;
+  const hasBodyText = typeof text === 'string' && text.trim().length > 0;
 
   return (
     <View style={[styles.card, style]}>
@@ -63,11 +64,13 @@ export default function ReviewCard({
 
       <StarsRow rating={rating} />
 
-      <View style={styles.bodyRow}>
-        <Text style={styles.body} ellipsizeMode="tail">
-          {text}
-        </Text>
-      </View>
+      {hasBodyText ? (
+        <View style={styles.bodyRow}>
+          <Text style={styles.body} ellipsizeMode="tail">
+            {text}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
