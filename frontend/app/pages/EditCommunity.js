@@ -64,6 +64,7 @@ export default function EditCommunity() {
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [isFormInitialized, setIsFormInitialized] = useState(false);
   const [nameRequiredDialogVisible, setNameRequiredDialogVisible] = useState(false);
+  const [deleteConfirmDialogVisible, setDeleteConfirmDialogVisible] = useState(false);
   const [uploadImage, { isLoading: isUploadingImage }] = useUploadImageMutation();
   const [updateCommunity, { isLoading: isUpdatingCommunity }] = useUpdateCommunityMutation();
   const [deleteCommunity, { isLoading: isDeletingCommunity }] = useDeleteCommunityMutation();
@@ -125,6 +126,13 @@ export default function EditCommunity() {
     }
   };
 
+  const onRequestDelete = () => {
+    if (!communityId || isBusy || !isFormInitialized) {
+      return;
+    }
+    setDeleteConfirmDialogVisible(true);
+  };
+
   const isBusy = isUpdatingCommunity || isUploadingImage || isDeletingCommunity;
 
   return (
@@ -151,17 +159,18 @@ export default function EditCommunity() {
           onChangeDescription={setDescription}
           selectedGenres={selectedGenres}
           onSelectedGenresChange={setSelectedGenres}
+          bottomAction={(
+            <View style={styles.deleteWrap}>
+              <Pressable
+                style={[styles.deleteButton, isBusy ? styles.deleteButtonDisabled : null]}
+                onPress={onRequestDelete}
+                disabled={isBusy || !isFormInitialized}
+              >
+                <Text style={styles.deleteText}>Удалить сообщество</Text>
+              </Pressable>
+            </View>
+          )}
         />
-
-        <View style={styles.deleteWrap}>
-          <Pressable
-            style={[styles.deleteButton, isBusy ? styles.deleteButtonDisabled : null]}
-            onPress={onPressDelete}
-            disabled={isBusy || !isFormInitialized}
-          >
-            <Text style={styles.deleteText}>Удалить сообщество</Text>
-          </Pressable>
-        </View>
       </KeyboardAvoidingBox>
 
       <DeleteConfirmDialog
@@ -173,6 +182,19 @@ export default function EditCommunity() {
         confirmLabel="Ок"
         hideCancel
         cardTone="green"
+      />
+
+      <DeleteConfirmDialog
+        visible={deleteConfirmDialogVisible}
+        onCancel={() => setDeleteConfirmDialogVisible(false)}
+        onConfirm={async () => {
+          setDeleteConfirmDialogVisible(false);
+          await onPressDelete();
+        }}
+        title="Удалить сообщество?"
+        message="Точно удалить сообщество? Это действие нельзя отменить."
+        cancelLabel="Отмена"
+        confirmLabel="Удалить"
       />
     </View>
   );
@@ -187,17 +209,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deleteWrap: {
-    paddingHorizontal: '6%',
-    paddingBottom: 16,
+    width: '100%',
   },
   deleteButton: {
     width: '100%',
     borderRadius: 40,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#A03A3A',
+    backgroundColor: '#784C2F',
     borderWidth: 1,
-    borderColor: '#8B7B4E',
+    borderColor: '#2D2800',
     alignItems: 'center',
     justifyContent: 'center',
   },

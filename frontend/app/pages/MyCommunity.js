@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import CommunityScreenLayout from '../components/CommunityScreen';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import { mapApiBookGenres } from '../slices/booksSlice';
 import {
   useGetCommunitiesCatalogQuery,
@@ -9,6 +10,7 @@ import {
   useGetCommunityPostsQuery,
 } from '../slices/communitiesSlice';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
+import { useDeletePostMutation } from '../slices/postsSlice';
 
 const DEFAULT_BOOK_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
 const toCommunityGenres = (community) => {
@@ -93,6 +95,9 @@ export default function MyCommunity() {
   );
   const community = useMemo(() => mapCommunityModel(communityData), [communityData]);
   const posts = useMemo(() => mapCommunityPosts(postsData), [postsData]);
+  const [deletePost] = useDeletePostMutation();
+  const [pendingDeletePost, setPendingDeletePost] = useState(null);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
 
   const onPressBack = () => {
     navigation.goBack();
@@ -106,6 +111,26 @@ export default function MyCommunity() {
   const onPressSuggestedPosts = () => {
     navigation.navigate('suggestedPosts', { communityId });
   };
+  const onRequestDeletePost = (post) => {
+    if (!Number.isFinite(Number(post?.postId ?? post?.id))) return;
+    setPendingDeletePost(post);
+  };
+  const onConfirmDeletePost = async () => {
+    const postId = Number(pendingDeletePost?.postId ?? pendingDeletePost?.id);
+    if (!Number.isFinite(postId) || postId <= 0) {
+      setPendingDeletePost(null);
+      return;
+    }
+    setIsDeletingPost(true);
+    try {
+      await deletePost({ postId, communityId }).unwrap();
+      setPendingDeletePost(null);
+    } catch (_error) {
+      Alert.alert('Не удалось удалить', 'Попробуйте ещё раз.', [{ text: 'Ок' }]);
+    } finally {
+      setIsDeletingPost(false);
+    }
+  };
 
   if (!communityId || isFetchingCommunity) {
     return (
@@ -116,36 +141,50 @@ export default function MyCommunity() {
   }
 
   return (
-    <CommunityScreenLayout
-      community={community}
-      posts={posts}
-      onPressBack={onPressBack}
-      onPressSettings={onPressSettings}
-      renderActionArea={() => (
-        <View style={styles.actionButtonsRow}>
-          <Pressable style={styles.actionButton} onPress={onPressCreatePost} hitSlop={10}>
-            <Image
-              source={require('../assets/icons/icon_write.png')}
-              style={styles.actionIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.actionButtonText} numberOfLines={1}>
-              Создать пост
-            </Text>
-          </Pressable>
-          <Pressable style={styles.actionButton} onPress={onPressSuggestedPosts} hitSlop={10}>
-            <Image
-              source={require('../assets/icons/icon_list.png')}
-              style={styles.actionIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.actionButtonText} numberOfLines={1}>
-              Посмотреть предложку
-            </Text>
-          </Pressable>
-        </View>
-      )}
-    />
+    <>
+      <CommunityScreenLayout
+        community={community}
+        posts={posts}
+        onPressBack={onPressBack}
+        onPressSettings={onPressSettings}
+        renderActionArea={() => (
+          <View style={styles.actionButtonsRow}>
+            <Pressable style={styles.actionButton} onPress={onPressCreatePost} hitSlop={10}>
+              <Image
+                source={require('../assets/icons/icon_write.png')}
+                style={styles.actionIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.actionButtonText} numberOfLines={1}>
+                Создать пост
+              </Text>
+            </Pressable>
+            <Pressable style={styles.actionButton} onPress={onPressSuggestedPosts} hitSlop={10}>
+              <Image
+                source={require('../assets/icons/icon_list.png')}
+                style={styles.actionIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.actionButtonText} numberOfLines={1}>
+                Посмотреть предложку
+              </Text>
+            </Pressable>
+          </View>
+        )}
+        canDeletePosts
+        onPressDeletePost={onRequestDeletePost}
+        deletingPostId={isDeletingPost ? Number(pendingDeletePost?.postId ?? pendingDeletePost?.id) : null}
+      />
+      <DeleteConfirmDialog
+        visible={pendingDeletePost != null}
+        title="Удалить пост?"
+        message="Точно удалить пост? Это действие нельзя отменить."
+        cancelLabel="Отмена"
+        confirmLabel="Удалить"
+        onCancel={() => setPendingDeletePost(null)}
+        onConfirm={onConfirmDeletePost}
+      />
+    </>
   );
 }
 

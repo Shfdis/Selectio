@@ -30,10 +30,12 @@ export default function Login() {
   }, [currentUser, navigation]);
 
   return (
-    <KeyboardAvoidingBox style={styles.container} enabled useBottomInset keyboardVerticalOffset={insets.top}>
+    <KeyboardAvoidingBox style={styles.container} enabled keyboardVerticalOffset={insets.top}>
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
         <LoginRegisterHeader title="Добро пожаловать" />
@@ -104,6 +106,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 32,
+    backgroundColor: '#D6C596',
+  },
+  scroll: {
+    flex: 1,
+    backgroundColor: '#D6C596',
   },
   inputContainer: {
     width: '100%',

@@ -11,7 +11,7 @@ export default function KeyboardAvoidingBox({
 }) {
   const insets = useSafeAreaInsets();
   const resolvedBehavior =
-    behavior ?? (Platform.OS === 'ios' ? 'padding' : 'height');
+    behavior ?? (Platform.OS === 'ios' ? 'padding' : 'padding');
   const enabled = enabledProp ?? true;
   const content = useBottomInset ? (
     <View style={[styles.flex, { paddingBottom: insets.bottom }]}>{children}</View>

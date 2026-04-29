@@ -78,6 +78,9 @@ export function RecommendationsMainContent() {
         ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        nestedScrollEnabled
+        directionalLockEnabled
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.recommendedSection}>

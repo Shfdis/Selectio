@@ -66,6 +66,9 @@ export default function HorizontalCoverSection({
   resetScrollSignal,
 }) {
   const scrollRef = useRef(null);
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const lockResolvedRef = useRef(false);
+  const [horizontalScrollEnabled, setHorizontalScrollEnabled] = useState(false);
 
   useEffect(() => {
     if (resetScrollSignal == null) {
@@ -74,6 +77,29 @@ export default function HorizontalCoverSection({
     scrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [resetScrollSignal]);
 
+  const resolveGestureLock = (nativeEvent) => {
+    if (lockResolvedRef.current) {
+      return;
+    }
+    const dx = nativeEvent.pageX - touchStartRef.current.x;
+    const dy = nativeEvent.pageY - touchStartRef.current.y;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    if (absDx < 5 && absDy < 5) {
+      return;
+    }
+
+    lockResolvedRef.current = true;
+    const shouldScrollHorizontally = absDx > 18 && absDx > absDy * 1.8;
+    setHorizontalScrollEnabled(shouldScrollHorizontally);
+  };
+
+  const releaseGestureLock = () => {
+    lockResolvedRef.current = false;
+    setHorizontalScrollEnabled(false);
+  };
+
   return (
     <View style={[styles.section, style]}>
       <Text style={[styles.sectionTitle, titleStyle]}>{title}</Text>
@@ -81,8 +107,21 @@ export default function HorizontalCoverSection({
       <ScrollView
         ref={scrollRef}
         horizontal
+        nestedScrollEnabled
+        directionalLockEnabled
+        scrollEnabled={horizontalScrollEnabled}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalList}
+        onTouchStart={({ nativeEvent }) => {
+          touchStartRef.current = { x: nativeEvent.pageX, y: nativeEvent.pageY };
+          lockResolvedRef.current = false;
+          setHorizontalScrollEnabled(false);
+        }}
+        onTouchMove={({ nativeEvent }) => {
+          resolveGestureLock(nativeEvent);
+        }}
+        onTouchEnd={releaseGestureLock}
+        onTouchCancel={releaseGestureLock}
         onScroll={
           onHorizontalEndReached
             ? ({ nativeEvent }) => {

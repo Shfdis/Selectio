@@ -1,27 +1,32 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "Selectio",
+    "slug": "Selectio",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "icon": "./assets/logo_green.png",
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.app"
     },
     "android": {
-      "softwareKeyboardLayoutMode": "pan",
+      "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.app"
+      "package": "com.anonymous.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo_green.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "web": {},
     "plugins": [
