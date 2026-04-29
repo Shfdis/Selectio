@@ -22,7 +22,7 @@ export const communitiesApi = userApi.injectEndpoints({
     }),
     getCommunitiesFeed: builder.query({
       query: ({ page = 1, pageSize = 20 } = {}) => ({
-        url: "/api/users/me/feed",
+        url: "/api/posts/recommended",
         params: { page, pageSize },
       }),
       providesTags: (result = []) => [
