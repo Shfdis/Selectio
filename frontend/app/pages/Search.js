@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, Image, Pressable, ScrollView, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, Keyboard } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
@@ -290,6 +291,7 @@ export function Search() {
           <Text style={styles.sectionTitle}>Популярное по жанрам</Text>
           <ScrollView
             horizontal
+            nestedScrollEnabled
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.genreList}
           >

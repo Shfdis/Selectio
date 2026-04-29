@@ -1,4 +1,5 @@
-import { Animated, Dimensions, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, Platform, StyleSheet, View } from 'react-native';
+import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRoute } from '@react-navigation/native';
 import BottomNavBar from '../components/BottomNavBar';
@@ -41,7 +42,10 @@ export default function MainScreen() {
   const scrollRef = useRef(null);
   const prevParamTabRef = useRef(paramTab);
 
-  const AnimatedScrollView = useMemo(() => Animated.createAnimatedComponent(ScrollView), []);
+  const AnimatedScrollView = useMemo(
+    () => Animated.createAnimatedComponent(GestureScrollView),
+    [],
+  );
 
   const onScrollPager = useMemo(
     () =>
