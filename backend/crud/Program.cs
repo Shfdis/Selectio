@@ -1,5 +1,6 @@
 using crud.Data;
 using crud.Endpoints;
+using crud.Services;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Pgvector;
@@ -11,6 +12,7 @@ const string ServiceSchema = "crud";
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHostedService<SeenCleanupService>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {

@@ -48,6 +48,26 @@ class TestCrudBooks:
         ]
         subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
 
+    @staticmethod
+    def _seed_seen_book(user_id: int, book_id: int, seen_at_sql: str) -> None:
+        cmd = [
+            "docker", "exec", "selectio_postgres",
+            "psql", "-U", "postgres", "-d", "selectio_main", "-c",
+            f'INSERT INTO crud."SeenBooks" ("UserId","BookId","SeenAt") '
+            f"VALUES ({user_id},{book_id},{seen_at_sql}) "
+            f'ON CONFLICT ("UserId","BookId") DO UPDATE SET "SeenAt"=EXCLUDED."SeenAt";'
+        ]
+        subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
+
+    @staticmethod
+    def _cleanup_seen_book(user_id: int, book_id: int) -> None:
+        cmd = [
+            "docker", "exec", "selectio_postgres",
+            "psql", "-U", "postgres", "-d", "selectio_main", "-c",
+            f'DELETE FROM crud."SeenBooks" WHERE "UserId"={user_id} AND "BookId"={book_id};'
+        ]
+        subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
+
     def test_list_books(self, crud_base_url):
         response = requests.get(f"{crud_base_url}/api/books", timeout=5)
         assert response.status_code == 200
@@ -181,6 +201,42 @@ class TestCrudBooks:
         )
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
+
+    def test_recommended_books_excludes_seen_books(self, crud_base_url):
+        user_id = 8611
+        headers = {"X-User-Id": str(user_id)}
+        books = requests.get(f"{crud_base_url}/api/books", timeout=5).json()
+        assert books
+        book_id = int(books[0]["id"])
+
+        self._seed_seen_book(user_id, book_id, "NOW() - INTERVAL '48 hours'")
+        try:
+            resp = requests.get(f"{crud_base_url}/api/books/recommended", headers=headers, timeout=5)
+            assert resp.status_code == 200
+            ids = {int(x["id"]) for x in resp.json()}
+            assert book_id not in ids
+        finally:
+            self._cleanup_seen_book(user_id, book_id)
+
+    def test_recommended_books_excludes_reviewed_books(self, crud_base_url):
+        user_id = 8612
+        headers = {"X-User-Id": str(user_id)}
+        books = requests.get(f"{crud_base_url}/api/books", timeout=5).json()
+        assert books
+        book_id = int(books[0]["id"])
+
+        review = requests.post(
+            f"{crud_base_url}/api/books/{book_id}/comments",
+            headers=headers,
+            json={"content": "reviewed", "rating": 5},
+            timeout=5,
+        )
+        assert review.status_code == 200, review.text
+
+        resp = requests.get(f"{crud_base_url}/api/books/recommended", headers=headers, timeout=5)
+        assert resp.status_code == 200
+        ids = {int(x["id"]) for x in resp.json()}
+        assert book_id not in ids
 
     def test_average_rating_from_comments_rounded_one_decimal(self, crud_base_url):
         title = "AvgRatingSeedBook"

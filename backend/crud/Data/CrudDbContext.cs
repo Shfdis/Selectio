@@ -18,6 +18,8 @@ public class CrudDbContext : DbContext
     public DbSet<PostCommentLike> PostCommentLikes => Set<PostCommentLike>();
     public DbSet<PostLike> PostLikes => Set<PostLike>();
     public DbSet<FavoritePost> FavoritePosts => Set<FavoritePost>();
+    public DbSet<SeenPost> SeenPosts => Set<SeenPost>();
+    public DbSet<SeenBook> SeenBooks => Set<SeenBook>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -151,6 +153,24 @@ public class CrudDbContext : DbContext
             e.Property(x => x.CreatedAt).IsRequired();
             e.HasOne(x => x.Post).WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.PostId);
+        });
+
+        modelBuilder.Entity<SeenPost>(e =>
+        {
+            e.HasKey(x => new { x.UserId, x.PostId });
+            e.Property(x => x.SeenAt).IsRequired();
+            e.HasOne(x => x.Post).WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.UserId, x.SeenAt });
+            e.HasIndex(x => x.PostId);
+        });
+
+        modelBuilder.Entity<SeenBook>(e =>
+        {
+            e.HasKey(x => new { x.UserId, x.BookId });
+            e.Property(x => x.SeenAt).IsRequired();
+            e.HasOne(x => x.Book).WithMany().HasForeignKey(x => x.BookId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.UserId, x.SeenAt });
+            e.HasIndex(x => x.BookId);
         });
     }
 }

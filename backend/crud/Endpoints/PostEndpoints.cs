@@ -14,6 +14,7 @@ namespace crud.Endpoints;
 public static class PostEndpoints
 {
     private const string AllowSuggestedHeader = "X-Allow-Suggested";
+    private static readonly TimeSpan SeenTtl = TimeSpan.FromDays(1);
 
     public static IEndpointRouteBuilder MapPostEndpoints(this IEndpointRouteBuilder app)
     {
@@ -45,12 +46,21 @@ public static class PostEndpoints
             {
                 return Results.Ok(new List<PostFeedItemDto>());
             }
-            var excludePostIds = await BuildSeenPostIdsAsync(db, userId, cancellationToken);
+            var communityIds = await db.CommunityMembers
+                .Where(m => m.UserId == userId)
+                .Select(m => m.CommunityId)
+                .ToListAsync(cancellationToken);
+            if (communityIds.Count == 0)
+            {
+                return Results.Ok(new List<PostFeedItemDto>());
+            }
+            var excludePostIds = await BuildExcludePostIdsAsync(db, userId, cancellationToken);
 
             var ids = await EmbeddingAnnSearch.GetRecommendedPostIdsAsync(
                 dataSource,
                 userEmb,
                 excludePostIds,
+                communityIds,
                 (p - 1) * ps,
                 ps,
                 cancellationToken);
@@ -65,6 +75,7 @@ public static class PostEndpoints
                 .Where(post => ids.Contains(post.Id))
                 .ToListAsync(cancellationToken);
             var ordered = ids.Select(id => posts.First(po => po.Id == id)).ToList();
+            await MarkPostsSeenAsync(db, userId, ordered.Select(x => x.Id).ToList(), cancellationToken);
             var dtos = await PostFeedMapper.ToFeedItemsAsync(db, ordered, userId, cancellationToken);
             return Results.Ok(dtos);
         })
@@ -182,38 +193,58 @@ public static class PostEndpoints
         )
         .Produces<List<PostFeedItemDto>>(StatusCodes.Status200OK);
 
-        app.MapGet("/api/users/me/feed", async (HttpContext http, CrudDbContext db, int? page, int? pageSize, CancellationToken cancellationToken) =>
+        app.MapGet("/api/users/me/feed", async (HttpContext http, CrudDbContext db, NpgsqlDataSource dataSource, int? page, int? pageSize, CancellationToken cancellationToken) =>
         {
             var (userId, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
             var (p, ps) = EndpointHelpers.NormalizePagination(page, pageSize, 20, 100);
-            var communityIds = await db.CommunityMembers
-                .Where(m => m.UserId == userId)
-                .Select(m => m.CommunityId)
-                .ToListAsync(cancellationToken);
-            var staleSeenPostIds = await BuildSeenPostIdsOlderThanAsync(db, userId, TimeSpan.FromDays(1), cancellationToken);
-            var postsQuery = db.Posts
-                .AsNoTracking()
-                .Include(x => x.Book)
-                .Where(post => post.Status == PostStatus.Published);
-            if (staleSeenPostIds.Count > 0)
-            {
-                postsQuery = postsQuery.Where(post => !staleSeenPostIds.Contains(post.Id));
-            }
-            var allPosts = await postsQuery.ToListAsync(cancellationToken);
 
             var userEmb = await EmbeddingService.GetUserEmbeddingAsync(db, userId);
-            var subscribedCommunityIds = communityIds.ToHashSet();
-            var subscribedPosts = allPosts
-                .Where(post => subscribedCommunityIds.Contains(post.CommunityId))
-                .ToList();
-            var otherCommunityPosts = allPosts
-                .Where(post => !subscribedCommunityIds.Contains(post.CommunityId))
-                .ToList();
-            var orderedSubscribed = OrderPersonalizedFeed(subscribedPosts, userEmb, page: 1, pageSize: int.MaxValue);
-            var orderedOther = OrderPersonalizedFeed(otherCommunityPosts, userEmb, page: 1, pageSize: int.MaxValue);
-            var combined = orderedSubscribed.Concat(orderedOther).ToList();
-            var slice = combined.Skip((p - 1) * ps).Take(ps).ToList();
+            var excludePostIds = await BuildExcludePostIdsAsync(db, userId, cancellationToken);
+            List<Post> slice;
+            if (userEmb is null)
+            {
+                var recencyQuery = db.Posts
+                    .AsNoTracking()
+                    .Include(x => x.Book)
+                    .Where(post => post.Status == PostStatus.Published);
+                if (excludePostIds.Count > 0)
+                {
+                    recencyQuery = recencyQuery.Where(post => !excludePostIds.Contains(post.Id));
+                }
+
+                slice = await recencyQuery
+                    .OrderByDescending(post => post.CreatedAt)
+                    .ThenByDescending(post => post.Id)
+                    .Skip((p - 1) * ps)
+                    .Take(ps)
+                    .ToListAsync(cancellationToken);
+            }
+            else
+            {
+                var ids = await EmbeddingAnnSearch.GetRecommendedPostIdsAsync(
+                    dataSource,
+                    userEmb,
+                    excludePostIds,
+                    communityIds: Array.Empty<int>(),
+                    (p - 1) * ps,
+                    ps,
+                    cancellationToken);
+
+                if (ids.Count == 0)
+                {
+                    return Results.Ok(new List<PostFeedItemDto>());
+                }
+
+                var posts = await db.Posts
+                    .AsNoTracking()
+                    .Include(x => x.Book)
+                    .Where(post => ids.Contains(post.Id))
+                    .ToListAsync(cancellationToken);
+                slice = ids.Select(id => posts.First(po => po.Id == id)).ToList();
+            }
+
+            await MarkPostsSeenAsync(db, userId, slice.Select(x => x.Id).ToList(), cancellationToken);
             var dtos = await PostFeedMapper.ToFeedItemsAsync(db, slice, userId, cancellationToken);
             return Results.Ok(dtos);
         })
@@ -230,45 +261,6 @@ public static class PostEndpoints
         .Produces(StatusCodes.Status401Unauthorized);
 
         return app;
-    }
-
-    /// <summary>
-    /// Rank posts for the home feed: cosine on embeddings when user embedding exists; append posts missing embeddings by recency.
-    /// </summary>
-    private static List<Post> OrderPersonalizedFeed(IReadOnlyList<Post> allPosts, float[]? userEmb, int page, int pageSize)
-    {
-        if (allPosts.Count == 0)
-        {
-            return new List<Post>();
-        }
-
-        if (userEmb is null)
-        {
-            return allPosts
-                .OrderByDescending(p => p.CreatedAt)
-                .ThenByDescending(p => p.Id)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-        }
-
-        var withEmb = allPosts.Where(p => EmbeddingService.IsFullEmbedding(p.Embedding)).ToList();
-        var withoutEmb = allPosts
-            .Where(p => !EmbeddingService.IsFullEmbedding(p.Embedding))
-            .OrderByDescending(p => p.CreatedAt)
-            .ThenByDescending(p => p.Id)
-            .ToList();
-
-        var ranked = withEmb
-            .Select(p => (Post: p, Score: EmbeddingService.CosineSimilarity(userEmb, p.Embedding!)))
-            .OrderByDescending(x => x.Score)
-            .ThenByDescending(x => x.Post.CreatedAt)
-            .ThenByDescending(x => x.Post.Id)
-            .Select(x => x.Post)
-            .ToList();
-
-        var merged = ranked.Concat(withoutEmb).ToList();
-        return merged.Skip((page - 1) * pageSize).Take(pageSize).ToList();
     }
 
     private static async Task<IResult> CreatePostAsync(HttpContext http, CrudDbContext db, CreatePostRequest body, PostStatus status)
@@ -306,15 +298,16 @@ public static class PostEndpoints
     private static PostDto ToDto(Post post) =>
         new(post.Id, post.CommunityId, post.AuthorUserId, post.BookId, post.Content, post.PhotoUrl, post.Status, post.CreatedAt);
 
-    private static async Task<List<int>> BuildSeenPostIdsAsync(
+    private static async Task<List<int>> BuildExcludePostIdsAsync(
         CrudDbContext db,
         int userId,
         CancellationToken cancellationToken = default)
     {
-        var authored = db.Posts
+        var cutoff = DateTime.UtcNow.Subtract(SeenTtl);
+        var staleSeen = db.SeenPosts
             .AsNoTracking()
-            .Where(post => post.AuthorUserId == userId)
-            .Select(post => post.Id);
+            .Where(seen => seen.UserId == userId && seen.SeenAt < cutoff)
+            .Select(seen => seen.PostId);
         var liked = db.PostLikes
             .AsNoTracking()
             .Where(like => like.UserId == userId)
@@ -328,7 +321,7 @@ public static class PostEndpoints
             .Where(comment => comment.AuthorUserId == userId)
             .Select(comment => comment.PostId);
 
-        return await authored
+        return await staleSeen
             .Concat(liked)
             .Concat(favorited)
             .Concat(commented)
@@ -336,39 +329,28 @@ public static class PostEndpoints
             .ToListAsync(cancellationToken);
     }
 
-    private static async Task<List<int>> BuildSeenPostIdsOlderThanAsync(
+    private static async Task MarkPostsSeenAsync(
         CrudDbContext db,
         int userId,
-        TimeSpan age,
+        IReadOnlyList<int> postIds,
         CancellationToken cancellationToken = default)
     {
-        var cutoff = DateTime.UtcNow.Subtract(age);
+        if (postIds.Count == 0)
+        {
+            return;
+        }
 
-        var authored = db.Posts
-            .AsNoTracking()
-            .Where(post => post.AuthorUserId == userId)
-            .Select(post => new { PostId = post.Id, SeenAt = post.CreatedAt });
-        var liked = db.PostLikes
-            .AsNoTracking()
-            .Where(like => like.UserId == userId)
-            .Select(like => new { PostId = like.PostId, SeenAt = like.CreatedAt });
-        var favorited = db.FavoritePosts
-            .AsNoTracking()
-            .Where(favorite => favorite.UserId == userId)
-            .Select(favorite => new { PostId = favorite.PostId, SeenAt = favorite.CreatedAt });
-        var commented = db.PostComments
-            .AsNoTracking()
-            .Where(comment => comment.AuthorUserId == userId)
-            .Select(comment => new { PostId = comment.PostId, SeenAt = comment.CreatedAt });
-
-        return await authored
-            .Concat(liked)
-            .Concat(favorited)
-            .Concat(commented)
-            .GroupBy(seen => seen.PostId)
-            .Where(group => group.Max(seen => seen.SeenAt) < cutoff)
-            .Select(group => group.Key)
-            .ToListAsync(cancellationToken);
+        var now = DateTime.UtcNow;
+        var distinct = postIds.Distinct().ToArray();
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO crud."SeenPosts" ("UserId","PostId","SeenAt")
+            SELECT {userId}, p, {now}
+            FROM unnest({distinct}) AS p
+            ON CONFLICT ("UserId","PostId")
+            DO UPDATE SET "SeenAt" = EXCLUDED."SeenAt";
+            """,
+            cancellationToken);
     }
 }
 

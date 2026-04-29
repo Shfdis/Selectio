@@ -54,6 +54,7 @@ public static class EmbeddingAnnSearch
         NpgsqlDataSource dataSource,
         float[] userEmbedding,
         IReadOnlyList<int> excludePostIds,
+        IReadOnlyList<int>? communityIds,
         int skip,
         int take,
         CancellationToken cancellationToken = default)
@@ -67,16 +68,20 @@ public static class EmbeddingAnnSearch
             WHERE p."Status" = @published
               AND p."Embedding" IS NOT NULL
               AND (@ex_len = 0 OR NOT (p."Id" = ANY (@ex)))
+              AND (@comm_len = 0 OR p."CommunityId" = ANY (@comm_ids))
             ORDER BY p."Embedding" OPERATOR(public.<=>) @query
             LIMIT @lim OFFSET @off
             """,
             conn);
 
         var ex = excludePostIds.Count == 0 ? Array.Empty<int>() : excludePostIds.ToArray();
+        var comm = communityIds is null || communityIds.Count == 0 ? Array.Empty<int>() : communityIds.ToArray();
         cmd.Parameters.Add(new NpgsqlParameter("query", new Vector(userEmbedding)) { DataTypeName = "vector" });
         cmd.Parameters.Add(new NpgsqlParameter("published", NpgsqlDbType.Integer) { Value = (int)PostStatus.Published });
         cmd.Parameters.Add(new NpgsqlParameter("ex", ex) { DataTypeName = "integer[]" });
         cmd.Parameters.Add(new NpgsqlParameter("ex_len", NpgsqlDbType.Integer) { Value = ex.Length });
+        cmd.Parameters.Add(new NpgsqlParameter("comm_ids", comm) { DataTypeName = "integer[]" });
+        cmd.Parameters.Add(new NpgsqlParameter("comm_len", NpgsqlDbType.Integer) { Value = comm.Length });
         cmd.Parameters.Add(new NpgsqlParameter("lim", NpgsqlDbType.Integer) { Value = take });
         cmd.Parameters.Add(new NpgsqlParameter("off", NpgsqlDbType.Integer) { Value = skip });
 
