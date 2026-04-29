@@ -2,7 +2,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -11,10 +10,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenHeader from '../components/ScreenHeader';
-import { useEffect, useMemo, useState } from 'react';
+import KeyboardAvoidingBox from '../components/KeyboardAvoidingBox';
 import { useGetCurrentUserQuery } from '../slices/userSlice';
 import { useGetUserProfileQuery } from '../slices/profileSlice';
 import {
@@ -282,16 +282,14 @@ export default function PostComments() {
         showConfirmButton={false}
       />
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={insets.top}
-      >
+      <KeyboardAvoidingBox style={styles.flex} enabled keyboardVerticalOffset={0}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
           {isLoadingComments ? (
             <View style={styles.loaderWrap}>
@@ -344,7 +342,7 @@ export default function PostComments() {
             <Image source={require('../assets/icons/icon_send.png')} style={styles.sendIcon} resizeMode="contain" />
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingBox>
     </View>
   );
 }

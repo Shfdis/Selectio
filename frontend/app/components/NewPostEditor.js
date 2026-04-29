@@ -125,6 +125,14 @@ export default function NewPostEditor({
 
           <View style={styles.commentSection}>
             <Text style={styles.commentLabel}>Комментарий</Text>
+            <Pressable style={styles.attachButton} onPress={onPressAttachPhoto} hitSlop={10}>
+              <Image
+                source={require('../assets/icons/icon_photo-add.png')}
+                style={styles.attachIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.attachText}>{attachedPhotoUri ? 'Изменить фото' : 'Прикрепить фото'}</Text>
+            </Pressable>
             <TextInput
               value={comment}
               onChangeText={onChangeComment}
@@ -136,14 +144,6 @@ export default function NewPostEditor({
             />
           </View>
 
-          <Pressable style={styles.attachButton} onPress={onPressAttachPhoto} hitSlop={10}>
-            <Image
-              source={require('../assets/icons/icon_photo-add.png')}
-              style={styles.attachIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.attachText}>{attachedPhotoUri ? 'Изменить фото' : 'Прикрепить фото'}</Text>
-          </Pressable>
           {attachedPhotoUri ? (
             <Image source={{ uri: attachedPhotoUri }} style={styles.attachedPreview} resizeMode="cover" />
           ) : null}
@@ -226,7 +226,8 @@ const styles = StyleSheet.create({
   },
   attachButton: {
     position: 'relative',
-    marginTop: 28,
+    marginTop: 10,
+    marginBottom: 12,
     width: '100%',
     height: 36,
     borderRadius: 10,
