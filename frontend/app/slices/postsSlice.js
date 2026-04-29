@@ -116,6 +116,18 @@ export const postsApi = userApi.injectEndpoints({
         recommendedPostsListTag,
       ],
     }),
+    deletePost: builder.mutation({
+      query: ({ postId }) => ({
+        url: `/api/posts/${postId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _error, arg) => [
+        postTag(arg?.postId),
+        communityPostsListTag(arg?.communityId),
+        communitiesFeedListTag,
+        recommendedPostsListTag,
+      ],
+    }),
     suggestPost: builder.mutation({
       query: ({ communityId, bookId, content, photoUrl }) => ({
         url: "/api/posts/suggest",
@@ -275,6 +287,7 @@ export const {
   useGetPostByIdQuery,
   useGetSuggestedPostsQuery,
   useCreatePostMutation,
+  useDeletePostMutation,
   useSuggestPostMutation,
   useApproveSuggestedPostMutation,
   useRejectSuggestedPostMutation,

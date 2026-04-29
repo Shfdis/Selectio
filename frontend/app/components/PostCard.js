@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Image, Pressable, Animated, Easing } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import BookCard from './BookCard';
 import { useGetUserProfileQuery } from '../slices/profileSlice';
@@ -33,12 +33,18 @@ export default function PostCard({
   initiallyLiked = false,
   initiallyBookmarked = true,
   onPressComment,
+  canDelete = false,
+  onPressDelete,
+  deleteDisabled = false,
   style,
 }) {
   const navigation = useNavigation();
   const [liked, setLiked] = useState(initiallyLiked);
   const [bookmarked, setBookmarked] = useState(initiallyBookmarked);
   const [likes, setLikes] = useState(initialLikes);
+  const lastTapAtRef = useRef(0);
+  const heartOpacity = useRef(new Animated.Value(0)).current;
+  const heartScale = useRef(new Animated.Value(0.75)).current;
   const { data: currentUser } = useGetCurrentUserQuery();
   const normalizedCommunityId = Number(communityId);
   const { data: communityData } = useGetCommunityByIdQuery(normalizedCommunityId, {
@@ -130,6 +136,55 @@ export default function PostCard({
     }
   };
 
+  const playDoubleTapHeart = () => {
+    heartOpacity.setValue(0);
+    heartScale.setValue(0.75);
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(heartOpacity, {
+          toValue: 1,
+          duration: 150,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(heartScale, {
+          toValue: 1,
+          duration: 190,
+          easing: Easing.out(Easing.back(1.5)),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.delay(220),
+      Animated.timing(heartOpacity, {
+        toValue: 0,
+        duration: 200,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const onPostSurfaceTap = async () => {
+    const now = Date.now();
+    const isDoubleTap = now - lastTapAtRef.current < 260;
+    lastTapAtRef.current = now;
+    if (!isDoubleTap) {
+      return;
+    }
+    playDoubleTapHeart();
+    if (liked || postId == null || postId === '') {
+      return;
+    }
+    setLiked(true);
+    setLikes((c) => c + 1);
+    try {
+      await likePost({ postId, communityId: normalizedCommunityId }).unwrap();
+    } catch (_error) {
+      setLiked(false);
+      setLikes((c) => Math.max(0, c - 1));
+    }
+  };
+
   const likeIcon = useMemo(
     () => (liked ? require('../assets/icons/icon-heart-filled.png') : require('../assets/icons/icon-heart.png')),
     [liked],
@@ -194,7 +249,7 @@ export default function PostCard({
 
   return (
     <View style={[styles.wrapper, style]}>
-      <View style={styles.inner}>
+      <Pressable style={styles.inner} onPress={onPostSurfaceTap}>
         <Pressable style={styles.headerRow} onPress={onPressCommunity} hitSlop={10}>
           <Image
             source={headerAvatarSource}
@@ -209,6 +264,20 @@ export default function PostCard({
               {dateText}
             </Text>
           </View>
+          {canDelete ? (
+            <Pressable
+              style={[styles.deletePostAction, deleteDisabled ? styles.deletePostActionDisabled : null]}
+              onPress={onPressDelete}
+              hitSlop={10}
+              disabled={deleteDisabled}
+            >
+              <Image
+                source={require('../assets/icons/icon_tresh.png')}
+                style={styles.deletePostIcon}
+                resizeMode="contain"
+              />
+            </Pressable>
+          ) : null}
         </Pressable>
 
         <Text style={styles.postText}>{text}</Text>
@@ -229,7 +298,23 @@ export default function PostCard({
             onClick={onPressBook}
           />
         </View>
-      </View>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.doubleTapHeartWrap,
+            {
+              opacity: heartOpacity,
+              transform: [{ scale: heartScale }],
+            },
+          ]}
+        >
+          <Image
+            source={require('../assets/icons/icon-heart-filled.png')}
+            style={styles.doubleTapHeartIcon}
+            resizeMode="contain"
+          />
+        </Animated.View>
+      </Pressable>
 
       <View style={styles.actionsRow}>
         <View style={styles.leftActions}>
@@ -273,6 +358,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: '6%',
     paddingTop: '3%',
     paddingBottom: '4%',
+    position: 'relative',
+  },
+  doubleTapHeartWrap: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doubleTapHeartIcon: {
+    width: 84,
+    height: 84,
+    tintColor: '#B23A2D',
   },
   headerRow: {
     flexDirection: 'row',
@@ -302,6 +402,20 @@ const styles = StyleSheet.create({
     fontWeight: 400,
     lineHeight: 14,
     opacity: 0.9,
+  },
+  deletePostAction: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deletePostActionDisabled: {
+    opacity: 0.5,
+  },
+  deletePostIcon: {
+    width: 22,
+    height: 22,
+    tintColor: '#2D2800',
   },
   postText: {
     marginTop: '4%',

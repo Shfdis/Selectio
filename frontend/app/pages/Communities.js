@@ -195,6 +195,8 @@ export function Communities() {
         ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        nestedScrollEnabled
+        directionalLockEnabled
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >

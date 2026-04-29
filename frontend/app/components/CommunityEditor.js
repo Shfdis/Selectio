@@ -35,6 +35,7 @@ export default function CommunityEditor({
   selectedGenres = [],
   onSelectedGenresChange,
   addGenresWhenEmpty = false,
+  bottomAction = null,
 }) {
   const [genreSheetVisible, setGenreSheetVisible] = useState(false);
   const [genreSheetDraft, setGenreSheetDraft] = useState([]);
@@ -143,6 +144,7 @@ export default function CommunityEditor({
             placeholder=""
             placeholderTextColor="#81876D"
           />
+          {bottomAction ? <View style={styles.bottomActionWrap}>{bottomAction}</View> : null}
         </View>
       </ScrollView>
 
@@ -286,5 +288,9 @@ const styles = StyleSheet.create({
   descriptionInput: {
     minHeight: 450,
     marginBottom: 12,
+  },
+  bottomActionWrap: {
+    marginTop: 8,
+    marginBottom: 8,
   },
 });

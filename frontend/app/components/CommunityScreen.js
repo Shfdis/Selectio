@@ -18,6 +18,9 @@ export default function CommunityScreenLayout({
   onPressBack,
   onPressSettings,
   renderActionArea,
+  canDeletePosts = false,
+  onPressDeletePost,
+  deletingPostId = null,
 }) {
   const scrollRef = useRef(null);
 
@@ -41,6 +44,9 @@ export default function CommunityScreenLayout({
         ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        nestedScrollEnabled
+        directionalLockEnabled
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerGreenBlock}>
@@ -102,6 +108,9 @@ export default function CommunityScreenLayout({
               initialComments={p.initialComments}
               initiallyLiked={p.initiallyLiked}
               initiallyBookmarked={p.initiallyBookmarked}
+              canDelete={canDeletePosts}
+              onPressDelete={() => onPressDeletePost?.(p)}
+              deleteDisabled={deletingPostId != null && Number(deletingPostId) === Number(p.id)}
             />
           ))}
         </View>
