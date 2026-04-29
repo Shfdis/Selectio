@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useIsFocused } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import HorizontalCoverSection from './HorizontalCoverSection';
 import { useGetPopularBooksQuery, useGetRecommendedBooksQuery } from '../slices/booksSlice';
@@ -12,13 +11,13 @@ export default function RecommendedBooksSection({
   style,
   pageSize = 20,
 }) {
-  const isFocused = useIsFocused();
   const libraryChangeVersion = useSelector(selectLibraryChangeVersion);
   const [booksPage, setBooksPage] = useState(1);
   const [booksForRecommendations, setBooksForRecommendations] = useState([]);
   const [hasMoreBooks, setHasMoreBooks] = useState(true);
   const appendedPageNumbersRef = useRef(new Set());
   const isLoadingMoreRef = useRef(false);
+  const prevLibraryVersionRef = useRef(libraryChangeVersion);
   const [forceRefetchOnPageOne, setForceRefetchOnPageOne] = useState(false);
   const [scrollResetSignal, setScrollResetSignal] = useState(0);
 
@@ -40,21 +39,14 @@ export default function RecommendedBooksSection({
   });
 
   useEffect(() => {
-    if (!isFocused) {
-      return;
-    }
-    setBooksPage(1);
-    setHasMoreBooks(true);
-    appendedPageNumbersRef.current = new Set();
-    isLoadingMoreRef.current = false;
-  }, [isFocused]);
-
-  useEffect(() => {
     if (libraryChangeVersion <= 0) {
       return;
     }
+    if (libraryChangeVersion === prevLibraryVersionRef.current) {
+      return;
+    }
+    prevLibraryVersionRef.current = libraryChangeVersion;
     setBooksPage(1);
-    setBooksForRecommendations([]);
     setHasMoreBooks(true);
     appendedPageNumbersRef.current = new Set();
     isLoadingMoreRef.current = false;

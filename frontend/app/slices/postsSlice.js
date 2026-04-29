@@ -76,7 +76,7 @@ export const postsApi = userApi.injectEndpoints({
   endpoints: (builder) => ({
     getRecommendedPosts: builder.query({
       query: ({ page = 1, pageSize = 20 } = {}) => ({
-        url: "/api/posts/recommended",
+        url: "/api/users/me/feed",
         params: { page, pageSize },
       }),
       providesTags: (result = []) => [
