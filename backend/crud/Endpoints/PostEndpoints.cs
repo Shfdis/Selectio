@@ -308,23 +308,8 @@ public static class PostEndpoints
             .AsNoTracking()
             .Where(seen => seen.UserId == userId && seen.SeenAt < cutoff)
             .Select(seen => seen.PostId);
-        var liked = db.PostLikes
-            .AsNoTracking()
-            .Where(like => like.UserId == userId)
-            .Select(like => like.PostId);
-        var favorited = db.FavoritePosts
-            .AsNoTracking()
-            .Where(favorite => favorite.UserId == userId)
-            .Select(favorite => favorite.PostId);
-        var commented = db.PostComments
-            .AsNoTracking()
-            .Where(comment => comment.AuthorUserId == userId)
-            .Select(comment => comment.PostId);
 
         return await staleSeen
-            .Concat(liked)
-            .Concat(favorited)
-            .Concat(commented)
             .Distinct()
             .ToListAsync(cancellationToken);
     }

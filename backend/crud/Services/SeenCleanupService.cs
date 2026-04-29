@@ -37,9 +37,17 @@ public sealed class SeenCleanupService(IServiceScopeFactory scopeFactory, ILogge
 
         var removedPosts = await db.SeenPosts
             .Where(x => x.SeenAt < cutoff)
+            .Where(x =>
+                !db.PostLikes.Any(l => l.UserId == x.UserId && l.PostId == x.PostId) &&
+                !db.FavoritePosts.Any(f => f.UserId == x.UserId && f.PostId == x.PostId) &&
+                !db.PostComments.Any(c => c.AuthorUserId == x.UserId && c.PostId == x.PostId) &&
+                !db.Posts.Any(p => p.AuthorUserId == x.UserId && p.Id == x.PostId))
             .ExecuteDeleteAsync(cancellationToken);
         var removedBooks = await db.SeenBooks
             .Where(x => x.SeenAt < cutoff)
+            .Where(x =>
+                !db.UserBooks.Any(ub => ub.UserId == x.UserId && ub.BookId == x.BookId) &&
+                !db.BookComments.Any(c => c.AuthorUserId == x.UserId && c.BookId == x.BookId))
             .ExecuteDeleteAsync(cancellationToken);
 
         if (removedPosts > 0 || removedBooks > 0)

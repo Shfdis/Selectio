@@ -261,22 +261,12 @@ public static class BookEndpoints
         CancellationToken cancellationToken = default)
     {
         var cutoff = DateTime.UtcNow.Subtract(SeenTtl);
-        var inLibrary = db.UserBooks
-            .AsNoTracking()
-            .Where(ub => ub.UserId == userId)
-            .Select(ub => ub.BookId);
-        var reviewed = db.BookComments
-            .AsNoTracking()
-            .Where(comment => comment.AuthorUserId == userId)
-            .Select(comment => comment.BookId);
         var staleSeen = db.SeenBooks
             .AsNoTracking()
             .Where(seen => seen.UserId == userId && seen.SeenAt < cutoff)
             .Select(seen => seen.BookId);
 
-        return await inLibrary
-            .Concat(reviewed)
-            .Concat(staleSeen)
+        return await staleSeen
             .Distinct()
             .ToListAsync(cancellationToken);
     }

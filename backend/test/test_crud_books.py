@@ -218,26 +218,6 @@ class TestCrudBooks:
         finally:
             self._cleanup_seen_book(user_id, book_id)
 
-    def test_recommended_books_excludes_reviewed_books(self, crud_base_url):
-        user_id = 8612
-        headers = {"X-User-Id": str(user_id)}
-        books = requests.get(f"{crud_base_url}/api/books", timeout=5).json()
-        assert books
-        book_id = int(books[0]["id"])
-
-        review = requests.post(
-            f"{crud_base_url}/api/books/{book_id}/comments",
-            headers=headers,
-            json={"content": "reviewed", "rating": 5},
-            timeout=5,
-        )
-        assert review.status_code == 200, review.text
-
-        resp = requests.get(f"{crud_base_url}/api/books/recommended", headers=headers, timeout=5)
-        assert resp.status_code == 200
-        ids = {int(x["id"]) for x in resp.json()}
-        assert book_id not in ids
-
     def test_average_rating_from_comments_rounded_one_decimal(self, crud_base_url):
         title = "AvgRatingSeedBook"
         self._seed_book(title, "TestGenre", "Other", 50)

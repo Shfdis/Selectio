@@ -256,9 +256,9 @@ class TestCrudPosts:
         assert row["favoritedByCurrentUser"] is True
         assert row["likeCount"] >= 1
 
-        # Liked/favorited posts are permanently excluded from personalized feed.
+        # Interacted posts are not permanently excluded from feed.
         feed = requests.get(f"{crud_base_url}/api/users/me/feed", headers=headers, timeout=5).json()
-        assert all(p["id"] != post_id for p in feed)
+        assert any(p["id"] == post_id for p in feed)
 
     def test_recommended_posts_excludes_seen_posts(self, crud_base_url):
         user_id = 8101
@@ -291,44 +291,22 @@ class TestCrudPosts:
             timeout=5,
         ).raise_for_status()
 
-        liked_post_id = self._create_post(
-            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(1, len(book_ids) - 1)], content="liked"
-        )
-        favorited_post_id = self._create_post(
-            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(2, len(book_ids) - 1)], content="favorited"
-        )
-        commented_post_id = self._create_post(
-            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(3, len(book_ids) - 1)], content="commented"
+        recent_seen_post_id = self._create_post(
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(1, len(book_ids) - 1)], content="recent-seen"
         )
         stale_seen_post_id = self._create_post(
-            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(4, len(book_ids) - 1)], content="stale-seen"
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(2, len(book_ids) - 1)], content="stale-seen"
         )
-
-        assert requests.post(
-            f"{crud_base_url}/api/posts/{liked_post_id}/like",
-            headers=user_headers,
-            timeout=5,
-        ).status_code == 200
-        assert requests.post(
-            f"{crud_base_url}/api/posts/{favorited_post_id}/favorite",
-            headers=user_headers,
-            timeout=5,
-        ).status_code == 200
-        assert requests.post(
-            f"{crud_base_url}/api/posts/{commented_post_id}/comments",
-            headers=user_headers,
-            json={"content": "seen by comment"},
-            timeout=5,
-        ).status_code == 200
+        self._seed_seen_post(user_id, recent_seen_post_id, "NOW()")
 
         self._seed_seen_post(user_id, stale_seen_post_id, "NOW() - INTERVAL '48 hours'")
         try:
             rec = requests.get(f"{crud_base_url}/api/posts/recommended", headers=user_headers, timeout=5)
             assert rec.status_code == 200
             rec_ids = {int(p["id"]) for p in rec.json()}
-            seen_ids = {liked_post_id, favorited_post_id, commented_post_id, stale_seen_post_id}
-            assert rec_ids.isdisjoint(seen_ids)
+            assert stale_seen_post_id not in rec_ids
         finally:
+            self._cleanup_seen_post(user_id, recent_seen_post_id)
             self._cleanup_seen_post(user_id, stale_seen_post_id)
 
     def test_feed_keeps_recently_seen_posts(self, crud_base_url):
@@ -410,7 +388,7 @@ class TestCrudPosts:
         assert other_post_id not in rec_ids
         assert all(int(p["communityId"]) == joined_community_id for p in items)
 
-    def test_feed_excludes_liked_commented_favorited_posts(self, crud_base_url):
+    def test_feed_keeps_liked_commented_favorited_posts(self, crud_base_url):
         user_id = 8401
         author_id = 8402
         user_headers = {"X-User-Id": str(user_id)}
@@ -440,9 +418,9 @@ class TestCrudPosts:
         feed = requests.get(f"{crud_base_url}/api/users/me/feed", headers=user_headers, timeout=5)
         assert feed.status_code == 200
         feed_ids = {int(p["id"]) for p in feed.json()}
-        assert liked_post_id not in feed_ids
-        assert favorited_post_id not in feed_ids
-        assert commented_post_id not in feed_ids
+        assert liked_post_id in feed_ids
+        assert favorited_post_id in feed_ids
+        assert commented_post_id in feed_ids
 
 
 if __name__ == "__main__":
