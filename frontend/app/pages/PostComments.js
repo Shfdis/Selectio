@@ -1,7 +1,9 @@
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Image,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -10,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenHeader from '../components/ScreenHeader';
@@ -25,6 +27,72 @@ import {
   useUpdatePostCommentMutation,
   useUnlikePostCommentMutation,
 } from '../slices/postsSlice';
+
+/**
+ * Android + app.json softwareKeyboardLayoutMode: resize — окно уже сжимается под IME.
+ * Добавлять полную высоту клавиатуры как padding снизу даёт двойной зазор (полоска).
+ * Нужен только «недостающий» отступ: max(0, kbH − (hBefore − hNow)).
+ */
+function useAndroidKeyboardOverlapPadding() {
+  const [padBottom, setPadBottom] = useState(0);
+  const windowHeightBeforeKeyboardRef = useRef(Dimensions.get('window').height);
+  const keyboardOpenRef = useRef(false);
+  /** Высота IME из последнего keyboardDidShow — для повторного пересчёта при позднем resize окна */
+  const lastKeyboardHeightRef = useRef(0);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    const computePad = () => {
+      const kbH = lastKeyboardHeightRef.current;
+      if (kbH <= 0) {
+        return;
+      }
+      const hNow = Dimensions.get('window').height;
+      const snapshotBefore = windowHeightBeforeKeyboardRef.current;
+      const shrunkBy = Math.max(0, snapshotBefore - hNow);
+      setPadBottom(Math.max(0, kbH - shrunkBy));
+    };
+
+    const syncBaselineFromWindow = () => {
+      windowHeightBeforeKeyboardRef.current = Dimensions.get('window').height;
+    };
+
+    const onKeyboardShow = (e) => {
+      keyboardOpenRef.current = true;
+      lastKeyboardHeightRef.current = Math.max(0, e?.endCoordinates?.height ?? 0);
+      const apply = () => computePad();
+      requestAnimationFrame(() => requestAnimationFrame(apply));
+    };
+
+    const onKeyboardHide = () => {
+      keyboardOpenRef.current = false;
+      lastKeyboardHeightRef.current = 0;
+      setPadBottom(0);
+      requestAnimationFrame(syncBaselineFromWindow);
+    };
+
+    const dimSub = Dimensions.addEventListener('change', ({ window }) => {
+      if (!keyboardOpenRef.current) {
+        windowHeightBeforeKeyboardRef.current = window.height;
+      } else {
+        computePad();
+      }
+    });
+
+    const showSub = Keyboard.addListener('keyboardDidShow', onKeyboardShow);
+    const hideSub = Keyboard.addListener('keyboardDidHide', onKeyboardHide);
+    return () => {
+      dimSub.remove();
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  return Platform.OS === 'android' ? padBottom : 0;
+}
 
 const defaultAvatar = require('../assets/icons/profile-avatar.png');
 
@@ -189,6 +257,7 @@ function ThreadCommentItem({
 
 export default function PostComments() {
   const insets = useSafeAreaInsets();
+  const androidKbOverlapPad = useAndroidKeyboardOverlapPadding();
   const navigation = useNavigation();
   const route = useRoute();
   const postId = Number(route?.params?.postId);
@@ -274,6 +343,70 @@ export default function PostComments() {
     }
   };
 
+  const commentsBody = (
+    <>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={false}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+      >
+        {isLoadingComments ? (
+          <View style={styles.loaderWrap}>
+            <ActivityIndicator size="large" color="#555C40" />
+          </View>
+        ) : null}
+        {!isLoadingComments && threadComments.length === 0 ? (
+          <Text style={styles.emptyText}>Комментариев пока нет</Text>
+        ) : null}
+        {threadComments.map((c, index) => (
+          <ThreadCommentItem
+            key={c.id}
+            commentId={c.commentId}
+            authorUserId={c.authorUserId}
+            username={c.username}
+            dateText={c.dateText}
+            text={c.text}
+            avatarUri={c.avatarUri}
+            initialLikes={c.likes}
+            initiallyLiked={c.liked}
+            isMine={Number.isFinite(currentUserId) && c.authorUserId === currentUserId}
+            onPressEdit={() => onPressEditComment(c)}
+            onPressSaveEdit={(nextText) => onPressSaveEditComment(c, nextText)}
+            onPressCancelEdit={() => setEditingCommentId(null)}
+            onPressDelete={() => onPressDeleteComment(c)}
+            isEditing={editingCommentId === c.commentId}
+            controlsDisabled={isBusy}
+            isLast={index === threadComments.length - 1}
+          />
+        ))}
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: 8 + insets.bottom }]}>
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="Ваш комментарий"
+          placeholderTextColor="#565d3f"
+          textAlign="left"
+          textAlignVertical="top"
+          style={styles.footerInput}
+          editable={!isBusy}
+        />
+        <Pressable
+          style={[styles.sendButton, !canSend ? styles.sendButtonDisabled : null]}
+          onPress={onPressSend}
+          hitSlop={10}
+          disabled={!canSend}
+        >
+          <Image source={require('../assets/icons/icon_send.png')} style={styles.sendIcon} resizeMode="contain" />
+        </Pressable>
+      </View>
+    </>
+  );
+
   return (
     <View style={styles.screen}>
       <ScreenHeader
@@ -282,67 +415,20 @@ export default function PostComments() {
         showConfirmButton={false}
       />
 
-      <KeyboardAvoidingBox style={styles.flex} enabled keyboardVerticalOffset={0}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          showsVerticalScrollIndicator={false}
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+      {Platform.OS === 'android' ? (
+        <View
+          style={[
+            styles.flex,
+            androidKbOverlapPad > 0 ? { paddingBottom: androidKbOverlapPad } : null,
+          ]}
         >
-          {isLoadingComments ? (
-            <View style={styles.loaderWrap}>
-              <ActivityIndicator size="large" color="#555C40" />
-            </View>
-          ) : null}
-          {!isLoadingComments && threadComments.length === 0 ? (
-            <Text style={styles.emptyText}>Комментариев пока нет</Text>
-          ) : null}
-          {threadComments.map((c, index) => (
-            <ThreadCommentItem
-              key={c.id}
-              commentId={c.commentId}
-              authorUserId={c.authorUserId}
-              username={c.username}
-              dateText={c.dateText}
-              text={c.text}
-              avatarUri={c.avatarUri}
-              initialLikes={c.likes}
-              initiallyLiked={c.liked}
-              isMine={Number.isFinite(currentUserId) && c.authorUserId === currentUserId}
-              onPressEdit={() => onPressEditComment(c)}
-              onPressSaveEdit={(nextText) => onPressSaveEditComment(c, nextText)}
-              onPressCancelEdit={() => setEditingCommentId(null)}
-              onPressDelete={() => onPressDeleteComment(c)}
-              isEditing={editingCommentId === c.commentId}
-              controlsDisabled={isBusy}
-              isLast={index === threadComments.length - 1}
-            />
-          ))}
-        </ScrollView>
-
-        <View style={[styles.footer, { paddingBottom: 8 + insets.bottom }]}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Ваш комментарий"
-            placeholderTextColor="#565d3f"
-            textAlign="left"
-            textAlignVertical="top"
-            style={styles.footerInput}
-            editable={!isBusy}
-          />
-          <Pressable
-            style={[styles.sendButton, !canSend ? styles.sendButtonDisabled : null]}
-            onPress={onPressSend}
-            hitSlop={10}
-            disabled={!canSend}
-          >
-            <Image source={require('../assets/icons/icon_send.png')} style={styles.sendIcon} resizeMode="contain" />
-          </Pressable>
+          {commentsBody}
         </View>
-      </KeyboardAvoidingBox>
+      ) : (
+        <KeyboardAvoidingBox style={styles.flex} enabled keyboardVerticalOffset={0}>
+          {commentsBody}
+        </KeyboardAvoidingBox>
+      )}
     </View>
   );
 }

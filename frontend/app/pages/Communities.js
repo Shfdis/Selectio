@@ -1,4 +1,5 @@
-import { View, StyleSheet, ScrollView, Keyboard } from 'react-native';
+import { View, StyleSheet, Keyboard } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import HorizontalCoverSection from '../components/HorizontalCoverSection';

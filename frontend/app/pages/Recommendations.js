@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import StickyTitleBar from '../components/StickyTitleBar';
 import RecommendedBooksSection from '../components/RecommendedBooksSection';
