@@ -13,8 +13,6 @@ namespace crud.Endpoints;
 
 public static class BookEndpoints
 {
-    private static readonly TimeSpan SeenTtl = TimeSpan.FromDays(1);
-
     public static IEndpointRouteBuilder MapBookEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/books").WithTags("Books");
@@ -50,7 +48,7 @@ public static class BookEndpoints
 
             var (p, ps) = NormalizePagination(page, pageSize);
             var userEmb = await EmbeddingService.GetUserEmbeddingAsync(db, userId, cancellationToken);
-            var excludeBookIds = await BuildExcludeBookIdsAsync(db, userId, cancellationToken);
+            var excludeBookIds = await SeenTracking.GetStaleSeenBookIdsAsync(db, userId, cancellationToken);
 
             if (userEmb is null)
             {
@@ -72,8 +70,9 @@ public static class BookEndpoints
 
             var books = await db.Books.Where(b => ids.Contains(b.Id)).ToListAsync(cancellationToken);
             var ordered = ids.Select(id => books.First(b => b.Id == id)).ToList();
-            await MarkBooksSeenAsync(db, userId, ordered.Select(x => x.Id).ToList(), cancellationToken);
-            return Results.Ok(await MapBooksToDtosAsync(db, ordered, userId, cancellationToken));
+            var dtos = await MapBooksToDtosAsync(db, ordered, userId, cancellationToken);
+            await SeenTracking.MarkBooksSeenAsync(db, userId, ordered.Select(b => b.Id), cancellationToken);
+            return Results.Ok(dtos);
         });
 
         group.MapGet("/popular-by-genre", async (HttpContext http, CrudDbContext db, string? genre, int? page, int? pageSize, CancellationToken cancellationToken) =>
@@ -253,46 +252,6 @@ public static class BookEndpoints
         if (ps > 100) ps = 100;
 
         return (p, ps);
-    }
-
-    private static async Task<List<int>> BuildExcludeBookIdsAsync(
-        CrudDbContext db,
-        int userId,
-        CancellationToken cancellationToken = default)
-    {
-        var cutoff = DateTime.UtcNow.Subtract(SeenTtl);
-        var staleSeen = db.SeenBooks
-            .AsNoTracking()
-            .Where(seen => seen.UserId == userId && seen.SeenAt < cutoff)
-            .Select(seen => seen.BookId);
-
-        return await staleSeen
-            .Distinct()
-            .ToListAsync(cancellationToken);
-    }
-
-    private static async Task MarkBooksSeenAsync(
-        CrudDbContext db,
-        int userId,
-        IReadOnlyList<int> bookIds,
-        CancellationToken cancellationToken = default)
-    {
-        if (bookIds.Count == 0)
-        {
-            return;
-        }
-
-        var now = DateTime.UtcNow;
-        var distinct = bookIds.Distinct().ToArray();
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            INSERT INTO crud."SeenBooks" ("UserId","BookId","SeenAt")
-            SELECT {userId}, b, {now}
-            FROM unnest({distinct}) AS b
-            ON CONFLICT ("UserId","BookId")
-            DO UPDATE SET "SeenAt" = EXCLUDED."SeenAt";
-            """,
-            cancellationToken);
     }
 }
 

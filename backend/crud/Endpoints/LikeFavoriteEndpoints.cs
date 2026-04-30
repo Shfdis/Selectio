@@ -2,6 +2,7 @@ using crud.Contracts;
 using crud.Data;
 using crud.Entities;
 using crud.Infrastructure;
+using crud.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -38,6 +39,8 @@ public static class LikeFavoriteEndpoints
                 await db.SaveChangesAsync();
             }
 
+            await SeenTracking.UpsertSeenPostAsync(db, userId, id, DateTime.UtcNow);
+
             return Results.Ok(new { postId = id, userId, liked = true });
         })
         .WithSummary("Like a post")
@@ -62,6 +65,8 @@ public static class LikeFavoriteEndpoints
                 db.PostLikes.Remove(like);
                 await db.SaveChangesAsync();
             }
+
+            await SeenTracking.UpsertSeenPostAsync(db, userId, id, DateTime.UtcNow);
 
             return Results.Ok(new { postId = id, userId, liked = false });
         })
@@ -96,6 +101,8 @@ public static class LikeFavoriteEndpoints
                 await db.SaveChangesAsync();
             }
 
+            await SeenTracking.UpsertSeenPostAsync(db, userId, id, DateTime.UtcNow);
+
             return Results.Ok(new { postId = id, userId, favorited = true });
         })
         .WithSummary("Favorite a post")
@@ -120,6 +127,8 @@ public static class LikeFavoriteEndpoints
                 db.FavoritePosts.Remove(fav);
                 await db.SaveChangesAsync();
             }
+
+            await SeenTracking.UpsertSeenPostAsync(db, userId, id, DateTime.UtcNow);
 
             return Results.Ok(new { postId = id, userId, favorited = false });
         })

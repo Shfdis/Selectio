@@ -160,8 +160,8 @@ public class CrudDbContext : DbContext
             e.HasKey(x => new { x.UserId, x.PostId });
             e.Property(x => x.SeenAt).IsRequired();
             e.HasOne(x => x.Post).WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => new { x.UserId, x.SeenAt });
-            e.HasIndex(x => x.PostId);
+            e.HasIndex(x => x.PostId).HasDatabaseName("IX_SeenPosts_PostId");
+            e.HasIndex(x => new { x.UserId, x.SeenAt }).HasDatabaseName("IX_SeenPosts_UserId_SeenAt");
         });
 
         modelBuilder.Entity<SeenBook>(e =>
@@ -169,8 +169,8 @@ public class CrudDbContext : DbContext
             e.HasKey(x => new { x.UserId, x.BookId });
             e.Property(x => x.SeenAt).IsRequired();
             e.HasOne(x => x.Book).WithMany().HasForeignKey(x => x.BookId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => new { x.UserId, x.SeenAt });
-            e.HasIndex(x => x.BookId);
+            e.HasIndex(x => x.BookId).HasDatabaseName("IX_SeenBooks_BookId");
+            e.HasIndex(x => new { x.UserId, x.SeenAt }).HasDatabaseName("IX_SeenBooks_UserId_SeenAt");
         });
     }
 }

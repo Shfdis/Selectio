@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import requests
-import subprocess
 import uuid
 
 
@@ -30,26 +29,6 @@ def _assert_post_feed_item(item: dict) -> None:
 
 
 class TestCrudPosts:
-    @staticmethod
-    def _seed_seen_post(user_id: int, post_id: int, seen_at_sql: str) -> None:
-        cmd = [
-            "docker", "exec", "selectio_postgres",
-            "psql", "-U", "postgres", "-d", "selectio_main", "-c",
-            f'INSERT INTO crud."SeenPosts" ("UserId","PostId","SeenAt") '
-            f"VALUES ({user_id},{post_id},{seen_at_sql}) "
-            f'ON CONFLICT ("UserId","PostId") DO UPDATE SET "SeenAt"=EXCLUDED."SeenAt";'
-        ]
-        subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
-
-    @staticmethod
-    def _cleanup_seen_post(user_id: int, post_id: int) -> None:
-        cmd = [
-            "docker", "exec", "selectio_postgres",
-            "psql", "-U", "postgres", "-d", "selectio_main", "-c",
-            f'DELETE FROM crud."SeenPosts" WHERE "UserId"={user_id} AND "PostId"={post_id};'
-        ]
-        subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
-
     def _get_first_book_id(self, crud_base_url: str) -> int:
         r = requests.get(f"{crud_base_url}/api/books", timeout=5)
         r.raise_for_status()
@@ -186,7 +165,7 @@ class TestCrudPosts:
         r = requests.get(f"{crud_base_url}/api/users/me/feed", timeout=5)
         assert r.status_code == 401
 
-    def test_feed_includes_all_community_posts(self, crud_base_url):
+    def test_feed_prioritizes_subscribed_communities_then_other_communities(self, crud_base_url):
         user_id = 8001
         headers = {"X-User-Id": str(user_id)}
         author_id = 8003
@@ -223,6 +202,10 @@ class TestCrudPosts:
         assert any(p["id"] == subscribed_post_id for p in items)
         assert any(p["id"] == other_post_id for p in items)
 
+        subscribed_idx = next(i for i, post in enumerate(items) if post["id"] == subscribed_post_id)
+        other_idx = next(i for i, post in enumerate(items) if post["id"] == other_post_id)
+        assert subscribed_idx < other_idx
+
         for post in items:
             if post["id"] in (subscribed_post_id, other_post_id):
                 _assert_post_feed_item(post)
@@ -256,7 +239,7 @@ class TestCrudPosts:
         assert row["favoritedByCurrentUser"] is True
         assert row["likeCount"] >= 1
 
-        # Interacted posts are not permanently excluded from feed.
+        # Recently seen posts (within 24h) are still shown in personalized feed.
         feed = requests.get(f"{crud_base_url}/api/users/me/feed", headers=headers, timeout=5).json()
         assert any(p["id"] == post_id for p in feed)
 
@@ -291,23 +274,41 @@ class TestCrudPosts:
             timeout=5,
         ).raise_for_status()
 
-        recent_seen_post_id = self._create_post(
-            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(1, len(book_ids) - 1)], content="recent-seen"
+        authored_post_id = self._create_post(
+            crud_base_url, author_id=user_id, community_id=community_id, book_id=book_ids[0], content="authored"
         )
-        stale_seen_post_id = self._create_post(
-            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(2, len(book_ids) - 1)], content="stale-seen"
+        liked_post_id = self._create_post(
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(1, len(book_ids) - 1)], content="liked"
         )
-        self._seed_seen_post(user_id, recent_seen_post_id, "NOW()")
+        favorited_post_id = self._create_post(
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(2, len(book_ids) - 1)], content="favorited"
+        )
+        commented_post_id = self._create_post(
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(3, len(book_ids) - 1)], content="commented"
+        )
 
-        self._seed_seen_post(user_id, stale_seen_post_id, "NOW() - INTERVAL '48 hours'")
-        try:
-            rec = requests.get(f"{crud_base_url}/api/posts/recommended", headers=user_headers, timeout=5)
-            assert rec.status_code == 200
-            rec_ids = {int(p["id"]) for p in rec.json()}
-            assert stale_seen_post_id not in rec_ids
-        finally:
-            self._cleanup_seen_post(user_id, recent_seen_post_id)
-            self._cleanup_seen_post(user_id, stale_seen_post_id)
+        assert requests.post(
+            f"{crud_base_url}/api/posts/{liked_post_id}/like",
+            headers=user_headers,
+            timeout=5,
+        ).status_code == 200
+        assert requests.post(
+            f"{crud_base_url}/api/posts/{favorited_post_id}/favorite",
+            headers=user_headers,
+            timeout=5,
+        ).status_code == 200
+        assert requests.post(
+            f"{crud_base_url}/api/posts/{commented_post_id}/comments",
+            headers=user_headers,
+            json={"content": "seen by comment"},
+            timeout=5,
+        ).status_code == 200
+
+        rec = requests.get(f"{crud_base_url}/api/posts/recommended", headers=user_headers, timeout=5)
+        assert rec.status_code == 200
+        rec_ids = {int(p["id"]) for p in rec.json()}
+        seen_ids = {authored_post_id, liked_post_id, favorited_post_id, commented_post_id}
+        assert rec_ids.isdisjoint(seen_ids)
 
     def test_feed_keeps_recently_seen_posts(self, crud_base_url):
         user_id = 8201
@@ -338,86 +339,40 @@ class TestCrudPosts:
             timeout=5,
         ).raise_for_status()
 
-        recent_seen_post_id = self._create_post(
+        unseen_post_id = self._create_post(
             crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(1, len(book_ids) - 1)], content="unseen-feed"
         )
-        stale_seen_post_id = self._create_post(
-            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(2, len(book_ids) - 1)], content="stale-seen-feed"
+        liked_post_id = self._create_post(
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(2, len(book_ids) - 1)], content="seen-like-feed"
         )
-        self._seed_seen_post(user_id, recent_seen_post_id, "NOW()")
-        self._seed_seen_post(user_id, stale_seen_post_id, "NOW() - INTERVAL '48 hours'")
-        try:
-            feed = requests.get(f"{crud_base_url}/api/users/me/feed", headers=user_headers, timeout=5)
-            assert feed.status_code == 200
-            feed_ids = {int(p["id"]) for p in feed.json()}
-            assert recent_seen_post_id in feed_ids
-            assert stale_seen_post_id not in feed_ids
-        finally:
-            self._cleanup_seen_post(user_id, recent_seen_post_id)
-            self._cleanup_seen_post(user_id, stale_seen_post_id)
-
-    def test_recommended_posts_only_from_subscribed_communities(self, crud_base_url):
-        user_id = 8301
-        user_headers = {"X-User-Id": str(user_id)}
-        author_a = 8302
-        author_b = 8303
-        book_id = self._get_first_book_id(crud_base_url)
+        favorited_post_id = self._create_post(
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(3, len(book_ids) - 1)], content="seen-fav-feed"
+        )
+        commented_post_id = self._create_post(
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(4, len(book_ids) - 1)], content="seen-comment-feed"
+        )
 
         assert requests.post(
-            f"{crud_base_url}/api/books/{book_id}/library",
+            f"{crud_base_url}/api/posts/{liked_post_id}/like",
             headers=user_headers,
-            json={"status": "Read"},
             timeout=5,
         ).status_code == 200
-
-        joined_community_id = self._create_community(crud_base_url, owner_id=author_a)
-        other_community_id = self._create_community(crud_base_url, owner_id=author_b)
-        requests.post(
-            f"{crud_base_url}/api/communities/{joined_community_id}/join",
-            headers=user_headers,
-            timeout=5,
-        ).raise_for_status()
-
-        joined_post_id = self._create_post(crud_base_url, author_a, joined_community_id, book_id, "joined-community")
-        other_post_id = self._create_post(crud_base_url, author_b, other_community_id, book_id, "other-community")
-
-        rec = requests.get(f"{crud_base_url}/api/posts/recommended", headers=user_headers, timeout=5)
-        assert rec.status_code == 200
-        items = rec.json()
-        rec_ids = {int(p["id"]) for p in items}
-        assert other_post_id not in rec_ids
-        assert all(int(p["communityId"]) == joined_community_id for p in items)
-
-    def test_feed_keeps_liked_commented_favorited_posts(self, crud_base_url):
-        user_id = 8401
-        author_id = 8402
-        user_headers = {"X-User-Id": str(user_id)}
-        book_id = self._get_first_book_id(crud_base_url)
-
         assert requests.post(
-            f"{crud_base_url}/api/books/{book_id}/library",
+            f"{crud_base_url}/api/posts/{favorited_post_id}/favorite",
             headers=user_headers,
-            json={"status": "Read"},
             timeout=5,
         ).status_code == 200
-
-        community_id = self._create_community(crud_base_url, owner_id=author_id)
-        liked_post_id = self._create_post(crud_base_url, author_id, community_id, book_id, "liked-feed")
-        favorited_post_id = self._create_post(crud_base_url, author_id, community_id, book_id, "favorited-feed")
-        commented_post_id = self._create_post(crud_base_url, author_id, community_id, book_id, "commented-feed")
-
-        assert requests.post(f"{crud_base_url}/api/posts/{liked_post_id}/like", headers=user_headers, timeout=5).status_code == 200
-        assert requests.post(f"{crud_base_url}/api/posts/{favorited_post_id}/favorite", headers=user_headers, timeout=5).status_code == 200
         assert requests.post(
             f"{crud_base_url}/api/posts/{commented_post_id}/comments",
             headers=user_headers,
-            json={"content": "comment"},
+            json={"content": "seen"},
             timeout=5,
         ).status_code == 200
 
         feed = requests.get(f"{crud_base_url}/api/users/me/feed", headers=user_headers, timeout=5)
         assert feed.status_code == 200
         feed_ids = {int(p["id"]) for p in feed.json()}
+        assert unseen_post_id in feed_ids
         assert liked_post_id in feed_ids
         assert favorited_post_id in feed_ids
         assert commented_post_id in feed_ids

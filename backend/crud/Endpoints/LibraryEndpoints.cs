@@ -2,6 +2,7 @@ using crud.Contracts;
 using crud.Data;
 using crud.Entities;
 using crud.Infrastructure;
+using crud.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -38,6 +39,8 @@ public static class LibraryEndpoints
                 await db.SaveChangesAsync();
             }
 
+            await SeenTracking.UpsertSeenBookAsync(db, userId, id, DateTime.UtcNow);
+
             return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status, userBook.AddedAt));
         })
         .WithTags("Library")
@@ -64,6 +67,8 @@ public static class LibraryEndpoints
             userBook.Status = body.Status;
             await db.SaveChangesAsync();
 
+            await SeenTracking.UpsertSeenBookAsync(db, userId, id, DateTime.UtcNow);
+
             return Results.Ok(new UserLibraryStateDto(userBook.UserId, userBook.BookId, userBook.Status, userBook.AddedAt));
         })
         .WithTags("Library")
@@ -86,6 +91,8 @@ public static class LibraryEndpoints
 
             db.UserBooks.Remove(userBook);
             await db.SaveChangesAsync();
+
+            await SeenTracking.UpsertSeenBookAsync(db, userId, id, DateTime.UtcNow);
 
             return Results.Ok(new LibraryRemovedDto("removed"));
         })
@@ -119,7 +126,6 @@ public static class LibraryEndpoints
                     x.b.Author,
                     x.b.Description,
                     x.b.Genre,
-                    x.b.SecondGenre,
                     x.b.CoverUrl,
                     x.ub.Status,
                     x.ub.AddedAt

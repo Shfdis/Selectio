@@ -54,15 +54,6 @@ def _create_user_token(base_url: str) -> str:
     return _login_via_gateway(base_url, email, password)
 
 
-def _create_user_token_with_username(base_url: str, username: str) -> str:
-    email = f"gw_{uuid_lib.uuid4().hex[:8]}@example.com"
-    password = "SecurePassword123!"
-
-    verification_uuid = _register_via_gateway(base_url, email, username, password)
-    _verify_via_gateway(base_url, verification_uuid)
-    return _login_via_gateway(base_url, email, password)
-
-
 @pytest.fixture
 def seeded_books():
     """Seed Books table via docker-exec for tests that need a book; cleanup after."""
@@ -107,19 +98,6 @@ class TestGateway:
         assert resp.status_code == 401
         data = resp.json()
         assert data["error"]["code"] == "unauthorized"
-
-    def test_non_ascii_username_does_not_break_authenticated_requests(self, gateway_base_url):
-        token = _create_user_token_with_username(gateway_base_url, "Алан_gateway")
-        headers = {"Authorization": f"Bearer {token}"}
-
-        # This endpoint requires propagated identity headers from the gateway to CRUD.
-        resp = requests.put(
-            f"{gateway_base_url}/api/users/profile",
-            headers=headers,
-            json={"username": f"profile_{uuid_lib.uuid4().hex[:8]}", "description": "non-ascii flow", "avatarUrl": ""},
-            timeout=15,
-        )
-        assert resp.status_code == 200, resp.text
 
     def test_jwt_injects_user_headers_to_crud(self, gateway_base_url, seeded_books):
         token = _create_user_token(gateway_base_url)

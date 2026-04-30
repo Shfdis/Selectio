@@ -62,6 +62,8 @@ public static class CommentEndpoints
             db.PostComments.Add(comment);
             await db.SaveChangesAsync(cancellationToken);
 
+            await SeenTracking.UpsertSeenPostAsync(db, userId, id, DateTime.UtcNow, cancellationToken);
+
             var names = await CommentAuthorNames.ResolveAsync(db, new[] { userId }, cancellationToken);
             var dto = new PostCommentDto(comment.Id, comment.PostId, comment.AuthorUserId, names[userId], comment.Content, comment.CreatedAt, 0, false);
             return Results.Ok(dto);
@@ -87,6 +89,8 @@ public static class CommentEndpoints
 
             comment.Content = body.Content!.Trim();
             await db.SaveChangesAsync(cancellationToken);
+
+            await SeenTracking.UpsertSeenPostAsync(db, userId, comment.PostId, DateTime.UtcNow, cancellationToken);
 
             var names = await CommentAuthorNames.ResolveAsync(db, new[] { comment.AuthorUserId }, cancellationToken);
             var likeCount = await db.PostCommentLikes.CountAsync(x => x.CommentId == comment.Id, cancellationToken);
@@ -115,8 +119,8 @@ public static class CommentEndpoints
             var (userId, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
 
-            var exists = await db.PostComments.AnyAsync(c => c.Id == id, cancellationToken);
-            if (!exists) return Results.NotFound();
+            var commentRow = await db.PostComments.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+            if (commentRow is null) return Results.NotFound();
 
             var like = await db.PostCommentLikes.FirstOrDefaultAsync(x => x.CommentId == id && x.UserId == userId, cancellationToken);
             if (like is null)
@@ -129,6 +133,8 @@ public static class CommentEndpoints
                 });
                 await db.SaveChangesAsync(cancellationToken);
             }
+
+            await SeenTracking.UpsertSeenPostAsync(db, userId, commentRow.PostId, DateTime.UtcNow, cancellationToken);
 
             return Results.Ok(new { commentId = id, userId, liked = true });
         })
@@ -144,12 +150,17 @@ public static class CommentEndpoints
             var (userId, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
 
+            var commentRow = await db.PostComments.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+            if (commentRow is null) return Results.NotFound();
+
             var like = await db.PostCommentLikes.FirstOrDefaultAsync(x => x.CommentId == id && x.UserId == userId, cancellationToken);
             if (like is not null)
             {
                 db.PostCommentLikes.Remove(like);
                 await db.SaveChangesAsync(cancellationToken);
             }
+
+            await SeenTracking.UpsertSeenPostAsync(db, userId, commentRow.PostId, DateTime.UtcNow, cancellationToken);
 
             return Results.Ok(new { commentId = id, userId, liked = false });
         })
@@ -162,14 +173,16 @@ public static class CommentEndpoints
 
         app.MapDelete("/api/comments/{id:int}", async (HttpContext http, CrudDbContext db, int id, CancellationToken cancellationToken) =>
         {
-            var (_, error) = EndpointHelpers.RequireUserId(http);
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
 
             var comment = await db.PostComments.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
             if (comment is null) return Results.NotFound();
 
+            var postId = comment.PostId;
             db.PostComments.Remove(comment);
             await db.SaveChangesAsync(cancellationToken);
+            await SeenTracking.UpsertSeenPostAsync(db, userId, postId, DateTime.UtcNow, cancellationToken);
             return Results.Ok(new { message = "deleted" });
         })
         .WithTags("Comments")
@@ -209,6 +222,9 @@ public static class CommentEndpoints
             var (userId, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
 
+            var contentError = EndpointHelpers.RequireContent(body.Content);
+            if (contentError is not null) return contentError;
+
             if (body.Rating is < 1 or > 5)
             {
                 return Results.BadRequest(new { message = "rating must be between 1 and 5" });
@@ -221,13 +237,15 @@ public static class CommentEndpoints
             {
                 BookId = id,
                 AuthorUserId = userId,
-                Content = (body.Content ?? string.Empty).Trim(),
+                Content = body.Content!.Trim(),
                 Rating = body.Rating,
                 CreatedAt = DateTime.UtcNow
             };
 
             db.BookComments.Add(comment);
             await db.SaveChangesAsync(cancellationToken);
+
+            await SeenTracking.UpsertSeenBookAsync(db, userId, id, DateTime.UtcNow, cancellationToken);
 
             var names = await CommentAuthorNames.ResolveAsync(db, new[] { userId }, cancellationToken);
             var dto = new BookCommentDto(comment.Id, comment.BookId, comment.AuthorUserId, names[userId], comment.Content, comment.Rating, comment.CreatedAt);
@@ -246,6 +264,9 @@ public static class CommentEndpoints
             var (_, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
 
+            var contentError = EndpointHelpers.RequireContent(body.Content);
+            if (contentError is not null) return contentError;
+
             if (body.Rating is < 1 or > 5)
             {
                 return Results.BadRequest(new { message = "rating must be between 1 and 5" });
@@ -254,9 +275,11 @@ public static class CommentEndpoints
             var comment = await db.BookComments.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
             if (comment is null) return Results.NotFound();
 
-            comment.Content = (body.Content ?? string.Empty).Trim();
+            comment.Content = body.Content!.Trim();
             comment.Rating = body.Rating;
             await db.SaveChangesAsync(cancellationToken);
+
+            await SeenTracking.UpsertSeenBookAsync(db, comment.AuthorUserId, comment.BookId, DateTime.UtcNow, cancellationToken);
 
             var names = await CommentAuthorNames.ResolveAsync(db, new[] { comment.AuthorUserId }, cancellationToken);
             var dto = new BookCommentDto(comment.Id, comment.BookId, comment.AuthorUserId, names[comment.AuthorUserId], comment.Content, comment.Rating, comment.CreatedAt);
@@ -272,14 +295,16 @@ public static class CommentEndpoints
 
         app.MapDelete("/api/book-comments/{id:int}", async (HttpContext http, CrudDbContext db, int id, CancellationToken cancellationToken) =>
         {
-            var (_, error) = EndpointHelpers.RequireUserId(http);
+            var (userId, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
 
             var comment = await db.BookComments.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
             if (comment is null) return Results.NotFound();
 
+            var bookId = comment.BookId;
             db.BookComments.Remove(comment);
             await db.SaveChangesAsync(cancellationToken);
+            await SeenTracking.UpsertSeenBookAsync(db, userId, bookId, DateTime.UtcNow, cancellationToken);
             return Results.Ok(new { message = "deleted" });
         })
         .WithTags("Comments")

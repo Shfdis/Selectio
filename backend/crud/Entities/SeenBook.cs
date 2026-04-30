@@ -8,4 +8,3 @@ public class SeenBook
 
     public Book? Book { get; set; }
 }
-
