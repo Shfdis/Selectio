@@ -1,7 +1,6 @@
--- Run on production after deploy (SeenPosts / SeenBooks tables exist).
--- Marks prior interactions as seen long enough ago that feed/rec exclude them (24h rule uses SeenAt < now - 24h).
+-- Fill only missing Seen rows for interaction pairs (does not change SeenAt for existing rows).
+-- SeenAt = 25h ago so feed/rec treat as stale per 24h rule.
 
--- Posts: authors, likes, favorites, comment authors
 INSERT INTO crud."SeenPosts" ("UserId", "PostId", "SeenAt")
 SELECT s."UserId", s."PostId", (NOW() AT TIME ZONE 'UTC' - INTERVAL '25 hours')
 FROM (
@@ -13,9 +12,8 @@ FROM (
     UNION
     SELECT pc."AuthorUserId" AS "UserId", pc."PostId" FROM crud."PostComments" pc
 ) s
-ON CONFLICT ("UserId", "PostId") DO UPDATE SET "SeenAt" = EXCLUDED."SeenAt";
+ON CONFLICT ("UserId", "PostId") DO NOTHING;
 
--- Books: library + review authors
 INSERT INTO crud."SeenBooks" ("UserId", "BookId", "SeenAt")
 SELECT s."UserId", s."BookId", (NOW() AT TIME ZONE 'UTC' - INTERVAL '25 hours')
 FROM (
@@ -23,4 +21,4 @@ FROM (
     UNION
     SELECT bc."AuthorUserId" AS "UserId", bc."BookId" FROM crud."BookComments" bc
 ) s
-ON CONFLICT ("UserId", "BookId") DO UPDATE SET "SeenAt" = EXCLUDED."SeenAt";
+ON CONFLICT ("UserId", "BookId") DO NOTHING;
