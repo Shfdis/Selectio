@@ -154,13 +154,136 @@ class TestCrudPosts:
         assert r.status_code == 401
 
     def test_recommended_posts_returns_list(self, crud_base_url):
-        headers = {"X-User-Id": "7001"}
+        user_id = 7001
+        headers = {"X-User-Id": str(user_id)}
+        author_id = 7002
+        book_id = self._get_first_book_id(crud_base_url)
+        community_id = self._create_community(crud_base_url, owner_id=author_id)
+        requests.post(
+            f"{crud_base_url}/api/communities/{community_id}/join",
+            headers=headers,
+            timeout=5,
+        ).raise_for_status()
+        requests.post(
+            f"{crud_base_url}/api/books/{book_id}/library",
+            headers=headers,
+            json={"status": "Read"},
+            timeout=5,
+        ).raise_for_status()
+        requests.post(
+            f"{crud_base_url}/api/posts",
+            json={"communityId": community_id, "bookId": book_id, "content": "rec-list"},
+            headers={"X-User-Id": str(author_id)},
+            timeout=5,
+        ).raise_for_status()
         r = requests.get(f"{crud_base_url}/api/posts/recommended", headers=headers, timeout=5)
         assert r.status_code == 200
         data = r.json()
         assert isinstance(data, list)
         for item in data:
             _assert_post_feed_item(item)
+
+    def test_recommended_posts_only_subscribed_communities(self, crud_base_url):
+        user_id = 8451
+        headers = {"X-User-Id": str(user_id)}
+        author_a = 8452
+        author_b = 8453
+        books = requests.get(f"{crud_base_url}/api/books", params={"page": 1, "pageSize": 5}, timeout=5).json()
+        assert books
+        book_id = int(books[0]["id"])
+        subscribed_community_id = self._create_community(crud_base_url, owner_id=author_a)
+        other_community_id = self._create_community(crud_base_url, owner_id=author_b)
+
+        requests.post(
+            f"{crud_base_url}/api/communities/{subscribed_community_id}/join",
+            headers=headers,
+            timeout=5,
+        ).raise_for_status()
+        requests.post(
+            f"{crud_base_url}/api/books/{book_id}/library",
+            headers=headers,
+            json={"status": "Read"},
+            timeout=5,
+        ).raise_for_status()
+
+        for idx in range(3):
+            requests.post(
+                f"{crud_base_url}/api/posts",
+                json={"communityId": subscribed_community_id, "bookId": book_id, "content": f"in-sub-{idx}"},
+                headers={"X-User-Id": str(author_a)},
+                timeout=5,
+            ).raise_for_status()
+            requests.post(
+                f"{crud_base_url}/api/posts",
+                json={"communityId": other_community_id, "bookId": book_id, "content": f"out-sub-{idx}"},
+                headers={"X-User-Id": str(author_b)},
+                timeout=5,
+            ).raise_for_status()
+
+        rec = requests.get(
+            f"{crud_base_url}/api/posts/recommended",
+            headers=headers,
+            params={"page": 1, "pageSize": 50},
+            timeout=5,
+        )
+        assert rec.status_code == 200
+        items = rec.json()
+        assert all(int(x["communityId"]) == subscribed_community_id for x in items)
+
+    def test_recommended_empty_when_no_subscriptions(self, crud_base_url):
+        user_id = 8454
+        headers = {"X-User-Id": str(user_id)}
+        book_id = self._get_first_book_id(crud_base_url)
+        requests.post(
+            f"{crud_base_url}/api/books/{book_id}/library",
+            headers=headers,
+            json={"status": "Read"},
+            timeout=5,
+        ).raise_for_status()
+        rec = requests.get(f"{crud_base_url}/api/posts/recommended", headers=headers, timeout=5)
+        assert rec.status_code == 200
+        assert rec.json() == []
+
+    def test_recommended_no_embedding_orders_by_likes(self, crud_base_url):
+        user_id = 8455
+        headers = {"X-User-Id": str(user_id)}
+        author_id = 8456
+        liker1 = 8457
+        liker2 = 8458
+        book_id = self._get_first_book_id(crud_base_url)
+        community_id = self._create_community(crud_base_url, owner_id=author_id)
+        requests.post(
+            f"{crud_base_url}/api/communities/{community_id}/join",
+            headers=headers,
+            timeout=5,
+        ).raise_for_status()
+        high_like_post_id = self._create_post(
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_id, content="high-like-rec"
+        )
+        low_like_post_id = self._create_post(
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_id, content="low-like-rec"
+        )
+        requests.post(
+            f"{crud_base_url}/api/posts/{high_like_post_id}/like",
+            headers={"X-User-Id": str(liker1)},
+            timeout=5,
+        ).raise_for_status()
+        requests.post(
+            f"{crud_base_url}/api/posts/{high_like_post_id}/like",
+            headers={"X-User-Id": str(liker2)},
+            timeout=5,
+        ).raise_for_status()
+
+        rec = requests.get(
+            f"{crud_base_url}/api/posts/recommended",
+            headers=headers,
+            params={"page": 1, "pageSize": 20},
+            timeout=5,
+        )
+        assert rec.status_code == 200
+        ids = [int(x["id"]) for x in rec.json()]
+        assert high_like_post_id in ids and low_like_post_id in ids
+        assert ids.index(high_like_post_id) < ids.index(low_like_post_id)
 
     def test_feed_requires_user(self, crud_base_url):
         r = requests.get(f"{crud_base_url}/api/users/me/feed", timeout=5)
@@ -421,6 +544,42 @@ class TestCrudPosts:
         assert liked_post_id in feed_ids
         assert favorited_post_id in feed_ids
         assert commented_post_id in feed_ids
+
+    def test_feed_no_embedding_orders_by_likes(self, crud_base_url):
+        user_id = 8459
+        headers = {"X-User-Id": str(user_id)}
+        author_id = 8460
+        liker_id = 8461
+        book_id = self._get_first_book_id(crud_base_url)
+        community_id = self._create_community(crud_base_url, owner_id=author_id)
+        requests.post(
+            f"{crud_base_url}/api/communities/{community_id}/join",
+            headers=headers,
+            timeout=5,
+        ).raise_for_status()
+
+        high_like_post_id = self._create_post(
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_id, content="high-like-feed"
+        )
+        low_like_post_id = self._create_post(
+            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_id, content="low-like-feed"
+        )
+        requests.post(
+            f"{crud_base_url}/api/posts/{high_like_post_id}/like",
+            headers={"X-User-Id": str(liker_id)},
+            timeout=5,
+        ).raise_for_status()
+
+        feed = requests.get(
+            f"{crud_base_url}/api/users/me/feed",
+            headers=headers,
+            params={"page": 1, "pageSize": 20},
+            timeout=5,
+        )
+        assert feed.status_code == 200
+        ids = [int(x["id"]) for x in feed.json()]
+        assert high_like_post_id in ids and low_like_post_id in ids
+        assert ids.index(high_like_post_id) < ids.index(low_like_post_id)
 
 
 if __name__ == "__main__":

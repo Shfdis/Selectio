@@ -40,38 +40,76 @@ public static class PostEndpoints
             var (userId, error) = EndpointHelpers.RequireUserId(http);
             if (error is not null) return error;
             var (p, ps) = EndpointHelpers.NormalizePagination(page, pageSize, 20, 100);
-            var userEmb = await EmbeddingService.GetUserEmbeddingAsync(db, userId, cancellationToken);
-            if (userEmb is null)
-            {
-                return Results.Ok(new List<PostFeedItemDto>());
-            }
-            var excludePostIds = await SeenTracking.GetStaleSeenPostIdsAsync(db, userId, cancellationToken);
-
-            var ids = await EmbeddingAnnSearch.GetRecommendedPostIdsAsync(
-                dataSource,
-                userEmb,
-                excludePostIds,
-                (p - 1) * ps,
-                ps,
-                cancellationToken);
-            if (ids.Count == 0)
-            {
-                return Results.Ok(new List<PostFeedItemDto>());
-            }
-
-            var posts = await db.Posts
+            var subscribedCommunityIds = await db.CommunityMembers
                 .AsNoTracking()
-                .Include(x => x.Book)
-                .Where(post => ids.Contains(post.Id))
+                .Where(m => m.UserId == userId)
+                .Select(m => m.CommunityId)
                 .ToListAsync(cancellationToken);
-            var ordered = ids.Select(id => posts.First(po => po.Id == id)).ToList();
+            if (subscribedCommunityIds.Count == 0)
+            {
+                return Results.Ok(new List<PostFeedItemDto>());
+            }
+
+            var userEmb = await EmbeddingService.GetUserEmbeddingAsync(db, userId, cancellationToken);
+            var excludePostIds = await SeenTracking.GetStaleSeenPostIdsAsync(db, userId, cancellationToken);
+            List<Post> ordered;
+            if (userEmb is not null)
+            {
+                var ids = await EmbeddingAnnSearch.GetRecommendedPostIdsAsync(
+                    dataSource,
+                    userEmb,
+                    excludePostIds,
+                    subscribedCommunityIds,
+                    (p - 1) * ps,
+                    ps,
+                    cancellationToken);
+                if (ids.Count == 0)
+                {
+                    return Results.Ok(new List<PostFeedItemDto>());
+                }
+
+                var posts = await db.Posts
+                    .AsNoTracking()
+                    .Include(x => x.Book)
+                    .Where(post => ids.Contains(post.Id))
+                    .ToListAsync(cancellationToken);
+                ordered = ids.Select(id => posts.First(po => po.Id == id)).ToList();
+            }
+            else
+            {
+                var q = db.Posts
+                    .AsNoTracking()
+                    .Include(x => x.Book)
+                    .Where(post => post.Status == PostStatus.Published)
+                    .Where(post => subscribedCommunityIds.Contains(post.CommunityId));
+                if (excludePostIds.Count > 0)
+                {
+                    q = q.Where(post => !excludePostIds.Contains(post.Id));
+                }
+
+                var allCandidates = await q.ToListAsync(cancellationToken);
+                var likeCounts = await BuildPostLikeCountMapAsync(db, allCandidates.Select(x => x.Id).ToList(), cancellationToken);
+                ordered = allCandidates
+                    .OrderByDescending(post => likeCounts.GetValueOrDefault(post.Id, 0))
+                    .ThenByDescending(post => post.CreatedAt)
+                    .ThenByDescending(post => post.Id)
+                    .Skip((p - 1) * ps)
+                    .Take(ps)
+                    .ToList();
+                if (ordered.Count == 0)
+                {
+                    return Results.Ok(new List<PostFeedItemDto>());
+                }
+            }
+
             var dtos = await PostFeedMapper.ToFeedItemsAsync(db, ordered, userId, cancellationToken);
             await SeenTracking.MarkPostsSeenAsync(db, userId, ordered.Select(p => p.Id), cancellationToken);
             return Results.Ok(dtos);
         })
         .WithSummary("Get recommended posts")
         .WithDescription(
-            "Returns personalized published posts ranked by pgvector cosine distance (HNSW index) against the user's library-derived embedding. " +
+            "Returns published posts from communities the user is subscribed to only. " +
+            "Uses pgvector cosine ranking when a user embedding exists; otherwise ranks by like count (then recency). " +
             "Excludes posts the user marked seen more than 24 hours ago (SeenPosts). Returned posts refresh SeenPosts. " +
             "Includes author username, nested book summary, like/comment counts, and whether the current user liked or favorited the post."
         )
@@ -213,8 +251,9 @@ public static class PostEndpoints
             var otherCommunityPosts = allPosts
                 .Where(post => !subscribedCommunityIds.Contains(post.CommunityId))
                 .ToList();
-            var orderedSubscribed = OrderPersonalizedFeed(subscribedPosts, userEmb, page: 1, pageSize: int.MaxValue);
-            var orderedOther = OrderPersonalizedFeed(otherCommunityPosts, userEmb, page: 1, pageSize: int.MaxValue);
+            var likeCounts = await BuildPostLikeCountMapAsync(db, allPosts.Select(x => x.Id).ToList(), cancellationToken);
+            var orderedSubscribed = OrderPersonalizedFeed(subscribedPosts, userEmb, likeCounts, page: 1, pageSize: int.MaxValue);
+            var orderedOther = OrderPersonalizedFeed(otherCommunityPosts, userEmb, likeCounts, page: 1, pageSize: int.MaxValue);
             var combined = orderedSubscribed.Concat(orderedOther).ToList();
             var slice = combined.Skip((p - 1) * ps).Take(ps).ToList();
             var dtos = await PostFeedMapper.ToFeedItemsAsync(db, slice, userId, cancellationToken);
@@ -226,9 +265,9 @@ public static class PostEndpoints
         .WithDescription(
             "Returns published posts in two tiers: joined communities first, then other communities. " +
             "Within each tier, posts are ranked by cosine similarity when a user embedding exists (with recency tie-break), " +
-            "and by recency when no user embedding exists. " +
+            "and by like count (with recency tie-break) when no user embedding exists. " +
             "Posts excluded from SeenPosts when SeenAt is older than 24 hours. Returned posts refresh SeenPosts. " +
-            "Without a user embedding, ordering is purely by CreatedAt (newest first)."
+            "Feed always considers all communities."
         )
         .Produces<List<PostFeedItemDto>>(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status401Unauthorized);
@@ -239,7 +278,12 @@ public static class PostEndpoints
     /// <summary>
     /// Rank posts for the home feed: cosine on embeddings when user embedding exists; append posts missing embeddings by recency.
     /// </summary>
-    private static List<Post> OrderPersonalizedFeed(IReadOnlyList<Post> allPosts, float[]? userEmb, int page, int pageSize)
+    private static List<Post> OrderPersonalizedFeed(
+        IReadOnlyList<Post> allPosts,
+        float[]? userEmb,
+        IReadOnlyDictionary<int, int> likeCounts,
+        int page,
+        int pageSize)
     {
         if (allPosts.Count == 0)
         {
@@ -249,7 +293,8 @@ public static class PostEndpoints
         if (userEmb is null)
         {
             return allPosts
-                .OrderByDescending(p => p.CreatedAt)
+                .OrderByDescending(p => likeCounts.GetValueOrDefault(p.Id, 0))
+                .ThenByDescending(p => p.CreatedAt)
                 .ThenByDescending(p => p.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -310,5 +355,24 @@ public static class PostEndpoints
 
     private static PostDto ToDto(Post post) =>
         new(post.Id, post.CommunityId, post.AuthorUserId, post.BookId, post.Content, post.PhotoUrl, post.Status, post.CreatedAt);
+
+    private static async Task<Dictionary<int, int>> BuildPostLikeCountMapAsync(
+        CrudDbContext db,
+        List<int> postIds,
+        CancellationToken cancellationToken)
+    {
+        if (postIds.Count == 0)
+        {
+            return new Dictionary<int, int>();
+        }
+
+        var rows = await db.PostLikes
+            .AsNoTracking()
+            .Where(l => postIds.Contains(l.PostId))
+            .GroupBy(l => l.PostId)
+            .Select(g => new { PostId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        return rows.ToDictionary(x => x.PostId, x => x.Count);
+    }
 }
 
