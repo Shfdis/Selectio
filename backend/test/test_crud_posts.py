@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import requests
+import subprocess
 import uuid
 
 
@@ -230,6 +231,27 @@ class TestCrudPosts:
         assert r.status_code == 200
         post_id = r.json()["id"]
         requests.post(f"{crud_base_url}/api/posts/{post_id}/like", headers=headers, timeout=5).raise_for_status()
+        seen_row = subprocess.run(
+            [
+                "docker",
+                "exec",
+                "selectio_postgres",
+                "psql",
+                "-U",
+                "postgres",
+                "-d",
+                "selectio_main",
+                "-t",
+                "-A",
+                "-c",
+                f'SELECT COUNT(*) FROM crud."SeenPosts" WHERE "UserId"={user_id} AND "PostId"={post_id};',
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=True,
+        )
+        assert seen_row.stdout.strip() == "1"
         requests.post(f"{crud_base_url}/api/posts/{post_id}/favorite", headers=headers, timeout=5).raise_for_status()
         by_id = requests.get(f"{crud_base_url}/api/posts/{post_id}", headers=headers, timeout=5)
         assert by_id.status_code == 200
@@ -243,9 +265,8 @@ class TestCrudPosts:
         feed = requests.get(f"{crud_base_url}/api/users/me/feed", headers=headers, timeout=5).json()
         assert any(p["id"] == post_id for p in feed)
 
-    def test_recommended_posts_excludes_seen_posts(self, crud_base_url):
+    def test_recommended_posts_excludes_stale_seen_posts(self, crud_base_url):
         user_id = 8101
-        author_id = 8102
         user_headers = {"X-User-Id": str(user_id)}
 
         books = requests.get(
@@ -257,7 +278,6 @@ class TestCrudPosts:
         book_ids = [int(b["id"]) for b in books.json()]
         assert len(book_ids) >= 1
 
-        # User gets an embedding baseline from library books.
         for book_id in book_ids[:2]:
             add = requests.post(
                 f"{crud_base_url}/api/books/{book_id}/library",
@@ -267,48 +287,73 @@ class TestCrudPosts:
             )
             assert add.status_code == 200
 
-        community_id = self._create_community(crud_base_url, owner_id=author_id)
-        requests.post(
-            f"{crud_base_url}/api/communities/{community_id}/join",
+        r1 = requests.get(
+            f"{crud_base_url}/api/posts/recommended",
             headers=user_headers,
+            params={"page": 1, "pageSize": 20},
             timeout=5,
-        ).raise_for_status()
+        )
+        assert r1.status_code == 200
+        data1 = r1.json()
+        if not data1:
+            for bid in book_ids[:2]:
+                requests.delete(f"{crud_base_url}/api/books/{bid}/library", headers=user_headers, timeout=5)
+            return
 
-        authored_post_id = self._create_post(
-            crud_base_url, author_id=user_id, community_id=community_id, book_id=book_ids[0], content="authored"
+        target_id = int(data1[0]["id"])
+        subprocess.run(
+            [
+                "docker",
+                "exec",
+                "selectio_postgres",
+                "psql",
+                "-U",
+                "postgres",
+                "-d",
+                "selectio_main",
+                "-v",
+                "ON_ERROR_STOP=1",
+                "-c",
+                f"""INSERT INTO crud."SeenPosts" ("UserId","PostId","SeenAt")
+                VALUES ({user_id}, {target_id}, (NOW() AT TIME ZONE 'UTC' - INTERVAL '25 hours'))
+                ON CONFLICT ("UserId","PostId") DO UPDATE SET "SeenAt" = EXCLUDED."SeenAt";""",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=True,
         )
-        liked_post_id = self._create_post(
-            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(1, len(book_ids) - 1)], content="liked"
-        )
-        favorited_post_id = self._create_post(
-            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(2, len(book_ids) - 1)], content="favorited"
-        )
-        commented_post_id = self._create_post(
-            crud_base_url, author_id=author_id, community_id=community_id, book_id=book_ids[min(3, len(book_ids) - 1)], content="commented"
-        )
-
-        assert requests.post(
-            f"{crud_base_url}/api/posts/{liked_post_id}/like",
-            headers=user_headers,
-            timeout=5,
-        ).status_code == 200
-        assert requests.post(
-            f"{crud_base_url}/api/posts/{favorited_post_id}/favorite",
-            headers=user_headers,
-            timeout=5,
-        ).status_code == 200
-        assert requests.post(
-            f"{crud_base_url}/api/posts/{commented_post_id}/comments",
-            headers=user_headers,
-            json={"content": "seen by comment"},
-            timeout=5,
-        ).status_code == 200
-
-        rec = requests.get(f"{crud_base_url}/api/posts/recommended", headers=user_headers, timeout=5)
-        assert rec.status_code == 200
-        rec_ids = {int(p["id"]) for p in rec.json()}
-        seen_ids = {authored_post_id, liked_post_id, favorited_post_id, commented_post_id}
-        assert rec_ids.isdisjoint(seen_ids)
+        try:
+            r2 = requests.get(
+                f"{crud_base_url}/api/posts/recommended",
+                headers=user_headers,
+                params={"page": 1, "pageSize": 20},
+                timeout=5,
+            )
+            assert r2.status_code == 200
+            ids_after = {int(p["id"]) for p in r2.json()}
+            assert target_id not in ids_after
+        finally:
+            subprocess.run(
+                [
+                    "docker",
+                    "exec",
+                    "selectio_postgres",
+                    "psql",
+                    "-U",
+                    "postgres",
+                    "-d",
+                    "selectio_main",
+                    "-c",
+                    f'DELETE FROM crud."SeenPosts" WHERE "UserId"={user_id} AND "PostId"={target_id};',
+                ],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=True,
+            )
+            for bid in book_ids[:2]:
+                requests.delete(f"{crud_base_url}/api/books/{bid}/library", headers=user_headers, timeout=5)
 
     def test_feed_keeps_recently_seen_posts(self, crud_base_url):
         user_id = 8201

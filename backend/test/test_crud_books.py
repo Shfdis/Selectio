@@ -33,9 +33,11 @@ class TestCrudBooks:
         cmd = [
             "docker", "exec", "selectio_postgres",
             "psql", "-U", "postgres", "-d", "selectio_main", "-c",
-            f'INSERT INTO crud."UserBooks" ("UserId","BookId","Status") '
-            f"VALUES ({user_id},{book_id},{status}) "
-            f'ON CONFLICT ("UserId","BookId") DO UPDATE SET "Status"=EXCLUDED."Status";'
+            f'INSERT INTO crud."UserBooks" ("UserId","BookId","Status","AddedAt") '
+            f"VALUES ({user_id},{book_id},{status}, NOW() AT TIME ZONE 'UTC') "
+            f'ON CONFLICT ("UserId","BookId") DO UPDATE SET '
+            f'"Status"=EXCLUDED."Status", '
+            f'"AddedAt"=COALESCE(crud."UserBooks"."AddedAt", EXCLUDED."AddedAt");'
         ]
         subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
 
@@ -181,6 +183,80 @@ class TestCrudBooks:
         )
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
+
+    def test_recommended_books_excludes_stale_seen_book(self, crud_base_url):
+        user_id = 90051
+        headers = {"X-User-Id": str(user_id)}
+        books = requests.get(f"{crud_base_url}/api/books", params={"page": 1, "pageSize": 6}, timeout=5).json()
+        assert len(books) >= 1
+        book_ids = [int(b["id"]) for b in books]
+        for bid in book_ids[:2]:
+            assert requests.post(
+                f"{crud_base_url}/api/books/{bid}/library",
+                headers=headers,
+                json={"status": "Read"},
+                timeout=5,
+            ).status_code == 200
+
+        r1 = requests.get(
+            f"{crud_base_url}/api/books/recommended",
+            headers=headers,
+            params={"page": 1, "pageSize": 20},
+            timeout=5,
+        )
+        assert r1.status_code == 200
+        data1 = r1.json()
+        if not data1:
+            return
+        target_id = int(data1[0]["id"])
+        stale_sql = [
+            "docker",
+            "exec",
+            "selectio_postgres",
+            "psql",
+            "-U",
+            "postgres",
+            "-d",
+            "selectio_main",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-c",
+            f"""INSERT INTO crud."SeenBooks" ("UserId","BookId","SeenAt")
+            VALUES ({user_id}, {target_id}, (NOW() AT TIME ZONE 'UTC' - INTERVAL '25 hours'))
+            ON CONFLICT ("UserId","BookId") DO UPDATE SET "SeenAt" = EXCLUDED."SeenAt";""",
+        ]
+        subprocess.run(stale_sql, capture_output=True, text=True, timeout=15, check=True)
+        try:
+            r2 = requests.get(
+                f"{crud_base_url}/api/books/recommended",
+                headers=headers,
+                params={"page": 1, "pageSize": 20},
+                timeout=5,
+            )
+            assert r2.status_code == 200
+            ids_after = {int(b["id"]) for b in r2.json()}
+            assert target_id not in ids_after
+        finally:
+            subprocess.run(
+                [
+                    "docker",
+                    "exec",
+                    "selectio_postgres",
+                    "psql",
+                    "-U",
+                    "postgres",
+                    "-d",
+                    "selectio_main",
+                    "-c",
+                    f'DELETE FROM crud."SeenBooks" WHERE "UserId"={user_id} AND "BookId"={target_id};',
+                ],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=True,
+            )
+            for bid in book_ids[:2]:
+                self._cleanup_user_book(user_id, bid)
 
     def test_average_rating_from_comments_rounded_one_decimal(self, crud_base_url):
         title = "AvgRatingSeedBook"
