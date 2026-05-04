@@ -1,17 +1,53 @@
-import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 
 const cardWidth = 136;
 const cardHeight = 193;
 const squareSize = 136;
 const cardGap = 11;
 
-function CoverTile({ imageUri, onPress, squareCovers }) {
+function CoverTile({ imageUri, imageSource, title, author, onPress, squareCovers, defaultCoverWhenEmpty }) {
+  const resolvedFromUri = typeof imageUri === 'string' && imageUri.trim().length > 0 ? { uri: imageUri.trim() } : null;
+  const isCommunityWithoutCover = Boolean(defaultCoverWhenEmpty) && !resolvedFromUri && !imageSource;
+  const resolvedSource = imageSource ?? resolvedFromUri;
+  const hasImage = Boolean(resolvedSource) && !isCommunityWithoutCover;
+  const [imageReady, setImageReady] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageReady(false);
+    setImageFailed(false);
+  }, [imageUri, imageSource, defaultCoverWhenEmpty]);
+
+  const showImage = hasImage && imageReady && !imageFailed;
   return (
     <Pressable
       style={[styles.coverTile, squareCovers ? styles.coverTileSquare : null]}
       onPress={onPress}
     >
-      <Image source={{ uri: imageUri }} style={styles.coverImage} resizeMode="cover" />
+      <View style={styles.coverFallback}>
+        <Text style={styles.coverFallbackTitle} numberOfLines={5}>
+          {title || 'Без названия'}
+        </Text>
+        {isCommunityWithoutCover ? null : (
+          <Text style={styles.coverFallbackAuthor} numberOfLines={2}>
+            {author || 'Неизвестный автор'}
+          </Text>
+        )}
+      </View>
+      {hasImage ? (
+        <Image
+          source={resolvedSource}
+          style={[styles.coverImage, showImage ? styles.coverImageVisible : styles.coverImageHidden]}
+          resizeMode="cover"
+          onLoad={() => setImageReady(true)}
+          onError={() => {
+            setImageFailed(true);
+            setImageReady(false);
+          }}
+        />
+      ) : null}
     </Pressable>
   );
 }
@@ -21,30 +57,72 @@ export default function HorizontalCoverSection({
   subtitle,
   covers,
   onPressCover,
+  onHorizontalEndReached,
   style,
   squareCovers = false,
   openAllButton,
   plusButton,
   titleStyle,
   subtitleStyle,
+  resetScrollSignal,
 }) {
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (resetScrollSignal == null) {
+      return;
+    }
+    scrollRef.current?.scrollTo({ x: 0, animated: false });
+  }, [resetScrollSignal]);
+
   return (
     <View style={[styles.section, style]}>
       <Text style={[styles.sectionTitle, titleStyle]}>{title}</Text>
       <Text style={[styles.sectionSubtitle, subtitleStyle]}>{subtitle}</Text>
       <ScrollView
+        ref={scrollRef}
         horizontal
+        nestedScrollEnabled
+        directionalLockEnabled
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalList}
+        onScroll={
+          onHorizontalEndReached
+            ? ({ nativeEvent }) => {
+                const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+                const distanceFromRight = contentSize.width - (layoutMeasurement.width + contentOffset.x);
+                if (distanceFromRight <= 60) {
+                  onHorizontalEndReached();
+                }
+              }
+            : undefined
+        }
+        scrollEventThrottle={16}
       >
-        {covers.map((uri, index) => (
-          <CoverTile
-            key={index}
-            imageUri={uri}
-            onPress={onPressCover}
-            squareCovers={squareCovers}
-          />
-        ))}
+        {covers.map((cover, index) => {
+          const coverItem =
+            typeof cover === 'string'
+              ? { imageUri: cover }
+              : {
+                  imageUri: cover?.imageUri,
+                  imageSource: cover?.imageSource,
+                  title: cover?.title,
+                  author: cover?.author,
+                  defaultCoverWhenEmpty: cover?.defaultCoverWhenEmpty,
+                };
+          return (
+            <CoverTile
+              key={index}
+              imageUri={coverItem.imageUri}
+              imageSource={coverItem.imageSource}
+              title={coverItem.title}
+              author={coverItem.author}
+              defaultCoverWhenEmpty={Boolean(coverItem.defaultCoverWhenEmpty)}
+              onPress={() => onPressCover?.(coverItem.imageUri, index)}
+              squareCovers={squareCovers}
+            />
+          );
+        })}
       </ScrollView>
       {openAllButton || plusButton ? (
         <View style={styles.actionsRow}>
@@ -111,8 +189,36 @@ const styles = StyleSheet.create({
     height: squareSize,
   },
   coverImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  coverImageVisible: {
+    opacity: 1,
+  },
+  coverImageHidden: {
+    opacity: 0,
+  },
+  coverFallback: {
     width: '100%',
     height: '100%',
+    paddingHorizontal: 8,
+    paddingTop: 10,
+    paddingBottom: 8,
+    justifyContent: 'space-between',
+    backgroundColor: '#CCB985',
+  },
+  coverFallbackTitle: {
+    fontSize: 18,
+    lineHeight: 13,
+    color: '#2D2800',
+    fontFamily: 'Mak',
+    fontWeight: '600',
+  },
+  coverFallbackAuthor: {
+    fontSize: 12,
+    lineHeight: 12,
+    color: '#565d3f',
+    fontFamily: 'Mak',
+    fontWeight: '400',
   },
   actionsRow: {
     marginTop: 13,

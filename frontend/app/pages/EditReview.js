@@ -1,57 +1,92 @@
 import { useState } from 'react';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import ReviewEditorScreen from '../components/ReviewEditor';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+import {
+  useCreateBookCommentMutation,
+  useDeleteBookCommentMutation,
+  useUpdateBookCommentMutation,
+} from '../slices/booksSlice';
 
 export default function EditReview({ route }) {
   const navigation = useNavigation();
+  const [createBookComment, { isLoading: isCreatingComment }] = useCreateBookCommentMutation();
+  const [updateBookComment, { isLoading: isUpdatingComment }] = useUpdateBookCommentMutation();
+  const [deleteBookComment, { isLoading: isDeletingComment }] = useDeleteBookCommentMutation();
 
   const review = route?.params?.review;
   const book = review?.book;
+  const commentId = review?.id;
+  const bookId = Number(review?.bookId ?? book?.id);
   const initialRating = typeof review?.rating === 'number' ? review.rating : 0;
   const initialText = typeof review?.text === 'string' ? review.text : '';
 
   const [rating, setRating] = useState(initialRating);
   const [text, setText] = useState(initialText);
+  const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
+    if (!Number.isFinite(bookId) || bookId <= 0) {
+      navigation.goBack();
+      return;
+    }
     const safeRating = Math.max(1, Math.min(5, Math.floor(rating)));
     const textStr = typeof text === 'string' ? text : '';
 
-    if (typeof review?.idx === 'number') {
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 1,
-          routes: [
-            { name: 'main', params: { mainTab: 'profile' } },
-            {
-              name: 'readBooks',
-              params: {
-                reviewUpdate: {
-                  idx: review.idx,
-                  rating: safeRating,
-                  text: textStr,
-                },
-              },
-            },
-          ],
-        }),
-      );
-    } else {
-      navigation.goBack();
+    try {
+      if (typeof commentId === 'number') {
+        await updateBookComment({ commentId, content: textStr, rating: safeRating }).unwrap();
+      } else {
+        await createBookComment({ bookId, rating: safeRating, content: textStr }).unwrap();
+      }
+    } catch (error) {
+      throw error;
     }
+    navigation.goBack();
   };
 
+  const onDelete = async () => {
+    if (typeof commentId !== 'number') {
+      navigation.goBack();
+      return;
+    }
+    await deleteBookComment({ commentId }).unwrap();
+    setIsDeleteConfirmVisible(false);
+    navigation.goBack();
+  };
+
+  const isBusy = isCreatingComment || isUpdatingComment || isDeletingComment;
+
   return (
-    <ReviewEditorScreen
-      headerTitle="Редактирование отзыва"
-      book={book}
-      rating={rating}
-      onChangeRating={setRating}
-      text={text}
-      onChangeText={setText}
-      onPressBack={() => navigation.goBack()}
-      onPressConfirm={onSubmit}
-      confirmDisabled={rating < 1}
-    />
+    <>
+      <ReviewEditorScreen
+        headerTitle="Редактирование отзыва"
+        book={book}
+        rating={rating}
+        onChangeRating={setRating}
+        text={text}
+        onChangeText={setText}
+        onPressBack={() => navigation.goBack()}
+        onPressConfirm={onSubmit}
+        inputsDisabled={isBusy}
+        confirmDisabled={rating < 1 || isBusy}
+        showDelete={typeof commentId === 'number'}
+        onPressDelete={() => setIsDeleteConfirmVisible(true)}
+        deleteDisabled={isBusy}
+      />
+      <DeleteConfirmDialog
+        visible={isDeleteConfirmVisible}
+        title="Удалить отзыв?"
+        message="Это действие нельзя отменить."
+        cancelLabel="Нет"
+        confirmLabel="Да"
+        onCancel={() => {
+          if (!isBusy) {
+            setIsDeleteConfirmVisible(false);
+          }
+        }}
+        onConfirm={onDelete}
+      />
+    </>
   );
 }

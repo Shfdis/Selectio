@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
 import { useRef, useCallback } from 'react';
 import GreenHeaderStrip from './GreenHeader';
 import PostCard from './PostCard';
+import { getCommunityCoverImageSource } from '../utils/communityCover';
 
 function GenrePill({ label }) {
   return (
@@ -17,6 +18,9 @@ export default function CommunityScreenLayout({
   onPressBack,
   onPressSettings,
   renderActionArea,
+  canDeletePosts = false,
+  onPressDeletePost,
+  deletingPostId = null,
 }) {
   const scrollRef = useRef(null);
 
@@ -25,6 +29,8 @@ export default function CommunityScreenLayout({
   }, []);
 
   const headerGenres = Array.isArray(community.genres) ? community.genres.slice(0, 6) : [];
+  const hasDescription =
+    typeof community.description === 'string' && community.description.trim().length > 0;
 
   return (
     <View style={styles.screen}>
@@ -38,12 +44,15 @@ export default function CommunityScreenLayout({
         ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        nestedScrollEnabled
+        directionalLockEnabled
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerGreenBlock}>
           <View style={styles.coverWrap}>
             <Image
-              source={{ uri: community.coverImageUrl }}
+              source={getCommunityCoverImageSource(community.coverImageUrl)}
               style={styles.cover}
               resizeMode="cover"
             />
@@ -73,18 +82,23 @@ export default function CommunityScreenLayout({
           {renderActionArea ? renderActionArea() : null}
         </View>
 
-        <View style={styles.scrollContentInner}>
-          <Text style={styles.descriptionLabel}>Описание:</Text>
-          <Text style={styles.descriptionText}>{community.description}</Text>
-        </View>
+        {hasDescription ? (
+          <View style={styles.scrollContentInner}>
+            <Text style={styles.descriptionLabel}>Описание:</Text>
+            <Text style={styles.descriptionText}>{community.description}</Text>
+          </View>
+        ) : null}
 
-        <View style={styles.divider} />
+        {hasDescription ? <View style={styles.divider} /> : null}
 
-        <View style={styles.postsSection}>
+        <View style={[styles.postsSection, hasDescription ? null : styles.postsSectionNoDescription]}>
           {posts.map((p) => (
             <PostCard
               key={p.id}
               postId={p.id}
+              communityId={p.communityId}
+              authorUserId={p.authorUserId}
+              avatarUri={p.avatarUri}
               username={p.username}
               dateText={p.dateText}
               text={p.text}
@@ -94,6 +108,9 @@ export default function CommunityScreenLayout({
               initialComments={p.initialComments}
               initiallyLiked={p.initiallyLiked}
               initiallyBookmarked={p.initiallyBookmarked}
+              canDelete={canDeletePosts}
+              onPressDelete={() => onPressDeletePost?.(p)}
+              deleteDisabled={deletingPostId != null && Number(deletingPostId) === Number(p.id)}
             />
           ))}
         </View>
@@ -225,5 +242,8 @@ const styles = StyleSheet.create({
   },
   postsSection: {
     width: '100%',
+  },
+  postsSectionNoDescription: {
+    marginTop: '5%',
   },
 });

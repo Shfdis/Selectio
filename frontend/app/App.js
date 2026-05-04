@@ -1,9 +1,12 @@
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { DefaultTheme, NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { CardStyleInterpolators, createStackNavigator } from '@react-navigation/stack';
+import { View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView, PanGestureHandler, State } from 'react-native-gesture-handler';
 import { Provider } from 'react-redux';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { PlayfairDisplay_400Regular, PlayfairDisplay_600SemiBold } from '@expo-google-fonts/playfair-display';
 import { CrimsonText_400Regular, CrimsonText_600SemiBold } from '@expo-google-fonts/crimson-text';
 import { store } from './store/store';
@@ -30,9 +33,20 @@ import NewPost from './pages/NewPost';
 import SuggestedPosts from './pages/SuggestedPosts';
 SplashScreen.preventAutoHideAsync();
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
+const navigationRef = createNavigationContainerRef();
+const disabledBackSwipeRoutes = new Set(['home', 'login', 'register', 'main']);
+const navigationTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: '#ECE8DD',
+    card: '#ECE8DD',
+  },
+};
 
 export default function App() {
+  const [currentRouteName, setCurrentRouteName] = useState('home');
   const [fontsLoaded] = useFonts({
     'Mak': require('./assets/fonts/MAK.otf'),
     'Playfair': PlayfairDisplay_400Regular,
@@ -47,33 +61,92 @@ export default function App() {
     }
   }, [fontsLoaded]);
 
+  const onNavigationReady = useCallback(() => {
+    const route = navigationRef.getCurrentRoute();
+    if (route?.name) {
+      setCurrentRouteName(route.name);
+    }
+  }, []);
+
+  const onNavigationStateChange = useCallback(() => {
+    const route = navigationRef.getCurrentRoute();
+    if (route?.name) {
+      setCurrentRouteName(route.name);
+    }
+  }, []);
+
+  const backSwipeEnabled = !disabledBackSwipeRoutes.has(currentRouteName);
+  const onBackSwipeStateChange = useCallback(
+    ({ nativeEvent }) => {
+      if (!backSwipeEnabled || nativeEvent.state !== State.END) {
+        return;
+      }
+      if (!navigationRef.isReady() || !navigationRef.canGoBack()) {
+        return;
+      }
+      const dx = Number(nativeEvent.translationX ?? 0);
+      const vx = Number(nativeEvent.velocityX ?? 0);
+      if (dx > 70 || vx > 650) {
+        navigationRef.goBack();
+      }
+    },
+    [backSwipeEnabled],
+  );
+
   if (!fontsLoaded) {
     return null;
   }
 
   return (
-    <Provider store={store}>
-      <NavigationContainer>
-        <Stack.Navigator initialRouteName="home">
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#ECE8DD' }}>
+      <Provider store={store}>
+        <SafeAreaProvider>
+          <PanGestureHandler
+            enabled={backSwipeEnabled}
+            activeOffsetX={24}
+            failOffsetY={[-14, 14]}
+            onHandlerStateChange={onBackSwipeStateChange}
+          >
+            <View style={{ flex: 1 }}>
+              <NavigationContainer
+                ref={navigationRef}
+                theme={navigationTheme}
+                onReady={onNavigationReady}
+                onStateChange={onNavigationStateChange}
+              >
+                <Stack.Navigator
+                  initialRouteName="home"
+                  screenOptions={{
+                    headerShown: false,
+                    gestureEnabled: false,
+                    gestureDirection: 'horizontal',
+                    cardStyle: { backgroundColor: '#ECE8DD' },
+                    cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+                    transitionSpec: {
+                      open: { animation: 'timing', config: { duration: 260 } },
+                      close: { animation: 'timing', config: { duration: 450 } },
+                    },
+                  }}
+                >
           <Stack.Screen 
             name="home" 
             component={Home}
-            options={{ headerShown: false }}
+            options={{ gestureEnabled: false }}
           />
           <Stack.Screen 
             name="login"
             component={Login}
-            options={{ headerShown: false }}
+            options={{ gestureEnabled: false }}
           />
           <Stack.Screen
             name="register"
             component={Register}
-            options={{ headerShown: false }}
+            options={{ gestureEnabled: false }}
           />
           <Stack.Screen
             name="main"
             component={MainScreen}
-            options={{ headerShown: false }}
+            options={{ gestureEnabled: false }}
           />
           <Stack.Screen
             name="editProfile"
@@ -160,8 +233,12 @@ export default function App() {
             component={Genre}
             options={{ headerShown: false }}
           />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </Provider>
+                </Stack.Navigator>
+              </NavigationContainer>
+            </View>
+          </PanGestureHandler>
+        </SafeAreaProvider>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }

@@ -2,7 +2,18 @@ import { useMemo } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import LibraryFadeSheetModal from './LibraryFadeSheetModal';
 
-const windowHeight = Dimensions.get('window').height;
+function useRowsGenreListMaxHeight(genreCount) {
+  return useMemo(() => {
+    const h = Dimensions.get('window').height;
+    const perRow = 46;
+    const verticalPadding = 8;
+    const contentNeeded = genreCount * perRow + verticalPadding;
+    const reservedForChrome = 210;
+    const maxAvailable = Math.max(320, h - reservedForChrome);
+    const capByScreen = h * 0.74;
+    return Math.min(Math.max(contentNeeded, 340), maxAvailable, capByScreen);
+  }, [genreCount]);
+}
 
 export default function LibraryFilterSheet({
   visible,
@@ -18,7 +29,7 @@ export default function LibraryFilterSheet({
   onApply,
   onClose,
 }) {
-  const listMaxHeight = useMemo(() => Math.min(360, windowHeight * 0.48), []);
+  const rowsListMaxHeight = useRowsGenreListMaxHeight(genres.length);
 
   const isCommunityChips = chipVariant === 'community';
 
@@ -72,7 +83,7 @@ export default function LibraryFilterSheet({
   const rowsBody = (finishWith) => (
     <>
       <ScrollView
-        style={[styles.rowsScroll, { maxHeight: listMaxHeight }]}
+        style={[styles.rowsScroll, { maxHeight: rowsListMaxHeight }]}
         contentContainerStyle={styles.rowsScrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

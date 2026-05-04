@@ -1,5 +1,5 @@
 const apiConfig = {
-  baseUrl: 'http://85.239.40.129:8080',
+  baseUrl: 'https://selectio-book.ru',
 };
 
 export default apiConfig;

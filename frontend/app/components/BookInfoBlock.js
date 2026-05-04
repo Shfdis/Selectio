@@ -1,22 +1,25 @@
 import { View, Text, StyleSheet } from 'react-native';
 
 export default function BookInfoBlock({ title, author, genreFirst, genreSecond }) {
+  const genres = [genreFirst, genreSecond].map((g) => String(g ?? '').trim()).filter(Boolean);
+
   return (
     <View style={styles.block}>
-      <Text style={styles.title} numberOfLines={2}>
+      <Text style={styles.title} numberOfLines={5}>
         {title}
       </Text>
-      <Text style={styles.author} numberOfLines={1}>
+      <Text style={styles.author} numberOfLines={5}>
         {author}
       </Text>
-      <View style={styles.genreBox}>
-        <View style={styles.genre}>
-          <Text style={styles.genreText}>{genreFirst}</Text>
+      {genres.length > 0 ? (
+        <View style={styles.genreBox}>
+          {genres.map((genre) => (
+            <View key={genre} style={styles.genre}>
+              <Text style={styles.genreText}>{genre}</Text>
+            </View>
+          ))}
         </View>
-        <View style={styles.genre}>
-          <Text style={styles.genreText}>{genreSecond}</Text>
-        </View>
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -27,20 +30,24 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   title: {
+    alignSelf: 'stretch',
+    width: '100%',
     marginTop: '3%',
     fontSize: 32,
     color: '#2D2800',
     fontFamily: 'Mak',
     fontWeight: 400,
-    lineHeight: 32,
+    lineHeight: 38,
   },
   author: {
+    alignSelf: 'stretch',
+    width: '100%',
     marginTop: '2%',
     fontSize: 20,
     color: '#868158',
     fontFamily: 'Playfair',
     fontWeight: 400,
-    lineHeight: 22,
+    lineHeight: 26,
     marginBottom: '4%',
   },
   genreBox: {

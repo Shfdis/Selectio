@@ -24,7 +24,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 export const userApi = createApi({
   reducerPath: "userApi",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["User"],
+  tagTypes: ["User", "Books", "RecommendedBooks", "Post", "PostComment", "FavoritePost"],
   endpoints: (builder) => ({
     registerUser: builder.mutation({
       query: (body) => ({
@@ -46,26 +46,13 @@ export const userApi = createApi({
             await saveToken(data.token);
             dispatch(userApi.util.invalidateTags(["User"]));
           }
-        } catch (error) {
-          console.error("Login failed:", error);
+        } catch {
         }
       },
     }),
     getCurrentUser: builder.query({
       query: () => "/api/auth/me",
       providesTags: ["User"],
-    }),
-    getUserProfile: builder.query({
-      query: (userId) => `/api/users/${userId}`,
-      providesTags: ["User"],
-    }),
-    updateProfile: builder.mutation({
-      query: (body) => ({
-        url: "/api/users/profile",
-        method: "PUT",
-        body,
-      }),
-      invalidatesTags: ["User"],
     }),
   }),
 });
@@ -74,6 +61,4 @@ export const {
   useRegisterUserMutation,
   useLoginUserMutation,
   useGetCurrentUserQuery,
-  useGetUserProfileQuery,
-  useUpdateProfileMutation,
 } = userApi;

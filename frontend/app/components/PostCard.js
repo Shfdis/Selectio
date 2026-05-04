@@ -1,34 +1,188 @@
-import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
-import { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Image, Pressable, Animated, Easing } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import BookCard from './BookCard';
+import { useGetUserProfileQuery } from '../slices/profileSlice';
+import { useGetCommunityByIdQuery } from '../slices/communitiesSlice';
+import { useGetCurrentUserQuery } from '../slices/userSlice';
+import {
+  useFavoritePostMutation,
+  useLikePostMutation,
+  useUnfavoritePostMutation,
+  useUnlikePostMutation,
+} from '../slices/postsSlice';
+import { mapApiBookGenres, useGetBookByIdQuery } from '../slices/booksSlice';
+import { getCommunityCoverImageSource } from '../utils/communityCover';
 
 export default function PostCard({
   avatarSource = require('../assets/icons/profile-avatar.png'),
+  avatarUri,
+  communityId,
+  communityName,
+  communityAvatarUri,
+  authorUserId,
   postId,
   username,
   dateText,
   text,
   imageSource,
+  imageUri,
   book,
   initialLikes = 0,
   initialComments = 0,
   initiallyLiked = false,
   initiallyBookmarked = true,
   onPressComment,
+  canDelete = false,
+  onPressDelete,
+  deleteDisabled = false,
   style,
 }) {
   const navigation = useNavigation();
   const [liked, setLiked] = useState(initiallyLiked);
   const [bookmarked, setBookmarked] = useState(initiallyBookmarked);
   const [likes, setLikes] = useState(initialLikes);
+  const lastTapAtRef = useRef(0);
+  const heartOpacity = useRef(new Animated.Value(0)).current;
+  const heartScale = useRef(new Animated.Value(0.75)).current;
+  const { data: currentUser } = useGetCurrentUserQuery();
+  const normalizedCommunityId = Number(communityId);
+  const { data: communityData } = useGetCommunityByIdQuery(normalizedCommunityId, {
+    skip: !Number.isFinite(normalizedCommunityId) || normalizedCommunityId <= 0,
+  });
+  const normalizedAuthorUserId = Number(authorUserId);
+  const { data: authorProfile } = useGetUserProfileQuery(normalizedAuthorUserId, {
+    skip: !Number.isFinite(normalizedAuthorUserId) || normalizedAuthorUserId <= 0,
+  });
+  const resolvedCommunityName = communityData?.name || communityName;
+  const headerAvatarSource = useMemo(() => {
+    const fromApi = communityData?.coverUrl;
+    if (typeof fromApi === 'string' && fromApi.trim().length > 0) {
+      return { uri: fromApi.trim() };
+    }
+    const fromPost = communityAvatarUri;
+    if (typeof fromPost === 'string' && fromPost.trim().length > 0) {
+      return { uri: fromPost.trim() };
+    }
+    if (Number.isFinite(normalizedCommunityId) && normalizedCommunityId > 0) {
+      return getCommunityCoverImageSource('');
+    }
+    if (authorProfile?.avatarUrl) {
+      return { uri: authorProfile.avatarUrl };
+    }
+    if (typeof avatarUri === 'string' && avatarUri.trim().length > 0) {
+      return { uri: avatarUri.trim() };
+    }
+    return avatarSource;
+  }, [
+    communityData?.coverUrl,
+    communityAvatarUri,
+    normalizedCommunityId,
+    authorProfile?.avatarUrl,
+    avatarUri,
+    avatarSource,
+  ]);
+  const resolvedTitle = resolvedCommunityName || username || 'Сообщество';
+  const normalizedBookId = Number(book?.id);
+  const { data: fullBook } = useGetBookByIdQuery(normalizedBookId, {
+    skip: !Number.isFinite(normalizedBookId) || normalizedBookId <= 0,
+  });
+  const fullBookGenres = useMemo(() => mapApiBookGenres(fullBook), [fullBook]);
+  const resolvedBook = useMemo(
+    () => ({
+      ...book,
+      genreFirst: fullBookGenres.genreFirst || book?.genreFirst,
+      genreSecond: fullBookGenres.genreSecond || book?.genreSecond,
+    }),
+    [book, fullBookGenres.genreFirst, fullBookGenres.genreSecond],
+  );
+  const [likePost] = useLikePostMutation();
+  const [unlikePost] = useUnlikePostMutation();
+  const [favoritePost] = useFavoritePostMutation();
+  const [unfavoritePost] = useUnfavoritePostMutation();
 
-  const onToggleLike = () => {
-    setLiked((v) => {
-      const next = !v;
-      setLikes((c) => (next ? c + 1 : Math.max(0, c - 1)));
-      return next;
-    });
+  useEffect(() => {
+    setLiked(initiallyLiked);
+  }, [initiallyLiked, postId]);
+
+  useEffect(() => {
+    setLikes(initialLikes);
+  }, [initialLikes, postId]);
+
+  useEffect(() => {
+    setBookmarked(initiallyBookmarked);
+  }, [initiallyBookmarked, postId]);
+
+  const onToggleLike = async () => {
+    if (postId == null || postId === '') {
+      return;
+    }
+    const previousLiked = liked;
+    const previousLikes = likes;
+    const nextLiked = !previousLiked;
+
+    setLiked(nextLiked);
+    setLikes((c) => (nextLiked ? c + 1 : Math.max(0, c - 1)));
+
+    try {
+      if (nextLiked) {
+        await likePost({ postId, communityId: normalizedCommunityId }).unwrap();
+      } else {
+        await unlikePost({ postId, communityId: normalizedCommunityId }).unwrap();
+      }
+    } catch (_error) {
+      setLiked(previousLiked);
+      setLikes(previousLikes);
+    }
+  };
+
+  const playDoubleTapHeart = () => {
+    heartOpacity.setValue(0);
+    heartScale.setValue(0.75);
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(heartOpacity, {
+          toValue: 1,
+          duration: 150,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(heartScale, {
+          toValue: 1,
+          duration: 190,
+          easing: Easing.out(Easing.back(1.5)),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.delay(220),
+      Animated.timing(heartOpacity, {
+        toValue: 0,
+        duration: 200,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const onPostSurfaceTap = async () => {
+    const now = Date.now();
+    const isDoubleTap = now - lastTapAtRef.current < 260;
+    lastTapAtRef.current = now;
+    if (!isDoubleTap) {
+      return;
+    }
+    playDoubleTapHeart();
+    if (liked || postId == null || postId === '') {
+      return;
+    }
+    setLiked(true);
+    setLikes((c) => c + 1);
+    try {
+      await likePost({ postId, communityId: normalizedCommunityId }).unwrap();
+    } catch (_error) {
+      setLiked(false);
+      setLikes((c) => Math.max(0, c - 1));
+    }
   };
 
   const likeIcon = useMemo(
@@ -46,6 +200,27 @@ export default function PostCard({
     }
   };
 
+  const onPressCommunity = () => {
+    const normalizedCommunityId = Number(communityId);
+    if (Number.isFinite(normalizedCommunityId) && normalizedCommunityId > 0) {
+      const ownerUserId = Number(communityData?.ownerUserId);
+      const currentUserId = Number(currentUser?.id);
+      const targetRoute =
+        Number.isFinite(ownerUserId) &&
+        Number.isFinite(currentUserId) &&
+        ownerUserId === currentUserId
+          ? 'myCommunity'
+          : 'community';
+      navigation.navigate(targetRoute, { communityId: normalizedCommunityId });
+    }
+  };
+
+  const onPressBook = () => {
+    if (Number.isFinite(normalizedBookId) && normalizedBookId > 0) {
+      navigation.navigate('book', { bookId: normalizedBookId });
+    }
+  };
+
   const bookmarkIcon = useMemo(
     () =>
       bookmarked
@@ -54,40 +229,92 @@ export default function PostCard({
     [bookmarked],
   );
 
+  const onToggleBookmark = async () => {
+    if (postId == null || postId === '') {
+      return;
+    }
+    const previousBookmarked = bookmarked;
+    const nextBookmarked = !previousBookmarked;
+    setBookmarked(nextBookmarked);
+    try {
+      if (nextBookmarked) {
+        await favoritePost({ postId }).unwrap();
+      } else {
+        await unfavoritePost({ postId }).unwrap();
+      }
+    } catch (_error) {
+      setBookmarked(previousBookmarked);
+    }
+  };
+
   return (
     <View style={[styles.wrapper, style]}>
-      <View style={styles.inner}>
-        <View style={styles.headerRow}>
-          <Image source={avatarSource} style={styles.avatar} resizeMode="cover" />
+      <Pressable style={styles.inner} onPress={onPostSurfaceTap}>
+        <Pressable style={styles.headerRow} onPress={onPressCommunity} hitSlop={10}>
+          <Image
+            source={headerAvatarSource}
+            style={styles.avatar}
+            resizeMode="cover"
+          />
           <View style={styles.headerText}>
             <Text style={styles.username} numberOfLines={1}>
-              {username}
+              {resolvedTitle}
             </Text>
             <Text style={styles.date} numberOfLines={1}>
               {dateText}
             </Text>
           </View>
-        </View>
+          {canDelete ? (
+            <Pressable
+              style={[styles.deletePostAction, deleteDisabled ? styles.deletePostActionDisabled : null]}
+              onPress={onPressDelete}
+              hitSlop={10}
+              disabled={deleteDisabled}
+            >
+              <Image
+                source={require('../assets/icons/icon_tresh.png')}
+                style={styles.deletePostIcon}
+                resizeMode="contain"
+              />
+            </Pressable>
+          ) : null}
+        </Pressable>
 
         <Text style={styles.postText}>{text}</Text>
 
-        {imageSource ? (
+        {imageSource || imageUri ? (
           <View style={styles.imageFrame}>
-            <Image source={imageSource} style={styles.postImage} resizeMode="cover" />
+            <Image source={imageSource ?? { uri: imageUri }} style={styles.postImage} resizeMode="cover" />
           </View>
         ) : null}
 
         <View style={styles.bookFrame}>
           <BookCard
-            imageUrl={book?.imageUrl}
-            title={book?.title}
-            author={book?.author}
-            genreFirst={book?.genreFirst}
-            genreSecond={book?.genreSecond}
-            onClick={() => {}}
+            imageUrl={resolvedBook?.imageUrl}
+            title={resolvedBook?.title}
+            author={resolvedBook?.author}
+            genreFirst={resolvedBook?.genreFirst}
+            genreSecond={resolvedBook?.genreSecond}
+            onClick={onPressBook}
           />
         </View>
-      </View>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.doubleTapHeartWrap,
+            {
+              opacity: heartOpacity,
+              transform: [{ scale: heartScale }],
+            },
+          ]}
+        >
+          <Image
+            source={require('../assets/icons/icon-heart-filled.png')}
+            style={styles.doubleTapHeartIcon}
+            resizeMode="contain"
+          />
+        </Animated.View>
+      </Pressable>
 
       <View style={styles.actionsRow}>
         <View style={styles.leftActions}>
@@ -106,7 +333,7 @@ export default function PostCard({
           <Text style={styles.count}>{initialComments}</Text>
         </View>
 
-        <Pressable style={styles.action} onPress={() => setBookmarked((v) => !v)} hitSlop={10}>
+        <Pressable style={styles.action} onPress={onToggleBookmark} hitSlop={10}>
           <Image
             source={bookmarkIcon}
             style={[styles.icon, bookmarked ? styles.iconBookmarked : null]}
@@ -131,6 +358,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: '6%',
     paddingTop: '3%',
     paddingBottom: '4%',
+    position: 'relative',
+  },
+  doubleTapHeartWrap: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doubleTapHeartIcon: {
+    width: 84,
+    height: 84,
+    tintColor: '#B23A2D',
   },
   headerRow: {
     flexDirection: 'row',
@@ -160,6 +402,20 @@ const styles = StyleSheet.create({
     fontWeight: 400,
     lineHeight: 14,
     opacity: 0.9,
+  },
+  deletePostAction: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deletePostActionDisabled: {
+    opacity: 0.5,
+  },
+  deletePostIcon: {
+    width: 22,
+    height: 22,
+    tintColor: '#2D2800',
   },
   postText: {
     marginTop: '4%',

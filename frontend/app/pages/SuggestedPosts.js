@@ -1,28 +1,95 @@
-import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import PostCard from '../components/PostCard';
-import { examplePosts } from '../data/communityPage';
+import { mapApiBookGenres } from '../slices/booksSlice';
+import {
+  useApproveSuggestedPostMutation,
+  useGetSuggestedPostsQuery,
+  useRejectSuggestedPostMutation,
+} from '../slices/postsSlice';
 
-const initialSuggestedPosts = examplePosts.map((post, index) => ({
-  ...post,
-  id: `suggested-${post.id}-${index}`,
-  sourcePostId: post.id,
-}));
+const DEFAULT_BOOK_COVER_URI = 'https://via.placeholder.com/136x193?text=Book';
+
+const formatDate = (isoString) => {
+  if (!isoString) {
+    return '';
+  }
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yy = String(date.getFullYear()).slice(-2);
+  return `${dd}.${mm}.${yy}`;
+};
+
+const mapSuggestedPost = (post) => {
+  const { genreFirst, genreSecond } = mapApiBookGenres(post);
+  return {
+    id: post?.id,
+    postId: post?.id,
+    communityId: Number(post?.communityId),
+    authorUserId: Number(post?.authorUserId),
+    username: post?.authorUsername || 'Пользователь',
+    dateText: formatDate(post?.createdAt),
+    text: post?.content || '',
+    imageSource: post?.photoUrl ? { uri: post.photoUrl } : undefined,
+    avatarUri: post?.authorAvatarUrl || post?.avatarUrl || undefined,
+    initialLikes: post?.likeCount ?? 0,
+    initialComments: post?.commentCount ?? 0,
+    initiallyLiked: Boolean(post?.likedByCurrentUser),
+    initiallyBookmarked: Boolean(post?.favoritedByCurrentUser),
+    book: {
+      id: Number(post?.book?.id ?? post?.bookId),
+      imageUrl: post?.book?.coverUrl || DEFAULT_BOOK_COVER_URI,
+      title: post?.book?.title || 'Без названия',
+      author: post?.book?.author || 'Неизвестный автор',
+      genreFirst,
+      genreSecond,
+    },
+  };
+};
 
 export default function SuggestedPosts() {
   const navigation = useNavigation();
-  const [posts, setPosts] = useState(initialSuggestedPosts);
+  const route = useRoute();
+  const communityId = Number(route?.params?.communityId);
+  const {
+    data: suggestedPostsData = [],
+    isFetching,
+    isLoading,
+  } = useGetSuggestedPostsQuery(
+    { communityId, page: 1, pageSize: 50 },
+    { skip: !Number.isFinite(communityId) || communityId <= 0 },
+  );
+  const [approveSuggestedPost, { isLoading: isApproving }] = useApproveSuggestedPostMutation();
+  const [rejectSuggestedPost, { isLoading: isRejecting }] = useRejectSuggestedPostMutation();
 
+  const posts = useMemo(() => suggestedPostsData.map((post) => mapSuggestedPost(post)), [suggestedPostsData]);
   const hasPosts = posts.length > 0;
+  const isMutating = isApproving || isRejecting;
 
-  const onPublish = (postId) => {
-    setPosts((current) => current.filter((p) => p.id !== postId));
+  const onPublish = async (postId) => {
+    if (!postId || !communityId) {
+      return;
+    }
+    try {
+      await approveSuggestedPost({ postId, communityId }).unwrap();
+    } catch (_error) {
+    }
   };
 
-  const onDelete = (postId) => {
-    setPosts((current) => current.filter((p) => p.id !== postId));
+  const onDelete = async (postId) => {
+    if (!postId || !communityId) {
+      return;
+    }
+    try {
+      await rejectSuggestedPost({ postId, communityId }).unwrap();
+    } catch (_error) {
+    }
   };
 
   const emptyState = useMemo(
@@ -43,25 +110,46 @@ export default function SuggestedPosts() {
         showConfirmButton={false}
       />
 
+      {isLoading || isFetching ? (
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator size="large" color="#555C40" />
+        </View>
+      ) : (
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {hasPosts
           ? posts.map((post) => (
               <View key={post.id} style={styles.postWrap}>
                 <PostCard
-                  postId={post.sourcePostId}
+                  postId={post.postId}
+                  communityId={post.communityId}
+                  authorUserId={post.authorUserId}
+                  avatarUri={post.avatarUri}
                   username={post.username}
                   dateText={post.dateText}
                   text={post.text}
                   imageSource={post.imageSource}
                   book={post.book}
-                  showActions={false}
+                  initialLikes={post.initialLikes}
+                  initialComments={post.initialComments}
+                  initiallyLiked={post.initiallyLiked}
+                  initiallyBookmarked={post.initiallyBookmarked}
                 />
 
                 <View style={styles.actionRow}>
-                  <Pressable style={[styles.actionButton, styles.publishButton]} onPress={() => onPublish(post.id)} hitSlop={10}>
+                  <Pressable
+                    style={[styles.actionButton, styles.publishButton, isMutating ? styles.actionButtonDisabled : null]}
+                    onPress={() => onPublish(post.id)}
+                    hitSlop={10}
+                    disabled={isMutating}
+                  >
                     <Text style={[styles.actionText, styles.publishText]}>Выложить</Text>
                   </Pressable>
-                  <Pressable style={[styles.actionButton, styles.deleteButton]} onPress={() => onDelete(post.id)} hitSlop={10}>
+                  <Pressable
+                    style={[styles.actionButton, styles.deleteButton, isMutating ? styles.actionButtonDisabled : null]}
+                    onPress={() => onDelete(post.id)}
+                    hitSlop={10}
+                    disabled={isMutating}
+                  >
                     <Text style={[styles.actionText, styles.deleteText]}>Удалить</Text>
                   </Pressable>
                 </View>
@@ -69,6 +157,7 @@ export default function SuggestedPosts() {
             ))
           : emptyState}
       </ScrollView>
+      )}
     </View>
   );
 }
@@ -118,6 +207,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Playfair',
     lineHeight: 20,
     paddingBottom: 3,
+  },
+  actionButtonDisabled: {
+    opacity: 0.6,
+  },
+  loaderWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   publishText: {
     color: '#ECE8DD',

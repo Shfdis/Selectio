@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { bookSearchCatalog } from '../data/libraryBooks';
+import { Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import BookRowCard from './BookRowCard';
 import SearchResultsSheet from './SearchResults';
 import SearchInput, { defaultSearchPlaceholder } from './SearchInput';
 import ScreenHeader from './ScreenHeader';
+import KeyboardAvoidingBox from './KeyboardAvoidingBox';
 
 const newPostSearchSheetTopOffset = 205;
 
@@ -16,6 +16,7 @@ export default function NewPostEditor({
   onChangeBookSearchQuery,
   selectedBook,
   onSelectBook,
+  searchBooksCatalog = [],
   comment,
   onChangeComment,
   attachedPhotoUri,
@@ -35,14 +36,14 @@ export default function NewPostEditor({
   const filteredBooks = useMemo(() => {
     const q = bookSearchQuery.trim().toLowerCase();
     if (!q) return [];
-    return bookSearchCatalog.filter(
+    return searchBooksCatalog.filter(
       (book) =>
-        book.title.toLowerCase().includes(q) ||
-        book.author.toLowerCase().includes(q) ||
-        (book.genreFirst && book.genreFirst.toLowerCase().includes(q)) ||
-        (book.genreSecond && book.genreSecond.toLowerCase().includes(q)),
+        String(book?.title ?? '').toLowerCase().includes(q) ||
+        String(book?.author ?? '').toLowerCase().includes(q) ||
+        (book?.genreFirst && String(book.genreFirst).toLowerCase().includes(q)) ||
+        (book?.genreSecond && String(book.genreSecond).toLowerCase().includes(q)),
     );
-  }, [bookSearchQuery]);
+  }, [bookSearchQuery, searchBooksCatalog]);
 
   const showResultsSheet = bookPickerOpen && bookSearchQuery.trim().length > 0 && !resultsSheetDismissed;
 
@@ -85,7 +86,7 @@ export default function NewPostEditor({
         confirmDisabled={confirmDisabled}
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+      <KeyboardAvoidingBox enabled useBottomInset style={styles.flex} keyboardVerticalOffset={0}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -96,7 +97,9 @@ export default function NewPostEditor({
             <Text style={styles.bookHint}>Выберите книгу по тематике поста</Text>
             {selectedBook && !bookPickerOpen ? (
               <View style={styles.selectedBookCardWrap}>
-                <BookRowCard book={selectedBook} showMoreButton={false} showDivider={false} />
+                <View style={styles.selectedBookCardContent}>
+                  <BookRowCard book={selectedBook} showMoreButton={false} showDivider={false} />
+                </View>
                 <Pressable style={styles.swapButton} onPress={openBookPicker} hitSlop={10}>
                   <Image
                     source={require('../assets/icons/icon_swap.png')}
@@ -122,6 +125,14 @@ export default function NewPostEditor({
 
           <View style={styles.commentSection}>
             <Text style={styles.commentLabel}>Комментарий</Text>
+            <Pressable style={styles.attachButton} onPress={onPressAttachPhoto} hitSlop={10}>
+              <Image
+                source={require('../assets/icons/icon_photo-add.png')}
+                style={styles.attachIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.attachText}>{attachedPhotoUri ? 'Изменить фото' : 'Прикрепить фото'}</Text>
+            </Pressable>
             <TextInput
               value={comment}
               onChangeText={onChangeComment}
@@ -133,19 +144,11 @@ export default function NewPostEditor({
             />
           </View>
 
-          <Pressable style={styles.attachButton} onPress={onPressAttachPhoto} hitSlop={10}>
-            <Image
-              source={require('../assets/icons/icon_photo-add.png')}
-              style={styles.attachIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.attachText}>{attachedPhotoUri ? 'Изменить фото' : 'Прикрепить фото'}</Text>
-          </Pressable>
           {attachedPhotoUri ? (
             <Image source={{ uri: attachedPhotoUri }} style={styles.attachedPreview} resizeMode="cover" />
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingBox>
 
       <SearchResultsSheet
         visible={showResultsSheet}
@@ -223,7 +226,8 @@ const styles = StyleSheet.create({
   },
   attachButton: {
     position: 'relative',
-    marginTop: 28,
+    marginTop: 10,
+    marginBottom: 12,
     width: '100%',
     height: 36,
     borderRadius: 10,
@@ -258,6 +262,9 @@ const styles = StyleSheet.create({
   selectedBookCardWrap: {
     position: 'relative',
     marginHorizontal: '-6%',
+  },
+  selectedBookCardContent: {
+    paddingRight: 56,
   },
   swapButton: {
     position: 'absolute',

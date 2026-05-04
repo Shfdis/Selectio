@@ -1,73 +1,206 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import LibraryHeader from '../components/LibraryHeader';
 import BookRowCard from '../components/BookRowCard';
-import { useEffect, useMemo, useState } from 'react';
-import { libraryFilterGenres, readBooks } from '../data/libraryBooks';
+import { useMemo, useState } from 'react';
 import LibrarySortSheet from '../components/LibrarySortSheet';
 import LibraryFilterSheet from '../components/LibraryFilterSheet';
 import LibraryMoveSheet from '../components/LibraryMoveSheet';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+import { useGetCurrentUserQuery } from '../slices/userSlice';
+import {
+  mapApiBookGenres,
+  useMoveBookInLibraryMutation,
+  useRemoveBookFromLibraryMutation,
+} from '../slices/booksSlice';
+import { useGetMyBookCommentsQuery, useGetUserLibraryBooksQuery } from '../slices/profileSlice';
 
-export default function ReadBooks({ route }) {
+const LIBRARY_STATUS = {
+  wantToRead: 0,
+  inProgress: 1,
+  read: 2,
+};
+const normalizeGenre = (value) => String(value ?? '').trim();
+const readBooksUiState = {
+  sortId: 'title-asc',
+};
+
+export default function ReadBooks() {
   const navigation = useNavigation();
   const [activeId, setActiveId] = useState(null);
-  const [selectedSortId, setSelectedSortId] = useState('title-asc');
+  const [selectedSortId, setSelectedSortId] = useState(readBooksUiState.sortId);
   const [selectedGenres, setSelectedGenres] = useState([]);
-  const [books, setBooks] = useState(readBooks);
-  const [selectedBookIndex, setSelectedBookIndex] = useState(null);
+  const [selectedBookId, setSelectedBookId] = useState(null);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
-  const selectedBook =
-    typeof selectedBookIndex === 'number' ? books[selectedBookIndex] : null;
-
-  const initialRatings = useMemo(
-    () => books.map((b) => (typeof b?.userRating === 'number' ? b.userRating : null)),
-    [books],
+  const [isMutating, setIsMutating] = useState(false);
+  const { data: currentUser } = useGetCurrentUserQuery();
+  const userId = currentUser?.id;
+  const {
+    data: libraryData = [],
+    isFetching,
+    isLoading,
+  } = useGetUserLibraryBooksQuery(
+    { userId, status: LIBRARY_STATUS.read, page: 1, pageSize: 100 },
+    { skip: !userId },
   );
-  const [userRatings, setUserRatings] = useState(initialRatings);
-  const [userReviewTexts, setUserReviewTexts] = useState(() => books.map(() => ''));
+  const [moveBookInLibrary] = useMoveBookInLibraryMutation();
+  const [removeBookFromLibrary] = useRemoveBookFromLibraryMutation();
+  const { data: myBookComments = [] } = useGetMyBookCommentsQuery(undefined, { skip: !userId });
 
-  useEffect(() => {
-    const update = route?.params?.reviewUpdate;
-    if (!update) return;
+  const books = useMemo(
+    () =>
+      libraryData.map((book) => ({
+        id: book.bookId,
+        addedAt: book.addedAt || null,
+        imageUrl: typeof book.coverUrl === 'string' ? book.coverUrl.trim() : '',
+        title: book.title || 'Без названия',
+        author: book.author || 'Неизвестный автор',
+        userRating: typeof book.rating === 'number' ? book.rating : null,
+        ...mapApiBookGenres(book),
+      })),
+    [libraryData],
+  );
 
-    const { idx, rating, text } = update;
-    if (typeof idx === 'number' && typeof rating === 'number') {
-      setUserRatings((prev) => {
-        const next = [...prev];
-        next[idx] = rating;
-        return next;
-      });
-      if (typeof text === 'string') {
-        setUserReviewTexts((prev) => {
-          const next = [...prev];
-          next[idx] = text;
-          return next;
-        });
+  const availableGenres = useMemo(() => {
+    const unique = new Set();
+    books.forEach((book) => {
+      const genre = normalizeGenre(book.genreFirst);
+      if (genre) {
+        unique.add(genre);
       }
-    }
-    navigation.setParams({ reviewUpdate: undefined });
-  }, [navigation, route?.params?.reviewUpdate]);
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [books]);
+
+  const visibleBooks = useMemo(() => {
+    const selectedGenresNormalized = selectedGenres.map((genre) => normalizeGenre(genre).toLowerCase());
+    const filtered = books.filter((book) => {
+      if (selectedGenresNormalized.length === 0) {
+        return true;
+      }
+      const genre = normalizeGenre(book.genreFirst).toLowerCase();
+      return selectedGenresNormalized.includes(genre);
+    });
+
+    const sorted = [...filtered];
+    const toTime = (value) => {
+      const ts = Date.parse(value ?? '');
+      return Number.isNaN(ts) ? null : ts;
+    };
+    sorted.sort((a, b) => {
+      switch (selectedSortId) {
+        case 'title-desc':
+          return String(b.title).localeCompare(String(a.title), 'ru');
+        case 'author-asc':
+          return (toTime(b.addedAt) ?? Number.NEGATIVE_INFINITY) - (toTime(a.addedAt) ?? Number.NEGATIVE_INFINITY);
+        case 'author-desc':
+          return (toTime(a.addedAt) ?? Number.POSITIVE_INFINITY) - (toTime(b.addedAt) ?? Number.POSITIVE_INFINITY);
+        case 'title-asc':
+        default:
+          return String(a.title).localeCompare(String(b.title), 'ru');
+      }
+    });
+    return sorted;
+  }, [books, selectedGenres, selectedSortId]);
+
+  const selectedBook = useMemo(
+    () => visibleBooks.find((book) => book.id === selectedBookId) ?? null,
+    [selectedBookId, visibleBooks],
+  );
+
+  readBooksUiState.sortId = selectedSortId;
+
+  const myCommentsByBookId = useMemo(() => {
+    const map = new Map();
+    myBookComments.forEach((comment) => {
+      const bookId = Number(comment?.bookId);
+      if (!Number.isFinite(bookId) || bookId <= 0) {
+        return;
+      }
+      const existing = map.get(bookId);
+      const existingTime = existing ? Date.parse(existing.createdAt ?? '') : Number.NEGATIVE_INFINITY;
+      const currentTime = Date.parse(comment?.createdAt ?? '');
+      if (!existing || (!Number.isNaN(currentTime) && currentTime >= existingTime)) {
+        map.set(bookId, comment);
+      }
+    });
+    return map;
+  }, [myBookComments]);
+
+  const userRatings = useMemo(() => {
+    const ratings = Object.fromEntries(
+      books.map((book) => [book.id, typeof book?.userRating === 'number' ? book.userRating : null]),
+    );
+    books.forEach((book) => {
+      const comment = myCommentsByBookId.get(book.id);
+      if (comment && typeof comment.rating === 'number') {
+        ratings[book.id] = comment.rating;
+      }
+    });
+    return ratings;
+  }, [books, myCommentsByBookId]);
+
+  const userReviewTexts = useMemo(
+    () =>
+      Object.fromEntries(
+        books.map((book) => [book.id, myCommentsByBookId.get(book.id)?.content ?? '']),
+      ),
+    [books, myCommentsByBookId],
+  );
 
   const onPressNewReview = (book, idx) => {
     setActiveId(null);
-    navigation.navigate('newReview', { book, idx });
+    navigation.navigate('newReview', { book, idx, bookId: book?.id });
   };
 
   const onPressUserRating = (book, idx) => {
     setActiveId(null);
-    setSelectedBookIndex(null);
-    const rating = userRatings[idx];
+    setSelectedBookId(null);
+    const rating = userRatings[book?.id];
     if (typeof rating !== 'number' || Number.isNaN(rating)) return;
+    const selectedCommentId = myCommentsByBookId.get(book?.id)?.id;
     navigation.navigate('editReview', {
       review: {
-        id: `read-books-${idx}`,
+        id: selectedCommentId,
         idx,
+        bookId: book?.id,
         book,
         rating,
-        text: userReviewTexts[idx] ?? '',
+        text: userReviewTexts[book?.id] ?? '',
       },
     });
+  };
+
+  const closeActionSheets = () => {
+    setActiveId(null);
+    setSelectedBookId(null);
+  };
+
+  const onMoveToShelf = async (targetShelf) => {
+    if (!selectedBook?.id || !Object.prototype.hasOwnProperty.call(LIBRARY_STATUS, targetShelf)) {
+      return;
+    }
+    try {
+      setIsMutating(true);
+      await moveBookInLibrary({ bookId: selectedBook.id, status: LIBRARY_STATUS[targetShelf] }).unwrap();
+      setSelectedBookId(null);
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const onConfirmDelete = async () => {
+    if (!selectedBook?.id) {
+      return;
+    }
+    try {
+      setIsMutating(true);
+      await removeBookFromLibrary({ bookId: selectedBook.id }).unwrap();
+      setIsDeleteConfirmVisible(false);
+      setSelectedBookId(null);
+    } finally {
+      setIsMutating(false);
+    }
   };
 
   return (
@@ -81,21 +214,29 @@ export default function ReadBooks({ route }) {
         onToggleActive={(id) => setActiveId((prev) => (prev === id ? null : id))}
       />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {books.map((b, idx) => (
+        {(isLoading || isFetching) && books.length === 0 ? (
+          <ActivityIndicator style={styles.loader} size="large" color="#555C40" />
+        ) : null}
+        {!isLoading && !isFetching && visibleBooks.length === 0 ? (
+          <Text style={styles.emptyState}>В этом списке пока нет книг</Text>
+        ) : null}
+        {visibleBooks.map((b, idx) => (
           <BookRowCard
-            key={`${b.title}-${idx}`}
+            key={`${b.id}-${b.title}`}
             book={b}
-            isMoreActive={selectedBookIndex === idx}
+            isMoreActive={selectedBookId === b.id}
             onPressMore={() => {
-              setSelectedBookIndex((prev) => (prev === idx ? null : idx));
+              setSelectedBookId((prev) => (prev === b.id ? null : b.id));
               setActiveId(null);
             }}
             onPressBook={() => {
-              setActiveId(null);
-              setSelectedBookIndex(null);
+              closeActionSheets();
+              if (b?.id) {
+                navigation.navigate('book', { bookId: b.id });
+              }
             }}
-            userRating={userRatings[idx]}
-            showAddReview={userRatings[idx] == null}
+            userRating={userRatings[b.id]}
+            showAddReview={userRatings[b.id] == null}
             onPressAddReview={() => onPressNewReview(b, idx)}
             onPressUserRating={() => onPressUserRating(b, idx)}
           />
@@ -112,7 +253,7 @@ export default function ReadBooks({ route }) {
         layout="rows"
         rowsPreset="community"
         title="Жанры"
-        genres={libraryFilterGenres}
+        genres={availableGenres}
         selectedGenres={selectedGenres}
         onToggleGenre={(genre) =>
           setSelectedGenres((prev) =>
@@ -126,31 +267,20 @@ export default function ReadBooks({ route }) {
         visible={selectedBook != null}
         list="read"
         bookTitle={selectedBook?.title || ''}
-        onMoveToShelf={() => {
-          if (typeof selectedBookIndex === 'number') {
-            setBooks((prev) => prev.filter((_, idx) => idx !== selectedBookIndex));
-            setUserRatings((prev) => prev.filter((_, idx) => idx !== selectedBookIndex));
-            setUserReviewTexts((prev) => prev.filter((_, idx) => idx !== selectedBookIndex));
-          }
-          setSelectedBookIndex(null);
-        }}
+        onMoveToShelf={onMoveToShelf}
         onDelete={() => {
           setIsDeleteConfirmVisible(true);
         }}
-        onClose={() => setSelectedBookIndex(null)}
+        onClose={() => setSelectedBookId(null)}
       />
       <DeleteConfirmDialog
         visible={isDeleteConfirmVisible}
-        onCancel={() => setIsDeleteConfirmVisible(false)}
-        onConfirm={() => {
-          if (typeof selectedBookIndex === 'number') {
-            setBooks((prev) => prev.filter((_, idx) => idx !== selectedBookIndex));
-            setUserRatings((prev) => prev.filter((_, idx) => idx !== selectedBookIndex));
-            setUserReviewTexts((prev) => prev.filter((_, idx) => idx !== selectedBookIndex));
+        onCancel={() => {
+          if (!isMutating) {
+            setIsDeleteConfirmVisible(false);
           }
-          setIsDeleteConfirmVisible(false);
-          setSelectedBookIndex(null);
         }}
+        onConfirm={onConfirmDelete}
       />
     </View>
   );
@@ -166,6 +296,17 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingBottom: '10%',
+  },
+  loader: {
+    marginTop: 24,
+  },
+  emptyState: {
+    marginTop: 24,
+    fontSize: 16,
+    color: '#81876D',
+    fontFamily: 'Playfair',
+    fontWeight: 400,
+    textAlign: 'center',
   },
 });
 

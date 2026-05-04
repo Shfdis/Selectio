@@ -1,4 +1,4 @@
-import { View, StyleSheet, Image, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, Image, Text, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { useRef, useCallback, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import PageHeader from './PageHeader';
@@ -18,8 +18,11 @@ function buildRows(coverCount) {
 export default function AllCommunities({
   headerTitle,
   headerSubtitle,
-  coverImageUrls,
+  coverImageUrls = [],
+  coverNames = [],
   coverPressRoute,
+  coverPressParamsByIndex = [],
+  onPressCover,
 }) {
   const navigation = useNavigation();
   const scrollRef = useRef(null);
@@ -62,7 +65,11 @@ export default function AllCommunities({
               },
             ]}
           >
-            {indices.map((index) => (
+            {indices.map((index) => {
+              const coverUri = coverImageUrls[index];
+              const hasCustomCover = typeof coverUri === 'string' && coverUri.trim().length > 0;
+              const coverLabel = coverNames[index] || 'Сообщество';
+              return (
               <Pressable
                 key={index}
                 style={[
@@ -73,15 +80,30 @@ export default function AllCommunities({
                     borderRadius: 10,
                   },
                 ]}
-                onPress={() => navigation.navigate(coverPressRoute)}
+                onPress={() => {
+                  if (typeof onPressCover === 'function') {
+                    onPressCover(index);
+                    return;
+                  }
+                  if (!coverPressRoute) {
+                    return;
+                  }
+                  const routeParams = coverPressParamsByIndex[index];
+                  navigation.navigate(coverPressRoute, routeParams);
+                }}
               >
-                <Image
-                  source={{ uri: coverImageUrls[index] }}
-                  style={styles.cover}
-                  resizeMode="cover"
-                />
+                {hasCustomCover ? (
+                  <Image source={{ uri: coverUri.trim() }} style={styles.cover} resizeMode="cover" />
+                ) : (
+                  <View style={styles.coverTextFallback}>
+                    <Text style={styles.coverTextFallbackTitle} numberOfLines={5}>
+                      {coverLabel}
+                    </Text>
+                  </View>
+                )}
               </Pressable>
-            ))}
+            );
+            })}
           </View>
         ))}
       </ScrollView>
@@ -91,7 +113,6 @@ export default function AllCommunities({
 
 const styles = StyleSheet.create({
   pageHeaderTall: {
-    height: 119,
     paddingBottom: 5,
   },
   screen: {
@@ -117,5 +138,22 @@ const styles = StyleSheet.create({
   cover: {
     width: '100%',
     height: '100%',
+  },
+  coverTextFallback: {
+    width: '100%',
+    height: '100%',
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+    justifyContent: 'flex-start',
+    backgroundColor: '#CCB985',
+    borderWidth: 1,
+    borderColor: '#CAC7B9',
+  },
+  coverTextFallbackTitle: {
+    fontSize: 15,
+    lineHeight: 16,
+    color: '#2D2800',
+    fontFamily: 'Mak',
+    fontWeight: '600',
   },
 });

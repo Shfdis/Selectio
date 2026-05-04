@@ -1,25 +1,159 @@
 import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-native';
-import { useRef, useCallback, useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
+import { useRef, useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import GreenHeader from '../components/GreenHeader';
 import BookInfoBlock from '../components/BookInfoBlock';
 import ReviewCard from '../components/ReviewCard';
 import BookAddToLibrary from '../components/BookAddToLibrary';
 import LibraryMoveSheet, { LIBRARY_SHELF_ICONS, LIBRARY_SHELF_LABELS } from '../components/LibraryMoveSheet';
-import { exampleBook, exampleReviews } from '../data/bookPage';
+import {
+  mapApiBookGenres,
+  useAddBookToLibraryMutation,
+  useGetBookByIdQuery,
+  useGetBookCommentsQuery,
+  useGetPopularBooksQuery,
+  useMoveBookInLibraryMutation,
+  useRemoveBookFromLibraryMutation,
+} from '../slices/booksSlice';
+import { useGetCurrentUserQuery } from '../slices/userSlice';
+import { useGetUserProfileQuery } from '../slices/profileSlice';
+
+const LIBRARY_STATUS = {
+  wantToRead: 0,
+  inProgress: 1,
+  read: 2,
+};
+const LIBRARY_STATUS_BY_NAME = {
+  wanttoread: 'wantToRead',
+  inprogress: 'inProgress',
+  reading: 'inProgress',
+  read: 'read',
+};
+const LIBRARY_STATUS_REVERSE = {
+  0: 'wantToRead',
+  1: 'inProgress',
+  2: 'read',
+};
+const formatDate = (isoString) => {
+  if (!isoString) {
+    return '';
+  }
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yy = String(date.getFullYear()).slice(-2);
+  return `${dd}.${mm}.${yy}`;
+};
+
+const resolveShelfFromUserStatus = (status) => {
+  if (typeof status === 'number') {
+    return LIBRARY_STATUS_REVERSE[status] ?? null;
+  }
+  if (typeof status === 'string') {
+    const normalized = status.replace(/[_\s-]/g, '').toLowerCase();
+    return LIBRARY_STATUS_BY_NAME[normalized] ?? null;
+  }
+  return null;
+};
 
 export default function Book() {
   const navigation = useNavigation();
+  const route = useRoute();
+  const { data: currentUser } = useGetCurrentUserQuery();
+  const userId = currentUser?.id;
+  const { data: currentProfile } = useGetUserProfileQuery(userId, { skip: !userId });
+  const currentUsername = currentProfile?.username || currentUser?.username || '';
+  const currentAvatarUrl = currentProfile?.avatarUrl || '';
   const scrollRef = useRef(null);
-  const book = exampleBook;
+  const routeBookId = route?.params?.bookId;
+  const numericBookId = Number(routeBookId);
+  const hasRouteBookId = Number.isFinite(numericBookId) && numericBookId > 0;
+  const { data: fallbackBooks = [] } = useGetPopularBooksQuery({ page: 1, pageSize: 1 }, { skip: hasRouteBookId });
+  const resolvedBookId = hasRouteBookId ? numericBookId : fallbackBooks[0]?.id;
+  const { data: bookData, refetch: refetchBook } = useGetBookByIdQuery(resolvedBookId, { skip: !resolvedBookId });
+  const { data: bookComments = [] } = useGetBookCommentsQuery(
+    { bookId: resolvedBookId, page: 1, pageSize: 50 },
+    { skip: !resolvedBookId },
+  );
+  const [addBookToLibrary] = useAddBookToLibraryMutation();
+  const [moveBookInLibrary] = useMoveBookInLibraryMutation();
+  const [removeBookFromLibrary] = useRemoveBookFromLibraryMutation();
 
-  const [libraryShelf, setLibraryShelf] = useState(null);
   const [addSheetVisible, setAddSheetVisible] = useState(false);
   const [moveSheetVisible, setMoveSheetVisible] = useState(false);
+  const [libraryShelfLocal, setLibraryShelfLocal] = useState(null);
+  const [coverLoadFailed, setCoverLoadFailed] = useState(false);
+
+  const libraryShelfFromApi = useMemo(
+    () => resolveShelfFromUserStatus(bookData?.userStatus),
+    [bookData?.userStatus],
+  );
+  const libraryShelf = libraryShelfLocal ?? libraryShelfFromApi;
+
+  useEffect(() => {
+    setLibraryShelfLocal(libraryShelfFromApi);
+  }, [libraryShelfFromApi, resolvedBookId]);
+
+  useEffect(() => {
+    setCoverLoadFailed(false);
+  }, [resolvedBookId, bookData?.coverUrl]);
+
+  const book = useMemo(() => {
+    const { genreFirst, genreSecond } = mapApiBookGenres(bookData);
+    return {
+      id: bookData?.id,
+      imageUrl: typeof bookData?.coverUrl === 'string' ? bookData.coverUrl.trim() : '',
+      averageRating: typeof bookData?.averageRating === 'number' ? bookData.averageRating.toFixed(1) : '0.0',
+      title: bookData?.title || 'Без названия',
+      author: bookData?.author || 'Неизвестный автор',
+      genreFirst,
+      genreSecond,
+      description: bookData?.description || '',
+    };
+  }, [bookData]);
+  const reviews = useMemo(
+    () => {
+      const latestByAuthor = new Map();
+      bookComments.forEach((review) => {
+        const authorId = Number(review?.authorUserId);
+        if (!Number.isFinite(authorId) || authorId <= 0) {
+          return;
+        }
+        const existing = latestByAuthor.get(authorId);
+        const existingTime = existing ? Date.parse(existing.createdAt ?? '') : Number.NEGATIVE_INFINITY;
+        const currentTime = Date.parse(review?.createdAt ?? '');
+        if (!existing || (!Number.isNaN(currentTime) && currentTime >= existingTime)) {
+          latestByAuthor.set(authorId, review);
+        }
+      });
+      return Array.from(latestByAuthor.values()).map((review) => ({
+        id: review.id,
+        userName: review.authorUsername || 'Пользователь',
+        avatarUrl:
+          currentAvatarUrl &&
+          currentUsername &&
+          review.authorUsername &&
+          review.authorUsername === currentUsername
+            ? currentAvatarUrl
+            : '',
+        dateText: formatDate(review.createdAt),
+        title: book.title,
+        author: book.author,
+        rating: review.rating ?? 0,
+        text: review.content || '',
+        showEdit: false,
+      }));
+    },
+    [bookComments, book.author, book.title, currentAvatarUrl, currentUsername],
+  );
 
   const onPressBack = () => {
     navigation.goBack();
   };
+  const shouldShowCoverImage = Boolean(book.imageUrl) && !coverLoadFailed;
 
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -33,13 +167,27 @@ export default function Book() {
     }
   };
 
-  const onSelectShelfFromAddSheet = (shelf) => {
-    setLibraryShelf(shelf);
+  const onSelectShelfFromAddSheet = async (shelf) => {
+    if (!resolvedBookId) {
+      return;
+    }
+    await addBookToLibrary({
+      bookId: resolvedBookId,
+      status: LIBRARY_STATUS[shelf],
+      statusName: shelf,
+    }).unwrap();
+    setLibraryShelfLocal(shelf);
+    await refetchBook();
     setAddSheetVisible(false);
   };
 
-  const onRemoveFromLibrary = () => {
-    setLibraryShelf(null);
+  const onRemoveFromLibrary = async () => {
+    if (!resolvedBookId) {
+      return;
+    }
+    await removeBookFromLibrary({ bookId: resolvedBookId }).unwrap();
+    setLibraryShelfLocal(null);
+    await refetchBook();
     setMoveSheetVisible(false);
   };
 
@@ -55,7 +203,23 @@ export default function Book() {
       >
         <View style={styles.headerGreenBlock}>
           <View style={styles.coverWrap}>
-            <Image source={{ uri: book.imageUrl }} style={styles.cover} resizeMode="cover" />
+            {shouldShowCoverImage ? (
+              <Image
+                source={{ uri: book.imageUrl }}
+                style={styles.cover}
+                resizeMode="cover"
+                onError={() => setCoverLoadFailed(true)}
+              />
+            ) : (
+              <View style={styles.fallbackCover}>
+                <Text style={styles.fallbackCoverTitle} numberOfLines={5}>
+                  {book.title}
+                </Text>
+                <Text style={styles.fallbackCoverAuthor} numberOfLines={5}>
+                  {book.author}
+                </Text>
+              </View>
+            )}
           </View>
           <View style={styles.ratingOval}>
             <Image
@@ -116,18 +280,29 @@ export default function Book() {
             </Pressable>
           </View>
           <View style={styles.rowDivider} />
-          <View style={styles.descriptionSection}>
-            <Text style={styles.descriptionLabel}>Описание:</Text>
-            <Text style={styles.descriptionText}>{book.description}</Text>
-          </View>
-
-          <View style={styles.divider} />
+          {book.description && String(book.description).trim().length > 0 ? (
+            <>
+              <View style={styles.descriptionSection}>
+                <Text style={styles.descriptionLabel}>Описание:</Text>
+                <Text style={styles.descriptionText}>{book.description}</Text>
+              </View>
+              <View style={styles.divider} />
+            </>
+          ) : null}
 
           <View style={styles.reviewsSection}>
-            {exampleReviews.map((r) => (
+            {reviews.map((r) => (
               <View key={r.id} style={styles.reviewItem}>
                 <View style={styles.reviewHeader}>
-                  <Image source={r.avatarSource} style={styles.reviewAvatar} resizeMode="cover" />
+                  <Image
+                    source={
+                      r.avatarUrl
+                        ? { uri: r.avatarUrl }
+                        : require('../assets/icons/profile-avatar.png')
+                    }
+                    style={styles.reviewAvatar}
+                    resizeMode="cover"
+                  />
                   <View style={styles.reviewHeaderText}>
                     <Text style={styles.reviewUserName} numberOfLines={1}>
                       {r.userName}
@@ -163,8 +338,17 @@ export default function Book() {
         visible={moveSheetVisible && libraryShelf != null}
         bookTitle={book.title}
         list={libraryShelf}
-        onMoveToShelf={(target) => {
-          setLibraryShelf(target);
+        onMoveToShelf={async (target) => {
+          if (!resolvedBookId) {
+            return;
+          }
+          await moveBookInLibrary({
+            bookId: resolvedBookId,
+            status: LIBRARY_STATUS[target],
+            statusName: target,
+          }).unwrap();
+          setLibraryShelfLocal(target);
+          await refetchBook();
           setMoveSheetVisible(false);
         }}
         onDelete={onRemoveFromLibrary}
@@ -203,6 +387,31 @@ const styles = StyleSheet.create({
   cover: {
     width: '100%',
     height: '100%',
+  },
+  fallbackCover: {
+    width: '100%',
+    height: '100%',
+    paddingHorizontal: '9%',
+    paddingVertical: '11%',
+    justifyContent: 'space-between',
+    backgroundColor: '#CCB985',
+    borderWidth: 1,
+    borderColor: '#CAC7B9',
+  },
+  fallbackCoverTitle: {
+    fontSize: 20,
+    lineHeight: 20,
+    color: '#2D2800',
+    fontFamily: 'Mak',
+    fontWeight: 400,
+  },
+  fallbackCoverAuthor: {
+    fontSize: 16, 
+    lineHeight: 19,
+    color: '#565d3f',
+    fontFamily: 'Playfair',
+    fontWeight: 400,
+    opacity: 0.9,
   },
   ratingOval: {
     flexDirection: 'row',
